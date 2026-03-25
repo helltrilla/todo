@@ -1,5 +1,9 @@
+import 'package:calendar_date_picker2/calendar_date_picker2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:todo/layers/view/shared/ui/priority_card.dart';
+
+final today = DateUtils.dateOnly(DateTime.now());
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -105,15 +109,115 @@ class HomeScreen extends StatelessWidget {
                                 ),
                               ),
                               Container(
-                                margin: EdgeInsets.only(left: 25),
+                                margin: EdgeInsets.only(left: 20),
                                 child: Row(
                                   children: [
-                                    Icon(Icons.timer, color: Colors.white),
-                                    SizedBox(width: 56),
+                                    IconButton(
+                                      icon: Icon(Icons.timer),
+                                      color: Colors.white,
+                                      onPressed: () {
+                                        showCalendarDatePicker2Dialog(
+                                          value: [],
+                                          config:
+                                              CalendarDatePicker2WithActionButtonsConfig(
+                                                firstDayOfWeek: 1,
+                                                calendarType:
+                                                    CalendarDatePicker2Type
+                                                        .single,
+                                                selectedDayTextStyle: TextStyle(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                                selectedDayHighlightColor:
+                                                    Colors.purple[800],
+                                                centerAlignModePicker: true,
+                                                customModePickerIcon:
+                                                    SizedBox(),
+                                              ),
+                                          context: context,
+                                          dialogSize: const Size(11, 11),
+                                        );
+                                      },
+                                    ),
+                                    SizedBox(width: 46),
                                     Icon(Icons.label, color: Colors.white),
                                     SizedBox(width: 56),
-                                    Icon(Icons.flag, color: Colors.white),
-                                    SizedBox(width: 136),
+                                    IconButton(
+                                      icon: Icon(Icons.flag),
+                                      color: Colors.white,
+                                      onPressed: () => showDialog<String>(
+                                        context: context,
+                                        builder: (BuildContext context) =>
+                                            AlertDialog(
+                                              backgroundColor: Color.fromARGB(
+                                                255,
+                                                54,
+                                                54,
+                                                54,
+                                              ),
+                                              content: Container(
+                                                height: 260,
+                                                width: 327,
+                                                child: Column(
+                                                  children: [
+                                                    Row(
+                                                      children: [
+                                                        Expanded(
+                                                          child: TaskCard(),
+                                                        ),
+                                                        Expanded(
+                                                          child: TaskCard(),
+                                                        ),
+                                                        Expanded(
+                                                          child: TaskCard(),
+                                                        ),
+                                                        Expanded(
+                                                          child: TaskCard(),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              title: Container(
+                                                alignment: Alignment.center,
+                                                child: Text(
+                                                  'Task Priority',
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 16,
+                                                  ),
+                                                ),
+                                              ),
+                                              actions: <Widget>[
+                                                Row(
+                                                  children: [
+                                                    TextButton(
+                                                      onPressed: () =>
+                                                          Navigator.pop(
+                                                            context,
+                                                            'Cancel',
+                                                          ),
+                                                      child: const Text(
+                                                        'Cancel',
+                                                      ),
+                                                    ),
+                                                    Spacer(),
+                                                    TextButton(
+                                                      onPressed: () =>
+                                                          Navigator.pop(
+                                                            context,
+                                                            'Save',
+                                                          ),
+                                                      child: const Text('Save'),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ],
+                                            ),
+                                      ),
+                                    ),
+                                    SizedBox(width: 115),
                                     IconButton(
                                       onPressed: () {},
                                       icon: Icon(Icons.send),
