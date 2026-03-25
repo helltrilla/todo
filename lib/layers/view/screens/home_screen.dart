@@ -54,28 +54,76 @@ class HomeScreen extends StatelessWidget {
                       backgroundColor: Color.fromARGB(255, 54, 54, 54),
                       context: context,
                       builder: (BuildContext context) {
-                        return Column(
-                          children: [
-                            Container(
-                              margin: EdgeInsets.only(right: 280, top: 30),
-                              child: Text(
-                                'Add task',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
+                        return Container(
+                          height: 300,
+                          width: double.infinity,
+                          child: Column(
+                            children: [
+                              Container(
+                                margin: EdgeInsets.only(right: 280, top: 30),
+                                child: Text(
+                                  'Add task',
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
                                 ),
                               ),
-                            ),
-                            SizedBox(height: 12,),
-                            Container(
-                              height: 228,
-                              width: double.infinity,
-                              child: TextField(
-                                style: TextStyle(color: Colors.white),
+                              SizedBox(height: 12),
+                              Container(
+                                width: 360,
+                                height: 43,
+                                child: TextField(
+                                  obscureText: false,
+                                  style: TextStyle(color: Colors.white),
+                                  decoration: InputDecoration(
+                                    border: OutlineInputBorder(),
+                                    labelText: 'Task',
+                                    labelStyle: TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
                               ),
-                            ),
-                          ],
+                              SizedBox(height: 20),
+                              Container(
+                                width: 360,
+                                height: 43,
+                                child: TextField(
+                                  obscureText: false,
+                                  style: TextStyle(color: Colors.white),
+                                  decoration: InputDecoration(
+                                    border: OutlineInputBorder(),
+                                    labelText: 'Description',
+                                    labelStyle: TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                margin: EdgeInsets.only(left: 25),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.timer, color: Colors.white),
+                                    SizedBox(width: 56),
+                                    Icon(Icons.label, color: Colors.white),
+                                    SizedBox(width: 56),
+                                    Icon(Icons.flag, color: Colors.white),
+                                    SizedBox(width: 136),
+                                    IconButton(
+                                      onPressed: () {},
+                                      icon: Icon(Icons.send),
+                                      color: Colors.deepPurpleAccent,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         );
                       },
                     );
