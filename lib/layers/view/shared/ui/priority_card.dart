@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+// ты чет название перепутал
 class TaskCard extends StatefulWidget {
   const TaskCard({super.key});
 
@@ -13,7 +14,7 @@ class _TaskCardState extends State<TaskCard> {
   Widget build(BuildContext context) {
     return Center(
       child: GestureDetector(
-        onTap: (){
+        onTap: () {
           setState(() {
             isActive = !isActive;
           });
@@ -22,14 +23,14 @@ class _TaskCardState extends State<TaskCard> {
           width: 64,
           height: 64,
           decoration: BoxDecoration(
-            color: isActive ? Colors.deepPurpleAccent : Color.fromARGB(255, 70, 70, 70),
+            color: isActive
+                ? Colors.deepPurpleAccent
+                : Color.fromARGB(255, 70, 70, 70),
             borderRadius: BorderRadiusDirectional.circular(12),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.flag, color: Colors.white,),
-            ],
+            children: [Icon(Icons.flag, color: Colors.white)],
           ),
         ),
       ),

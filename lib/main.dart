@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:todo/core/app_router/app_router.dart';
-import 'package:todo/layers/view/screens/home_screen.dart';
-import 'package:go_router/go_router.dart';
+import 'package:todo/core/app_theme/theme.dart';
+
 void main() {
   runApp(const MainApp());
 }
@@ -11,6 +11,11 @@ class MainApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp.router(routerConfig: AppRouter.router);
+    return MaterialApp.router(
+      // и так прокидываешь тему
+      theme: AppTheme.dark,
+      debugShowCheckedModeBanner: false,
+      routerConfig: AppRouter.router,
+    );
   }
 }

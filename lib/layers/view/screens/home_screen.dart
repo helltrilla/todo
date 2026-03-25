@@ -10,6 +10,7 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // используй padding в то хуйня получается
     return Scaffold(
       backgroundColor: CupertinoColors.darkBackgroundGray,
       body: Stack(
@@ -58,7 +59,11 @@ class HomeScreen extends StatelessWidget {
                       backgroundColor: Color.fromARGB(255, 54, 54, 54),
                       context: context,
                       builder: (BuildContext context) {
-                        return Container(
+                        // это выносишь либо в отдельный виджет либо как _buildAddTask
+
+                        // если прсто размер то лучше Sisedbox
+                        return SizedBox(
+                          // и размеры хардкодить лучше не надо а то на других устройствах будут ошибки либо если данных будет больше чем нужно
                           height: 300,
                           width: double.infinity,
                           child: Column(
@@ -75,12 +80,13 @@ class HomeScreen extends StatelessWidget {
                                 ),
                               ),
                               SizedBox(height: 12),
-                              Container(
+                              SizedBox(
                                 width: 360,
                                 height: 43,
                                 child: TextField(
                                   obscureText: false,
                                   style: TextStyle(color: Colors.white),
+                                  // InputDecoration можно тоже указать в AppTheme
                                   decoration: InputDecoration(
                                     border: OutlineInputBorder(),
                                     labelText: 'Task',
@@ -92,7 +98,7 @@ class HomeScreen extends StatelessWidget {
                                 ),
                               ),
                               SizedBox(height: 20),
-                              Container(
+                              SizedBox(
                                 width: 360,
                                 height: 43,
                                 child: TextField(
@@ -148,6 +154,7 @@ class HomeScreen extends StatelessWidget {
                                       onPressed: () => showDialog<String>(
                                         context: context,
                                         builder: (BuildContext context) =>
+                                            // тоже в отдельный виджет или метод
                                             AlertDialog(
                                               backgroundColor: Color.fromARGB(
                                                 255,
@@ -155,29 +162,31 @@ class HomeScreen extends StatelessWidget {
                                                 54,
                                                 54,
                                               ),
-                                              content: Container(
+                                              content: SizedBox(
                                                 height: 260,
                                                 width: 327,
-                                                child: Column(
-                                                  children: [
-                                                    Row(
+                                                child:
+                                                    // тут через gridview нужно, желательно .builder так пизже для оптимизации
+                                                    Column(
                                                       children: [
-                                                        Expanded(
-                                                          child: TaskCard(),
-                                                        ),
-                                                        Expanded(
-                                                          child: TaskCard(),
-                                                        ),
-                                                        Expanded(
-                                                          child: TaskCard(),
-                                                        ),
-                                                        Expanded(
-                                                          child: TaskCard(),
+                                                        Row(
+                                                          children: [
+                                                            Expanded(
+                                                              child: TaskCard(),
+                                                            ),
+                                                            Expanded(
+                                                              child: TaskCard(),
+                                                            ),
+                                                            Expanded(
+                                                              child: TaskCard(),
+                                                            ),
+                                                            Expanded(
+                                                              child: TaskCard(),
+                                                            ),
+                                                          ],
                                                         ),
                                                       ],
                                                     ),
-                                                  ],
-                                                ),
                                               ),
                                               title: Container(
                                                 alignment: Alignment.center,
@@ -194,6 +203,7 @@ class HomeScreen extends StatelessWidget {
                                                   children: [
                                                     TextButton(
                                                       onPressed: () =>
+                                                          // бля ты используешь go_router надо context.pop()
                                                           Navigator.pop(
                                                             context,
                                                             'Cancel',
@@ -205,6 +215,7 @@ class HomeScreen extends StatelessWidget {
                                                     Spacer(),
                                                     TextButton(
                                                       onPressed: () =>
+                                                          //
                                                           Navigator.pop(
                                                             context,
                                                             'Save',
@@ -217,7 +228,9 @@ class HomeScreen extends StatelessWidget {
                                             ),
                                       ),
                                     ),
-                                    SizedBox(width: 115),
+                                    // SizedBox(width: 115),
+                                    // есть виджет spacer называется он занимет все пространство между виджетами и отделяет его в край
+                                    Spacer(),
                                     IconButton(
                                       onPressed: () {},
                                       icon: Icon(Icons.send),
