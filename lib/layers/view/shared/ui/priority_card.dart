@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:todo/core/app_theme/app_colors.dart';
+
 
 class PriorityCard extends StatefulWidget {
   const PriorityCard({super.key});
@@ -23,13 +25,13 @@ class _TaskCardState extends State<PriorityCard> {
           height: 64,
           decoration: BoxDecoration(
             color: isActive
-                ? Colors.deepPurpleAccent
-                : Color.fromARGB(255, 70, 70, 70),
+                ? AppColors.active
+                : AppColors.unactive,
             borderRadius: BorderRadiusDirectional.circular(12),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: [Icon(Icons.flag, color: Colors.white)],
+            children: [Icon(Icons.flag, color: AppColors.white)],
           ),
         ),
       ),
