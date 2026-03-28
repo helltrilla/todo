@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 
-// ты чет название перепутал
-class TaskCard extends StatefulWidget {
-  const TaskCard({super.key});
+class PriorityCard extends StatefulWidget {
+  const PriorityCard({super.key});
 
   @override
-  State<TaskCard> createState() => _TaskCardState();
+  State<PriorityCard> createState() => _TaskCardState();
 }
 
-class _TaskCardState extends State<TaskCard> {
+class _TaskCardState extends State<PriorityCard> {
   bool isActive = false;
   @override
   Widget build(BuildContext context) {

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:todo/core/app_router/app_router.dart';
-import 'package:todo/core/app_theme/theme.dart';
+import 'package:todo/core/app_theme/app_theme.dart';
 
 void main() {
   runApp(const MainApp());
