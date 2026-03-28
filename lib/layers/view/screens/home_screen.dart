@@ -1,7 +1,6 @@
 import 'package:calendar_date_picker2/calendar_date_picker2.dart';
 import 'package:flutter/material.dart' hide Theme;
 import 'package:flutter/cupertino.dart';
-import 'package:todo/core/app_theme/app_theme.dart';
 import 'package:todo/layers/view/shared/ui/priority_card.dart';
 
 final today = DateUtils.dateOnly(DateTime.now());
@@ -161,12 +160,6 @@ class HomeScreen extends StatelessWidget {
                                           builder: (BuildContext context) =>
                                               // тоже в отдельный виджет или метод
                                               AlertDialog(
-                                                backgroundColor: Color.fromARGB(
-                                                  255,
-                                                  54,
-                                                  54,
-                                                  54,
-                                                ),
                                                 content: SizedBox(
                                                   height: 260,
                                                   width: 327,
