@@ -1,18 +1,19 @@
 name: todo
 description: "A new Flutter project."
-publish_to: 'none'
+publish_to: "none"
 version: 0.1.0
 
 environment:
   sdk: ^3.10.7
 
 dependencies:
-  calendar_date_picker2: ^2.0.1
   cupertino_icons: ^1.0.8
   flutter:
     sdk: flutter
   go_router: ^17.1.0
   google_fonts: ^8.0.2
+  provider: ^6.1.5+1
+  shared_preferences: ^2.5.5
 
 dev_dependencies:
   flutter_test:
@@ -22,4 +23,4 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-  - assets/photo/
+    - assets/photo/
