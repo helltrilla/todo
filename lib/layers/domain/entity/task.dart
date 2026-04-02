@@ -6,11 +6,14 @@ class Task {
   final String name;
   final String value;
   final DateTime createAt;
+  final DateTime? duedate;
+
   Task({
     required this.id,
     required this.name,
     required this.createAt,
     required this.value,
+    required this.duedate,
   });
 
   Map<String, dynamic> toMap() {
@@ -19,6 +22,7 @@ class Task {
       'name': name,
       'value': value,
       'createAt': createAt.millisecondsSinceEpoch,
+      'duedate': duedate?.millisecondsSinceEpoch,
     };
   }
 
@@ -28,6 +32,7 @@ class Task {
       name: map['name'] as String,
       value: map['value'] as String,
       createAt: DateTime.fromMillisecondsSinceEpoch(map['createAt'] as int),
+      duedate: map['duedate'] != null ? DateTime.fromMillisecondsSinceEpoch(map['duedate'] as int) : null,
     );
   }
 

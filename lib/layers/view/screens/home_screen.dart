@@ -23,7 +23,11 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       SharedPreferencesAsync().getStringList("tasks").then((e) {
-        tasks = e!.map((e) => Task.fromJson(e)).toList();
+        if (e != null) {
+          tasks = e.map((e) => Task.fromJson(e)).toList();
+        } else {
+          tasks = [];
+        }
         print(tasks);
         setState(() {});
       });
@@ -38,13 +42,15 @@ class _HomeScreenState extends State<HomeScreen> {
           onPressed: () {},
           icon: Icon(Icons.sort, color: AppColors.white),
         ),
+        title: Center(
+          child: Text("Index", style: Theme.of(context).textTheme.titleMedium),
+        ),
         actions: [
           IconButton(
             onPressed: () {},
             icon: Icon(Icons.panorama_fisheye_outlined),
           ),
         ],
-        title: Text("index", style: Theme.of(context).textTheme.titleMedium),
       ),
       body: Padding(
         padding: const EdgeInsets.all(20.0),
@@ -94,10 +100,11 @@ class _CustomCalendarState extends State<CustomCalendar> {
 
   TextEditingController deskContr = TextEditingController();
 
+  DateTime? selectedDate;
+
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      // и размеры хардкодить лучше не надо а то на других устройствах будут ошибки либо если данных будет больше чем нужно
       height: 300,
       width: double.infinity,
       child: Column(
@@ -148,19 +155,43 @@ class _CustomCalendarState extends State<CustomCalendar> {
             child: Row(
               children: [
                 IconButton(
-                  icon: Icon(Icons.timer),
+                  icon: Icon(Icons.calendar_month),
                   color: AppColors.icons,
                   onPressed: () async {
-                    final DateTime? picked = await showDatePicker(
+                    final DateTime? pickedDate = await showDatePicker(
                       context: context,
-                      initialDate: DateTime.now(),
+                      initialDate: selectedDate ?? DateTime.now(),
                       firstDate: DateTime(2000),
                       lastDate: DateTime(2100),
                     );
 
-                    print(picked);
+                    if (pickedDate != null) {
+                      setState(() {
+                        selectedDate = pickedDate;
+                      });
+                    }
                   },
                 ),
+                if (selectedDate != null)
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.bgmain,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _formatDate(selectedDate!),
+                          style: TextStyle(
+                            color: AppColors.maintext,
+                            fontSize: 10,
+                          ),
+                        )
+                      ],
+                    ),
+                  ),
                 SizedBox(width: 46),
                 Icon(Icons.label, color: AppColors.white),
                 SizedBox(width: 56),
@@ -171,16 +202,17 @@ class _CustomCalendarState extends State<CustomCalendar> {
                       builder: (context) => PriorityTaskCard(),
                     );
                   },
-                  icon: Icon(Icons.flag),
+                  icon: Icon(Icons.flag, color: AppColors.icons,),
                 ),
                 Spacer(),
                 IconButton(
                   onPressed: () async {
                     if (taskContr.text.isEmpty && deskContr.text.isEmpty) {
                       context.pop();
-                      ScaffoldMessenger.of(
-                        context,
-                      ).showSnackBar(SnackBar(content: Text(' пусто')));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('чет ебани хотя бы')),
+                      );
+                      return;
                     }
                     // ключ для хранения
                     final key = "tasks";
@@ -193,6 +225,7 @@ class _CustomCalendarState extends State<CustomCalendar> {
                       name: taskContr.text,
                       createAt: DateTime.now(),
                       value: deskContr.text,
+                      duedate: selectedDate,
                     );
                     strList.add(newTask.toJson());
                     // меняем список на новый
@@ -210,5 +243,24 @@ class _CustomCalendarState extends State<CustomCalendar> {
         ],
       ),
     );
+  }
+
+  String _formatDate(DateTime date) {
+    final months = [
+      'января',
+      'февраля',
+      'марта',
+      'апреля',
+      'мая',
+      'июня',
+      'июля',
+      'августа',
+      'сентября',
+      'октября',
+      'ноября',
+      'декабря',
+    ];
+
+    return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
 }

@@ -20,7 +20,6 @@ class _PriorityTaskCardState extends State<PriorityTaskCard> {
           height: 260,
           width: 327,
           child:
-              // тут через gridview нужно, желательно .builder так пизже для оптимизации
               GridView.builder(
                 itemCount: 10,
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
