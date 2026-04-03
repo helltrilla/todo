@@ -4,37 +4,135 @@ import 'package:todo/core/app_theme/app_colors.dart';
 import 'package:todo/layers/domain/entity/task.dart';
 
 class TaskCard extends StatelessWidget {
-  const TaskCard({super.key, required this.task});
+  const TaskCard({super.key, required this.task, this.onDelete});
+  
   final Task task;
+  final VoidCallback? onDelete;
+  
   @override
   Widget build(BuildContext context) {
-    return Container(
-      child: Column(
-        children: [
-          Text(task.name, style: TextStyle(color: AppColors.maintext)),
-          Text(task.value, style: TextStyle(color: AppColors.maintext)),
-          if (task.duedate != null)
-          Text('когда: ${_formatDate(task.duedate!)}', style: TextStyle(color: AppColors.maintext),)
-        ],
+    return Dismissible(
+      key: Key(task.id.toString()), // Уникальный ключ для каждой задачи
+      direction: DismissDirection.endToStart, // Свайп справа налево
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        decoration: BoxDecoration(
+          color: Colors.red,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Icon(
+          Icons.delete,
+          color: Colors.white,
+          size: 30,
+        ),
+      ),
+      onDismissed: (direction) {
+        onDelete?.call(); // Вызываем колбэк удаления
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            // Иконка приоритета
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: task.priority.color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                task.priority.icon,
+                color: task.priority.color,
+                size: 28,
+              ),
+            ),
+            const SizedBox(width: 12),
+            
+            // Информация о задаче
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    task.name,
+                    style: TextStyle(
+                      color: AppColors.maintext,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    task.value,
+                    style: TextStyle(
+                      color: AppColors.maintext.withOpacity(0.7),
+                      fontSize: 14,
+                    ),
+                  ),
+                  if (task.duedate != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'когда: ${_formatDate(task.duedate!)}',
+                      style: TextStyle(
+                        color: AppColors.maintext.withOpacity(0.5),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            
+            // Текст приоритета
+            if (task.hasPriority)
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                decoration: BoxDecoration(
+                  color: task.priority.color.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: task.priority.color,
+                    width: 1,
+                  ),
+                ),
+                child: Text(
+                  task.priority.label,
+                  style: TextStyle(
+                    color: task.priority.color,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
 }
-  String _formatDate(DateTime date) {
-    final months = [
-      'января',
-      'февраля',
-      'марта',
-      'апреля',
-      'мая',
-      'июня',
-      'июля',
-      'августа',
-      'сентября',
-      'октября',
-      'ноября',
-      'декабря',
-    ];
 
-    return '${date.day} ${months[date.month - 1]} ${date.year}';
-  }
+String _formatDate(DateTime date) {
+  const months = [
+    'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+    'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря',
+  ];
+
+  return '${date.day} ${months[date.month - 1]} ${date.year}';
+}
+
+      // return Container(
+    //   child: Column(
+    //     children: [
+    //       Text(task.name, style: TextStyle(color: AppColors.maintext)),
+    //       Text(task.value, style: TextStyle(color: AppColors.maintext)),
+    //       if (task.duedate != null)
+    //       Text('когда: ${_formatDate(task.duedate!)}', style: TextStyle(color: AppColors.maintext),)
+    //     ],
+    //   ),
+    // );

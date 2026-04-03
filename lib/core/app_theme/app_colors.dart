@@ -17,4 +17,5 @@ class AppColors {
   static const Color active = Colors.deepPurpleAccent;
   static const Color unactive = Color.fromARGB(255, 70, 70, 70);
   static const Color transparent = Colors.transparent;
+  static const Color surface = Color.fromARGB(255, 70, 70, 70);
 }

@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:todo/core/app_theme/app_colors.dart';
+import 'package:todo/layers/domain/entity/priority_level.dart';
 import 'package:todo/layers/domain/entity/task.dart';
 import 'package:todo/layers/view/shared/widgets/priority_task_card.dart';
 import 'package:todo/layers/view/shared/widgets/task_card.dart';
@@ -18,6 +19,48 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   List<Task> tasks = [];
+
+  Future<void> _loadTasks() async {
+    final List<String>? taskStrings = await SharedPreferencesAsync()
+        .getStringList("tasks");
+    if (taskStrings != null) {
+      setState(() {
+        tasks = taskStrings.map((e) => Task.fromJson(e)).toList();
+      });
+    }
+  }
+
+  Future<void> _deleteTask(Task task,int index) async {
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('удалить задачу ебаную'),
+        content: Text('уверен что хочешь уебать эту?)"${tasks[index].name}"'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('АТМЕНА'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: Text('да снести к хуям'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      tasks.removeAt(index);
+
+      const key = "tasks";
+      List<String> strList = tasks.map((task) => task.toJson()).toList();
+      await SharedPreferencesAsync().setStringList(key, strList);
+
+      setState(() {});
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -57,15 +100,34 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Stack(
           alignment: AlignmentGeometry.bottomCenter,
           children: [
-            ListView.separated(
-              separatorBuilder: (context, index) => Container(
-                width: double.infinity,
-                color: Colors.white,
-                height: 1,
-              ),
-              itemCount: tasks.length,
-              itemBuilder: (context, index) => TaskCard(task: tasks[index]),
-            ),
+            tasks.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.check_circle_outline,
+                          size: 80,
+                          color: AppColors.icons,
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.separated(
+                  padding: const EdgeInsets.only(bottom: 100),
+                    separatorBuilder: (context, index) => Container(
+                      width: double.infinity,
+                      color: Colors.white,
+                      height: 1,
+                    ),
+                    itemCount: tasks.length,
+                    itemBuilder: (context, index) {
+                      return TaskCard(
+                        task: tasks[index],
+                        onDelete: () => _deleteTask(tasks[index], index),
+                      );
+                    }
+                  ),
             Positioned(
               child: FloatingActionButton.large(
                 backgroundColor: AppColors.active,
@@ -78,6 +140,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       return CustomCalendar();
                     },
                   );
+                  _loadTasks();
                 },
               ),
             ),
@@ -97,15 +160,13 @@ class CustomCalendar extends StatefulWidget {
 
 class _CustomCalendarState extends State<CustomCalendar> {
   TextEditingController taskContr = TextEditingController();
-
   TextEditingController deskContr = TextEditingController();
-
   DateTime? selectedDate;
-
+  int _selectedPriorityIndex = -1;
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 300,
+      height: 380,
       width: double.infinity,
       child: Column(
         children: [
@@ -150,6 +211,43 @@ class _CustomCalendarState extends State<CustomCalendar> {
               ),
             ),
           ),
+          const SizedBox(height: 10),
+          if (_selectedPriorityIndex != -1)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 20),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: PriorityLevel.fromIndex(
+                  _selectedPriorityIndex,
+                ).color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: PriorityLevel.fromIndex(_selectedPriorityIndex).color,
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    PriorityLevel.fromIndex(_selectedPriorityIndex).icon,
+                    color: PriorityLevel.fromIndex(
+                      _selectedPriorityIndex,
+                    ).color,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    PriorityLevel.fromIndex(_selectedPriorityIndex).label,
+                    style: TextStyle(
+                      color: PriorityLevel.fromIndex(
+                        _selectedPriorityIndex,
+                      ).color,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 10),
           Container(
             margin: EdgeInsets.only(left: 20),
             child: Row(
@@ -188,7 +286,7 @@ class _CustomCalendarState extends State<CustomCalendar> {
                             color: AppColors.maintext,
                             fontSize: 10,
                           ),
-                        )
+                        ),
                       ],
                     ),
                   ),
@@ -196,15 +294,25 @@ class _CustomCalendarState extends State<CustomCalendar> {
                 Icon(Icons.label, color: AppColors.white),
                 SizedBox(width: 56),
                 IconButton(
-                  onPressed: () {
-                    showDialog(
+                  onPressed: () async {
+                    final result = await showDialog<int>(
                       context: context,
-                      builder: (context) => PriorityTaskCard(),
+                      builder: (context) => const PriorityTaskCard(),
                     );
+                    if (result != null) {
+                      setState(() {
+                        _selectedPriorityIndex = result;
+                      });
+                    }
                   },
-                  icon: Icon(Icons.flag, color: AppColors.icons,),
+                  icon: Icon(
+                    Icons.flag,
+                    color: _selectedPriorityIndex != -1
+                        ? PriorityLevel.fromIndex(_selectedPriorityIndex).color
+                        : AppColors.icons,
+                  ),
                 ),
-                Spacer(),
+                const Spacer(),
                 IconButton(
                   onPressed: () async {
                     if (taskContr.text.isEmpty && deskContr.text.isEmpty) {
@@ -215,7 +323,7 @@ class _CustomCalendarState extends State<CustomCalendar> {
                       return;
                     }
                     // ключ для хранения
-                    final key = "tasks";
+                    const key = "tasks";
                     // получаем то что уже есть у нас
                     List<String> strList =
                         await SharedPreferencesAsync().getStringList(key) ?? [];
@@ -226,11 +334,11 @@ class _CustomCalendarState extends State<CustomCalendar> {
                       createAt: DateTime.now(),
                       value: deskContr.text,
                       duedate: selectedDate,
+                      priorityIndex: _selectedPriorityIndex,
                     );
                     strList.add(newTask.toJson());
                     // меняем список на новый
                     await SharedPreferencesAsync().setStringList(key, strList);
-
                     print(strList);
                     context.pop();
                   },
