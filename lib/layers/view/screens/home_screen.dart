@@ -8,7 +8,10 @@ import 'package:todo/layers/domain/entity/task.dart';
 import 'package:todo/layers/view/shared/widgets/priority_task_card.dart';
 import 'package:todo/layers/view/shared/widgets/task_card.dart';
 
-final today = DateUtils.dateOnly(DateTime.now());
+// теперь перенеси все методы по работе с данными в отдельный класс, например TaskRepository, который будет отвечать за загрузку, сохранение и удаление задач. Это поможет разделить логику и UI, а также упростит тестирование и поддержку кода.
+
+// final today = DateUtils.dateOnly(DateTime.now());
+// тут это нахуя?
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -30,7 +33,10 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _deleteTask(Task task,int index) async {
+  Future<void> _deleteTask(Task task, int index) async {
+    // нужно разделять ui и логику
+
+    //вызываем отдельно этот диолог и после если true то уже удаляем, а так получается что мы вызываем диалог и удаляем в одном методе, а это не правильно, нужно разделять логику и ui
     final bool? confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -51,8 +57,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
 
     if (confirm == true) {
+      // удаляем таску из списка
       tasks.removeAt(index);
-
       const key = "tasks";
       List<String> strList = tasks.map((task) => task.toJson()).toList();
       await SharedPreferencesAsync().setStringList(key, strList);
@@ -71,7 +77,6 @@ class _HomeScreenState extends State<HomeScreen> {
         } else {
           tasks = [];
         }
-        print(tasks);
         setState(() {});
       });
     });
@@ -114,7 +119,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   )
                 : ListView.separated(
-                  padding: const EdgeInsets.only(bottom: 100),
+                    padding: const EdgeInsets.only(bottom: 100),
                     separatorBuilder: (context, index) => Container(
                       width: double.infinity,
                       color: Colors.white,
@@ -126,7 +131,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         task: tasks[index],
                         onDelete: () => _deleteTask(tasks[index], index),
                       );
-                    }
+                    },
                   ),
             Positioned(
               child: FloatingActionButton.large(
