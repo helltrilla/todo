@@ -12,8 +12,8 @@ class TaskCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Dismissible(
-      key: Key(task.id.toString()), // Уникальный ключ для каждой задачи
-      direction: DismissDirection.endToStart, // Свайп справа налево
+      key: Key(task.id.toString()),
+      direction: DismissDirection.endToStart, 
       background: Container(
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
@@ -28,7 +28,7 @@ class TaskCard extends StatelessWidget {
         ),
       ),
       onDismissed: (direction) {
-        onDelete?.call(); // Вызываем колбэк удаления
+        onDelete?.call();
       },
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -38,7 +38,6 @@ class TaskCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // Иконка приоритета
             Container(
               width: 48,
               height: 48,
@@ -53,8 +52,6 @@ class TaskCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 12),
-            
-            // Информация о задаче
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -88,8 +85,6 @@ class TaskCard extends StatelessWidget {
                 ],
               ),
             ),
-            
-            // Текст приоритета
             if (task.hasPriority)
               Container(
                 padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),

@@ -18,27 +18,10 @@ class Task {
     required this.priorityIndex,
   });
   
-  // Геттер для получения PriorityLevel из индекса
   PriorityLevel get priority => PriorityLevel.fromIndex(priorityIndex);
   
-  // Конструктор-копия
-  Task copyWith({
-    int? id,
-    String? name,
-    String? value,
-    DateTime? createAt,
-    DateTime? duedate,
-    int? priorityIndex,
-  }) {
-    return Task(
-      id: id ?? this.id,
-      name: name ?? this.name,
-      value: value ?? this.value,
-      createAt: createAt ?? this.createAt,
-      duedate: duedate ?? this.duedate,
-      priorityIndex: priorityIndex ?? this.priorityIndex,
-    );
-  }
+
+
 
   Map<String, dynamic> toMap() {
     return <String, dynamic>{
