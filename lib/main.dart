@@ -12,7 +12,6 @@ class MainApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      // и так прокидываешь тему
       theme: AppTheme.dark,
       debugShowCheckedModeBanner: false,
       routerConfig: AppRouter.router,

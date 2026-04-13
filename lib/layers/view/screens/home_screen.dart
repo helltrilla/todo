@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:todo/core/app_theme/app_colors.dart';
 import 'package:todo/layers/domain/entity/priority_level.dart';
 import 'package:todo/layers/domain/entity/task.dart';
+import 'package:todo/layers/domain/repository/task_repository.dart';
 import 'package:todo/layers/view/shared/widgets/priority_task_card.dart';
 import 'package:todo/layers/view/shared/widgets/task_card.dart';
 
@@ -21,17 +22,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  List<Task> tasks = [];
 
-  Future<void> _loadTasks() async {
-    final List<String>? taskStrings = await SharedPreferencesAsync()
-        .getStringList("tasks");
-    if (taskStrings != null) {
-      setState(() {
-        tasks = taskStrings.map((e) => Task.fromJson(e)).toList();
-      });
-    }
-  }
 
   Future<void> _deleteTask(Task task, int index) async {
     // нужно разделять ui и логику
@@ -41,7 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('удалить задачу ебаную'),
-        content: Text('уверен что хочешь уебать эту?)"${tasks[index].name}"'),
+        content: Text('уверен что хочешь уебать эту?"${tasks[index].name}"'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -145,7 +136,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       return CustomCalendar();
                     },
                   );
-                  _loadTasks();
+                  TaskRepository().getTasks();
                 },
               ),
             ),
