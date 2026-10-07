@@ -1,6 +1,6 @@
 import 'package:go_router/go_router.dart';
 import 'package:todo/core/app_router/app_router_names.dart';
-import 'package:todo/layers/view/screens/home_screen.dart';
+import 'package:todo/features/tasks/presentation/screens/home_screen.dart';
 
 class AppRouter {
   static GoRouter get router => GoRouter(
