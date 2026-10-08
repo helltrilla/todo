@@ -1,0 +1,142 @@
+name: Build & Publish Release (Android & iOS)
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "Release tag (e.g. v1.0.0)"
+        required: true
+        default: "v1.0.0"
+
+permissions:
+  contents: write
+
+jobs:
+  build-android:
+    name: Build Android APK & AAB
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run tests
+        run: flutter test
+
+      - name: Build Android Release APK & AppBundle
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            TAG="${{ github.event.inputs.tag_name }}"
+          fi
+          flutter build apk --release
+          flutter build appbundle --release
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-release.apk "dist/TodoApp-${TAG}-android.apk"
+          cp build/app/outputs/bundle/release/app-release.aab "dist/TodoApp-${TAG}-android.aab"
+
+      - name: Upload Android artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-release
+          path: dist/*
+
+  build-ios:
+    name: Build iOS Unsigned IPA & Simulator App
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build iOS Release (No Codesign) & Package IPA
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            TAG="${{ github.event.inputs.tag_name }}"
+          fi
+          flutter build ios --release --no-codesign
+          mkdir -p Payload dist
+          cp -r build/ios/iphoneos/Runner.app Payload/
+          zip -r -q "dist/TodoApp-${TAG}-ios-unsigned.ipa" Payload
+          rm -rf Payload
+
+          flutter build ios --simulator
+          cd build/ios/iphonesimulator
+          zip -r -q "../../../dist/TodoApp-${TAG}-ios-simulator.zip" Runner.app
+
+      - name: Upload iOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-release
+          path: dist/*
+
+  publish-release:
+    name: Create GitHub Release
+    needs: [build-android, build-ios]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag_name || github.ref_name }}
+          name: "TodoApp ${{ github.event.inputs.tag_name || github.ref_name }}"
+          files: artifacts/*
+          generate_release_notes: true
+          body: |
+            ## TodoApp ${{ github.event.inputs.tag_name || github.ref_name }}
+
+            ### Что входит в релиз (Русский)
+            - **Онбординг при первом запуске** (3 интерактивных слайда).
+            - **Двухрежимная авторизация**: вход по 6-значному коду через **Supabase Email OTP** + офлайн локальный профиль.
+            - **Задачи и подзадачи (чек-листы)** с прогрессом `X/Y` и автозавершением.
+            - **Кастомные категории** (12 иконок и 10 цветов) + глобальная категория «Общее».
+            - **4 уровня приоритета** (`Срочно 🔥`, `Высокий ⚡`, `Средний 📌`, `Низкий 🌿`).
+            - **Календарь по дням** + выбор времени с барабанами в стиле iOS (`CupertinoPicker`).
+            - **Режим фокуса (Pomodoro-таймер)** и **Архив выполненных задач** по свайпу вправо.
+
+            #### Файлы для скачивания:
+            - **Android (`.apk`)**: `TodoApp-*-android.apk` — готовый установочный файл для любого Android-устройства.
+            - **Android (`.aab`)**: `TodoApp-*-android.aab` — пакет для публикации в Google Play.
+            - **iOS (`.ipa`)**: `TodoApp-*-ios-unsigned.ipa` — неподписанный IPA для установки через *AltStore / Sideloadly / TrollStore*.
+            - **iOS Simulator (`.zip`)**: `TodoApp-*-ios-simulator.zip` — сборка для запуска в симуляторе iOS на macOS.
+
+            ---
+
+            ### Release Highlights (English)
+            - **First-launch Onboarding** walkthrough.
+            - **Dual Authentication**: 6-digit **Supabase Email OTP** verification + offline local profile.
+            - **Smart Tasks & Subtasks** with live progress badge (`X/Y`) and auto-completion.
+            - **Custom Categories** (12 icons & 10 colors) + global "General" category.
+            - **4 Priority Levels**, **Daily Calendar View**, **iOS-style time wheels**, **Pomodoro Focus Timer**, and **Task Archive**.
