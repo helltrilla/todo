@@ -1,7 +1,8 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:todo/core/app_theme/app_colors.dart';
 
-/// Custom dark calendar + time picker dialog styled after the Listodo UI Kit.
+/// Custom dark calendar + iOS-style dual wheel time picker dialog.
 /// Returns the selected [DateTime] (with hour & minute) when the user taps Save.
 class ListodoCalendarDialog extends StatefulWidget {
   const ListodoCalendarDialog({super.key, this.initialDate});
@@ -17,6 +18,8 @@ class _ListodoCalendarDialogState extends State<ListodoCalendarDialog> {
   late DateTime _selectedDate;
   late int _selectedHour;
   late int _selectedMinute;
+  late FixedExtentScrollController _hourController;
+  late FixedExtentScrollController _minuteController;
 
   static const _monthNames = [
     'Январь',
@@ -43,6 +46,17 @@ class _ListodoCalendarDialogState extends State<ListodoCalendarDialog> {
     _displayedMonth = DateTime(base.year, base.month);
     _selectedHour = base.hour;
     _selectedMinute = base.minute;
+    _hourController = FixedExtentScrollController(initialItem: _selectedHour);
+    _minuteController = FixedExtentScrollController(
+      initialItem: _selectedMinute,
+    );
+  }
+
+  @override
+  void dispose() {
+    _hourController.dispose();
+    _minuteController.dispose();
+    super.dispose();
   }
 
   void _changeMonth(int offset) {
@@ -58,20 +72,6 @@ class _ListodoCalendarDialogState extends State<ListodoCalendarDialog> {
     setState(() {
       _selectedDate = DateTime(target.year, target.month, target.day);
       _displayedMonth = DateTime(target.year, target.month);
-    });
-  }
-
-  void _adjustHour(int delta) {
-    setState(() {
-      _selectedHour = (_selectedHour + delta) % 24;
-      if (_selectedHour < 0) _selectedHour += 24;
-    });
-  }
-
-  void _adjustMinute(int delta) {
-    setState(() {
-      _selectedMinute = (_selectedMinute + delta) % 60;
-      if (_selectedMinute < 0) _selectedMinute += 60;
     });
   }
 
@@ -100,7 +100,7 @@ class _ListodoCalendarDialogState extends State<ListodoCalendarDialog> {
       _displayedMonth.year,
       _displayedMonth.month,
       1,
-    ).weekday; // 1 = Monday .. 7 = Sunday
+    ).weekday;
     final leadingEmpty = firstWeekday - 1;
 
     return Dialog(
@@ -142,7 +142,7 @@ class _ListodoCalendarDialogState extends State<ListodoCalendarDialog> {
                   ),
                 ],
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
 
               // Month navigation header
               Row(
@@ -185,7 +185,7 @@ class _ListodoCalendarDialogState extends State<ListodoCalendarDialog> {
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
 
               // Weekday labels
               Row(
@@ -206,7 +206,7 @@ class _ListodoCalendarDialogState extends State<ListodoCalendarDialog> {
                   );
                 }).toList(),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
 
               // Calendar days grid
               GridView.builder(
@@ -273,58 +273,113 @@ class _ListodoCalendarDialogState extends State<ListodoCalendarDialog> {
               const Divider(color: Colors.white12, height: 1),
               const SizedBox(height: 12),
 
-              // Time Picker (Hours : Minutes)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              // iOS-style Dual Wheel Time Picker (Hours & Minutes)
+              const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.access_time_rounded,
-                        color: AppColors.accentYellow,
-                        size: 18,
-                      ),
-                      SizedBox(width: 6),
-                      Text(
-                        'Время',
-                        style: TextStyle(
-                          color: AppColors.maintext,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
+                  Icon(
+                    Icons.access_time_rounded,
+                    color: AppColors.accentYellow,
+                    size: 16,
                   ),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _TimeSpinBox(
-                        value: _selectedHour.toString().padLeft(2, '0'),
-                        onIncrement: () => _adjustHour(1),
-                        onDecrement: () => _adjustHour(-1),
+                  SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      'Время',
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: AppColors.labeltext,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
                       ),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 4),
-                        child: Text(
-                          ':',
-                          style: TextStyle(
-                            color: AppColors.maintext,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      _TimeSpinBox(
-                        value: _selectedMinute.toString().padLeft(2, '0'),
-                        onIncrement: () => _adjustMinute(5),
-                        onDecrement: () => _adjustMinute(-5),
-                      ),
-                    ],
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 6),
+              Container(
+                height: 90,
+                decoration: BoxDecoration(
+                  color: AppColors.bgmain,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white12),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: CupertinoPicker(
+                        scrollController: _hourController,
+                        itemExtent: 30,
+                        looping: true,
+                        selectionOverlay:
+                            const CupertinoPickerDefaultSelectionOverlay(
+                              background: Color(0x228875FF),
+                            ),
+                        onSelectedItemChanged: (index) {
+                          setState(() => _selectedHour = index);
+                        },
+                        children: List.generate(24, (hour) {
+                          final isCurrent = hour == _selectedHour;
+                          return Center(
+                            child: Text(
+                              '${hour.toString().padLeft(2, '0')} ч',
+                              style: TextStyle(
+                                color: isCurrent
+                                    ? AppColors.accentYellow
+                                    : AppColors.maintext,
+                                fontSize: isCurrent ? 16 : 14,
+                                fontWeight: isCurrent
+                                    ? FontWeight.w700
+                                    : FontWeight.w400,
+                              ),
+                            ),
+                          );
+                        }),
+                      ),
+                    ),
+                    const Text(
+                      ':',
+                      style: TextStyle(
+                        color: AppColors.accentYellow,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Expanded(
+                      child: CupertinoPicker(
+                        scrollController: _minuteController,
+                        itemExtent: 30,
+                        looping: true,
+                        selectionOverlay:
+                            const CupertinoPickerDefaultSelectionOverlay(
+                              background: Color(0x228875FF),
+                            ),
+                        onSelectedItemChanged: (index) {
+                          setState(() => _selectedMinute = index);
+                        },
+                        children: List.generate(60, (minute) {
+                          final isCurrent = minute == _selectedMinute;
+                          return Center(
+                            child: Text(
+                              '${minute.toString().padLeft(2, '0')} мин',
+                              style: TextStyle(
+                                color: isCurrent
+                                    ? AppColors.accentYellow
+                                    : AppColors.maintext,
+                                fontSize: isCurrent ? 16 : 14,
+                                fontWeight: isCurrent
+                                    ? FontWeight.w700
+                                    : FontWeight.w400,
+                              ),
+                            ),
+                          );
+                        }),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
 
               // Action buttons
               Row(
@@ -400,62 +455,6 @@ class _PresetChip extends StatelessWidget {
             fontWeight: FontWeight.w600,
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _TimeSpinBox extends StatelessWidget {
-  const _TimeSpinBox({
-    required this.value,
-    required this.onIncrement,
-    required this.onDecrement,
-  });
-
-  final String value;
-  final VoidCallback onIncrement;
-  final VoidCallback onDecrement;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.bgmain,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.white12),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          InkWell(
-            onTap: onDecrement,
-            borderRadius: BorderRadius.circular(6),
-            child: const Padding(
-              padding: EdgeInsets.all(3),
-              child: Icon(Icons.remove, size: 14, color: AppColors.labeltext),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: Text(
-              value,
-              style: const TextStyle(
-                color: AppColors.maintext,
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          InkWell(
-            onTap: onIncrement,
-            borderRadius: BorderRadius.circular(6),
-            child: const Padding(
-              padding: EdgeInsets.all(3),
-              child: Icon(Icons.add, size: 14, color: AppColors.accentYellow),
-            ),
-          ),
-        ],
       ),
     );
   }

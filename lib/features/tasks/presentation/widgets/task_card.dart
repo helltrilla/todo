@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:todo/core/app_theme/app_colors.dart';
+import 'package:todo/features/tasks/domain/models/priority_level.dart';
 import 'package:todo/features/tasks/domain/models/task.dart';
 
 /// Displays a single clickable task card styled after the Listodo UI Kit:
-/// - Tapping the card opens the edit sheet (`onTap`)
+/// - Left accent bar & border tinted by task priority
 /// - Left: circular completion checkbox (`onToggleComplete`)
 /// - Center: task title, optional description, formatted date & time, and category
-/// - Right: colored priority flag icon
+/// - Right: expressive priority badge with icon and label
 class TaskCard extends StatelessWidget {
   const TaskCard({
     super.key,
@@ -25,6 +26,10 @@ class TaskCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final priority = task.priority;
+    final isUrgent =
+        !task.isCompleted && task.hasPriority && priority == PriorityLevel.p1;
+
     return Dismissible(
       key: ValueKey<int>(task.id),
       direction: DismissDirection.endToStart,
@@ -41,22 +46,48 @@ class TaskCard extends StatelessWidget {
       onDismissed: (_) => onDelete(),
       child: Material(
         color: AppColors.cardBg,
-        borderRadius: BorderRadius.circular(16),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: isUrgent
+                ? priority.color.withValues(alpha: 0.5)
+                : (task.hasPriority && !task.isCompleted
+                      ? priority.color.withValues(alpha: 0.2)
+                      : Colors.transparent),
+            width: isUrgent ? 1.4 : 1.0,
+          ),
+        ),
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(16),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
             child: Row(
               children: [
+                if (task.hasPriority) ...[
+                  Container(
+                    width: 4,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: task.isCompleted
+                          ? priority.color.withValues(alpha: 0.35)
+                          : priority.color,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                ],
                 _CompletionCheckbox(
                   isCompleted: task.isCompleted,
+                  accentColor: task.hasPriority
+                      ? priority.color
+                      : AppColors.active,
                   onTap: onToggleComplete,
                 ),
-                const SizedBox(width: 14),
-                Expanded(child: _TaskInfo(task: task)),
                 const SizedBox(width: 12),
-                _PriorityFlag(task: task),
+                Expanded(child: _TaskInfo(task: task)),
+                const SizedBox(width: 10),
+                _PriorityBadge(task: task),
               ],
             ),
           ),
@@ -67,9 +98,14 @@ class TaskCard extends StatelessWidget {
 }
 
 class _CompletionCheckbox extends StatelessWidget {
-  const _CompletionCheckbox({required this.isCompleted, this.onTap});
+  const _CompletionCheckbox({
+    required this.isCompleted,
+    required this.accentColor,
+    this.onTap,
+  });
 
   final bool isCompleted;
+  final Color accentColor;
   final VoidCallback? onTap;
 
   @override
@@ -83,9 +119,9 @@ class _CompletionCheckbox extends StatelessWidget {
         height: 24,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: isCompleted ? AppColors.active : Colors.transparent,
+          color: isCompleted ? accentColor : Colors.transparent,
           border: Border.all(
-            color: isCompleted ? AppColors.active : Colors.white38,
+            color: isCompleted ? accentColor : Colors.white38,
             width: 1.8,
           ),
         ),
@@ -114,7 +150,7 @@ class _TaskInfo extends StatelessWidget {
           style: TextStyle(
             color: task.isCompleted ? AppColors.labeltext : AppColors.maintext,
             fontSize: 16,
-            fontWeight: FontWeight.w500,
+            fontWeight: FontWeight.w600,
             decoration: task.isCompleted ? TextDecoration.lineThrough : null,
             decorationColor: AppColors.labeltext,
           ),
@@ -131,29 +167,16 @@ class _TaskInfo extends StatelessWidget {
           ),
         ],
         const SizedBox(height: 6),
-        Row(
+        Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             Text(
               _formatDate(displayDate, includeTime: showTime),
               style: const TextStyle(color: AppColors.labeltext, fontSize: 12),
             ),
-            if (task.category.isNotEmpty) ...[
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.06),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  task.category,
-                  style: const TextStyle(
-                    color: AppColors.labeltext,
-                    fontSize: 10,
-                  ),
-                ),
-              ),
-            ],
+            if (task.category.isNotEmpty) _CategoryTag(category: task.category),
           ],
         ),
       ],
@@ -183,16 +206,89 @@ class _TaskInfo extends StatelessWidget {
   }
 }
 
-class _PriorityFlag extends StatelessWidget {
-  const _PriorityFlag({required this.task});
+class _PriorityBadge extends StatelessWidget {
+  const _PriorityBadge({required this.task});
   final Task task;
 
   @override
   Widget build(BuildContext context) {
-    final flagColor = task.hasPriority
-        ? task.priority.color
-        : const Color(0xFFFF5252);
+    final priority = task.priority;
+    if (!task.hasPriority) {
+      return Icon(
+        priority.icon,
+        color: Colors.white.withValues(alpha: 0.25),
+        size: 20,
+      );
+    }
 
-    return Icon(Icons.flag_rounded, color: flagColor, size: 22);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: priority.color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: priority.color.withValues(alpha: 0.45)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(priority.icon, color: priority.color, size: 15),
+          const SizedBox(width: 4),
+          Text(
+            priority.label,
+            style: TextStyle(
+              color: priority.color,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CategoryTag extends StatelessWidget {
+  const _CategoryTag({required this.category});
+  final String category;
+
+  @override
+  Widget build(BuildContext context) {
+    final isGlobal =
+        category.toLowerCase() == 'общее' ||
+        category.toLowerCase() == 'all task';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: isGlobal
+            ? AppColors.active.withValues(alpha: 0.16)
+            : Colors.white.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(8),
+        border: isGlobal
+            ? Border.all(color: AppColors.active.withValues(alpha: 0.4))
+            : null,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (isGlobal) ...[
+            const Icon(
+              Icons.public_rounded,
+              size: 11,
+              color: AppColors.accentYellow,
+            ),
+            const SizedBox(width: 4),
+          ],
+          Text(
+            isGlobal ? 'Общее' : category,
+            style: TextStyle(
+              color: isGlobal ? AppColors.maintext : AppColors.labeltext,
+              fontSize: 10,
+              fontWeight: isGlobal ? FontWeight.w600 : FontWeight.w400,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

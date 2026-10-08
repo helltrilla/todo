@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:todo/core/errors/result.dart';
+import 'package:todo/features/tasks/domain/models/priority_level.dart';
 import 'package:todo/features/tasks/domain/models/task.dart';
 import 'package:todo/features/tasks/domain/repositories/i_task_repository.dart';
 
@@ -15,6 +16,7 @@ class TaskController extends ChangeNotifier {
   final ITaskRepository _repository;
 
   static const String allCategory = 'All Task';
+  static const String globalCategory = 'Общее';
 
   List<Task> _tasks = [];
   List<String> _categories = ['Work', 'Personal'];
@@ -90,6 +92,7 @@ class TaskController extends ChangeNotifier {
     final clean = categoryName.trim();
     if (clean.isEmpty ||
         clean.toLowerCase() == allCategory.toLowerCase() ||
+        clean.toLowerCase() == globalCategory.toLowerCase() ||
         _categories.any((c) => c.toLowerCase() == clean.toLowerCase())) {
       return;
     }
@@ -113,9 +116,7 @@ class TaskController extends ChangeNotifier {
   }) async {
     final effectiveCategory =
         category ??
-        (_selectedCategory != allCategory
-            ? _selectedCategory
-            : (_categories.isNotEmpty ? _categories.first : 'Personal'));
+        (_selectedCategory != allCategory ? _selectedCategory : globalCategory);
 
     final task = Task(
       id: DateTime.now().millisecondsSinceEpoch,
@@ -198,8 +199,16 @@ class TaskController extends ChangeNotifier {
   List<Task> _filteredAndSorted(List<Task> source) {
     final q = _searchQuery.toLowerCase();
     final filtered = source.where((t) {
+      final isGlobalTask =
+          t.category.toLowerCase() == globalCategory.toLowerCase() ||
+          t.category.toLowerCase() == allCategory.toLowerCase();
+      final isCriticalUnfinished =
+          !t.isCompleted && t.priority == PriorityLevel.p1;
+
       final matchesCategory =
           _selectedCategory == allCategory ||
+          isGlobalTask ||
+          isCriticalUnfinished ||
           t.category.toLowerCase() == _selectedCategory.toLowerCase();
       if (!matchesCategory) return false;
 

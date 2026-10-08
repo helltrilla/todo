@@ -1,50 +1,50 @@
 import 'package:flutter/material.dart';
 
+/// Four expressive task priority levels with distinct icons, colors, and descriptions.
 enum PriorityLevel {
-  p1('1', Icons.priority_high, Colors.red),
-  p2('2', Icons.trending_up, Colors.deepOrange),
-  p3('3', Icons.flag, Colors.orange),
-  p4('4', Icons.flag, Colors.amber),
-  p5('5', Icons.flag, Colors.yellow),
-  p6('6', Icons.flag, Colors.yellowAccent),
-  p7('7', Icons.flag, Colors.lightGreen),
-  p8('8', Icons.flag_outlined, Colors.green),
-  p9('9', Icons.flag_outlined, Colors.teal),
-  p10('10', Icons.flag_outlined, Colors.blueGrey),
-  none('—', Icons.flag_outlined, Colors.grey);
+  p1(
+    'Срочно',
+    'Горит — сделать в первую очередь',
+    Color(0xFFFF4D4F),
+    Icons.local_fire_department_rounded,
+  ),
+  p2(
+    'Высокий',
+    'Важная задача с высоким фокусом',
+    Color(0xFFFFA940),
+    Icons.bolt_rounded,
+  ),
+  p3('Средний', 'Обычный приоритет', Color(0xFF8875FF), Icons.flag_rounded),
+  p4(
+    'Низкий',
+    'Можно сделать в свободное время',
+    Color(0xFF2ECC71),
+    Icons.eco_rounded,
+  ),
+  none(
+    'Без приоритета',
+    'Стандартная задача',
+    Color(0xFF6E6E6E),
+    Icons.outlined_flag_rounded,
+  );
 
   final String label;
-  final IconData icon;
+  final String subtitle;
   final Color color;
+  final IconData icon;
 
-  const PriorityLevel(this.label, this.icon, this.color);
+  const PriorityLevel(this.label, this.subtitle, this.color, this.icon);
 
+  /// Selectable levels shown in the picker dialog (excludes [none]).
+  static const List<PriorityLevel> selectable = [p1, p2, p3, p4];
+
+  /// Safely resolves a [PriorityLevel] from a stored index.
+  /// Maps legacy indices (4..9) to [p4] and -1 to [none].
   static PriorityLevel fromIndex(int index) {
-    switch (index) {
-      case 0:
-        return PriorityLevel.p1;
-      case 1:
-        return PriorityLevel.p2;
-      case 2:
-        return PriorityLevel.p3;
-      case 3:
-        return PriorityLevel.p4;
-      case 4:
-        return PriorityLevel.p5;
-      case 5:
-        return PriorityLevel.p6;
-      case 6:
-        return PriorityLevel.p7;
-      case 7:
-        return PriorityLevel.p8;
-      case 8:
-        return PriorityLevel.p9;
-      case 9:
-        return PriorityLevel.p10;
-      default:
-        return PriorityLevel.none;
-    }
+    if (index < 0) return PriorityLevel.none;
+    if (index == 0) return PriorityLevel.p1;
+    if (index == 1) return PriorityLevel.p2;
+    if (index == 2) return PriorityLevel.p3;
+    return PriorityLevel.p4;
   }
-
-  bool get hasPriority => this != PriorityLevel.none;
 }

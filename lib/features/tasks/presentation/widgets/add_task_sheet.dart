@@ -9,7 +9,7 @@ import 'package:todo/features/tasks/presentation/widgets/listodo_calendar_dialog
 import 'package:todo/features/tasks/presentation/widgets/priority_picker_dialog.dart';
 
 /// Bottom sheet for creating a new task or editing an existing [initialTask].
-/// Uses the custom [ListodoCalendarDialog] with date & time selection.
+/// Includes the special 'Общее' (Global) category that pins the task across all categories.
 class AddTaskSheet extends StatefulWidget {
   const AddTaskSheet({super.key, this.initialTask});
 
@@ -24,7 +24,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
   late final TextEditingController _descController;
   DateTime? _selectedDate;
   int _priorityIndex = -1;
-  String? _selectedCategory;
+  String _selectedCategory = TaskController.globalCategory;
   bool _isCompleted = false;
 
   bool get _isEditing => widget.initialTask != null;
@@ -46,8 +46,8 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
       final controller = context.read<TaskController>();
       if (controller.selectedCategory != TaskController.allCategory) {
         _selectedCategory = controller.selectedCategory;
-      } else if (controller.categories.isNotEmpty) {
-        _selectedCategory = controller.categories.first;
+      } else {
+        _selectedCategory = TaskController.globalCategory;
       }
     }
   }
@@ -74,7 +74,16 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
       context: context,
       builder: (_) => PriorityPickerDialog(initialIndex: _priorityIndex),
     );
-    if (result != null) setState(() => _priorityIndex = result);
+    if (result != null) {
+      setState(() {
+        _priorityIndex = result;
+        // When selecting P1 (Critical / Срочно), automatically switch to
+        // 'Общее' so the urgent task shines across all categories.
+        if (result == 0) {
+          _selectedCategory = TaskController.globalCategory;
+        }
+      });
+    }
   }
 
   Future<void> _deleteTask() async {
@@ -104,7 +113,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
         dueDate: _selectedDate,
         priorityIndex: _priorityIndex,
         isCompleted: _isCompleted,
-        category: _selectedCategory ?? existing.category,
+        category: _selectedCategory,
       );
       await controller.updateTask(updated);
     } else {
@@ -122,7 +131,11 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final categories = context.watch<TaskController>().categories;
+    final userCategories = context.watch<TaskController>().categories;
+    final sheetCategories = <String>[
+      TaskController.globalCategory,
+      ...userCategories,
+    ];
     final hasPriority = _priorityIndex != -1;
     final priority = hasPriority
         ? PriorityLevel.fromIndex(_priorityIndex)
@@ -230,50 +243,68 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
               labelStyle: TextStyle(color: AppColors.labeltext, fontSize: 12),
             ),
           ),
-          if (categories.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: categories.map((cat) {
-                  final isSelected = _selectedCategory == cat;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: GestureDetector(
-                      onTap: () => setState(() => _selectedCategory = cat),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
+          const SizedBox(height: 12),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: sheetCategories.map((cat) {
+                final isGlobal = cat == TaskController.globalCategory;
+                final isSelected = _selectedCategory == cat;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: GestureDetector(
+                    onTap: () => setState(() => _selectedCategory = cat),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? (isGlobal
+                                  ? AppColors.active
+                                  : AppColors.accentYellow)
+                            : AppColors.cardBg,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
                           color: isSelected
-                              ? AppColors.accentYellow
-                              : AppColors.cardBg,
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(
-                            color: isSelected
-                                ? AppColors.accentYellow
-                                : Colors.white24,
-                          ),
-                        ),
-                        child: Text(
-                          cat,
-                          style: TextStyle(
-                            color: isSelected
-                                ? Colors.black
-                                : AppColors.labeltext,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
+                              ? (isGlobal
+                                    ? AppColors.active
+                                    : AppColors.accentYellow)
+                              : Colors.white24,
                         ),
                       ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (isGlobal) ...[
+                            Icon(
+                              Icons.public_rounded,
+                              size: 14,
+                              color: isSelected
+                                  ? Colors.white
+                                  : AppColors.accentYellow,
+                            ),
+                            const SizedBox(width: 5),
+                          ],
+                          Text(
+                            isGlobal ? 'Общее (Во всех)' : cat,
+                            style: TextStyle(
+                              color: isSelected
+                                  ? (isGlobal ? Colors.white : Colors.black)
+                                  : AppColors.labeltext,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  );
-                }).toList(),
-              ),
+                  ),
+                );
+              }).toList(),
             ),
-          ],
+          ),
           if (hasPriority && priority != null) ...[
             const SizedBox(height: 10),
             _PriorityChip(
@@ -299,7 +330,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
               const SizedBox(width: 12),
               IconButton(
                 icon: Icon(
-                  Icons.flag,
+                  hasPriority ? priority!.icon : Icons.flag_outlined,
                   color: hasPriority ? priority!.color : AppColors.icons,
                 ),
                 onPressed: _pickPriority,

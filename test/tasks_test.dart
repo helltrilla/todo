@@ -275,6 +275,19 @@ void main() {
         expect(controller.tasks.length, 1);
         expect(controller.tasks.first.name, 'Buy fresh groceries');
 
+        // Add a global task ('Общее') -> it must stay visible even when 'Personal' is selected
+        await controller.add(
+          name: 'Global pinned task',
+          value: '',
+          priorityIndex: 2,
+          category: TaskController.globalCategory,
+        );
+        controller.selectCategory('Personal');
+        expect(
+          controller.tasks.any((t) => t.name == 'Global pinned task'),
+          isTrue,
+        );
+
         controller.selectCategory(TaskController.allCategory);
         controller.setSearchQuery('housework');
         expect(controller.tasks.length, 1);
@@ -343,13 +356,24 @@ void main() {
           'Initial task name',
         );
 
-        // Open custom ListodoCalendarDialog and select 'Завтра'
+        // Open custom ListodoCalendarDialog with iPhone-style CupertinoPicker wheels
         await tester.tap(find.byIcon(Icons.calendar_month));
         await tester.pumpAndSettle();
-        expect(find.text('Время'), findsOneWidget);
+        expect(find.text('Завтра'), findsOneWidget);
         await tester.tap(find.text('Завтра'));
         await tester.pumpAndSettle();
+        await tester.ensureVisible(find.text('Выбрать'));
+        await tester.pumpAndSettle();
         await tester.tap(find.text('Выбрать'));
+        await tester.pumpAndSettle();
+
+        // Open PriorityPickerDialog and select 'Срочно' (P1)
+        await tester.tap(find.byIcon(Icons.flag_outlined));
+        await tester.pumpAndSettle();
+        expect(find.text('Срочно'), findsOneWidget);
+        await tester.tap(find.text('Срочно'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Сохранить'));
         await tester.pumpAndSettle();
 
         await tester.tap(find.byIcon(Icons.send));
