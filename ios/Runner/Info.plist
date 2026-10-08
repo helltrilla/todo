@@ -26,6 +26,15 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>spotify</string>
+		<string>yandexmusic</string>
+		<string>music</string>
+		<string>youtubemusic</string>
+	</array>
+	<key>NSAppleMusicUsageDescription</key>
+	<string>Управление воспроизведением фоновой музыки прямо с экрана режима «Фокус».</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Выберите фотографию из галереи для установки аватара вашего профиля.</string>
 	<key>UIApplicationSceneManifest</key>

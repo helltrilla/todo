@@ -198,23 +198,94 @@ import UserNotifications
     case "sendMediaCommand":
       let args = call.arguments as? [String: Any]
       let command = (args?["command"] as? String) ?? "playPause"
-      let player = MPMusicPlayerController.systemMusicPlayer
-      switch command {
-      case "previous":
-        player.skipToPreviousItem()
-      case "next":
-        player.skipToNextItem()
-      default:
-        if player.playbackState == .playing {
-          player.pause()
-        } else {
-          player.play()
-        }
+      DispatchQueue.main.async {
+        self.handleMediaCommand(command: command)
+        result(nil)
       }
-      result(nil)
 
     default:
       result(FlutterMethodNotImplemented)
+    }
+  }
+
+  private var isExternalAudioPaused = false
+
+  private func handleMediaCommand(command: String) {
+    let session = AVAudioSession.sharedInstance()
+    let authStatus = MPMediaLibrary.authorizationStatus()
+
+    if authStatus == .authorized {
+      let player = MPMusicPlayerController.systemMusicPlayer
+      if player.nowPlayingItem != nil || player.playbackState == .playing {
+        switch command {
+        case "previous":
+          player.skipToPreviousItem()
+          return
+        case "next":
+          player.skipToNextItem()
+          return
+        default:
+          if player.playbackState == .playing {
+            player.pause()
+          } else {
+            player.play()
+          }
+          return
+        }
+      }
+    }
+
+    if command == "playPause" {
+      if session.isOtherAudioPlaying && !isExternalAudioPaused {
+        audioEngine?.stop()
+        do {
+          try session.setCategory(.playback, mode: .default, options: [])
+          try session.setActive(true)
+          isExternalAudioPaused = true
+        } catch {}
+      } else if isExternalAudioPaused {
+        do {
+          try session.setActive(false, options: [.notifyOthersOnDeactivation])
+        } catch {}
+        isExternalAudioPaused = false
+        if currentAmbientSound != "off" && ambientVolume > 0.001 {
+          let sound = currentAmbientSound
+          let vol = ambientVolume
+          DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
+            self?.configureAmbientAudio(sound: sound, volume: vol)
+          }
+        }
+      } else if authStatus == .notDetermined {
+        MPMediaLibrary.requestAuthorization { status in
+          if status == .authorized {
+            DispatchQueue.main.async {
+              let player = MPMusicPlayerController.systemMusicPlayer
+              if player.playbackState == .playing {
+                player.pause()
+              } else if player.nowPlayingItem != nil {
+                player.play()
+              }
+            }
+          }
+        }
+      }
+    } else {
+      if authStatus == .notDetermined {
+        MPMediaLibrary.requestAuthorization { status in
+          if status == .authorized {
+            DispatchQueue.main.async {
+              let player = MPMusicPlayerController.systemMusicPlayer
+              if player.nowPlayingItem != nil {
+                if command == "previous" {
+                  player.skipToPreviousItem()
+                } else {
+                  player.skipToNextItem()
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
 
