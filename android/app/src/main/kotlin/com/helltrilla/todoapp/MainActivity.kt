@@ -273,39 +273,138 @@ class MainActivity : FlutterActivity() {
             var filterState = 0f
             var secondaryState = 0f
             var lfoPhase = 0.0
+            var lfoPhase2 = 0.0
+            var drop1Env = 0f
+            var drop1Phase = 0.0
+            var drop1Freq = 1100.0
+            var drop2Env = 0f
+            var drop2Phase = 0.0
+            var drop2Freq = 1900.0
+            var chord1 = 0.0
+            var chord2 = 0.0
+            var chord3 = 0.0
+            var chord4 = 0.0
+            var clinkEnv = 0f
+            var clinkPhase = 0.0
+            var clinkFreq = 2400.0
+            var vinylPopEnv = 0f
+            var vinylPopPhase = 0.0
+            var vinylPopFreq = 2100.0
+            var vinylCrackleEnv = 0f
+            val twoPi = 2.0 * PI
 
             try {
                 track.play()
                 while (ambientSoundMode != "off" && ambientVolume > 0.001f) {
                     val mode = ambientSoundMode
-                    val gain = ambientVolume * 0.22f
+                    val gain = ambientVolume * 0.28f
                     for (i in buffer.indices) {
                         val white = Random.nextFloat() * 2f - 1f
                         val sample: Float = when (mode) {
                             "rain" -> {
-                                filterState = 0.90f * filterState + 0.10f * white
-                                secondaryState = 0.72f * secondaryState + 0.28f * (white - filterState)
-                                (filterState * 0.65f + secondaryState * 0.35f) * gain
+                                filterState = 0.86f * filterState + 0.14f * white
+                                val showerBed = (white - filterState) * 0.18f + filterState * 0.22f
+                                if (drop1Env < 0.001f && Random.nextFloat() > 0.9989f) {
+                                    drop1Env = 0.55f + Random.nextFloat() * 0.45f
+                                    drop1Freq = 680.0 + Random.nextDouble() * 670.0
+                                    drop1Phase = 0.0
+                                }
+                                if (drop2Env < 0.001f && Random.nextFloat() > 0.9987f) {
+                                    drop2Env = 0.45f + Random.nextFloat() * 0.45f
+                                    drop2Freq = 1550.0 + Random.nextDouble() * 1100.0
+                                    drop2Phase = 0.0
+                                }
+                                var drops = 0f
+                                if (drop1Env > 0.001f) {
+                                    drop1Freq *= 1.0005
+                                    drop1Phase += (twoPi * drop1Freq) / sampleRate
+                                    drops += (sin(drop1Phase).toFloat()) * drop1Env * 0.55f
+                                    drop1Env *= 0.992f
+                                }
+                                if (drop2Env > 0.001f) {
+                                    drop2Freq *= 1.00035
+                                    drop2Phase += (twoPi * drop2Freq) / sampleRate
+                                    drops += (sin(drop2Phase).toFloat()) * drop2Env * 0.42f
+                                    drop2Env *= 0.989f
+                                }
+                                (showerBed + drops) * gain
                             }
                             "waves" -> {
-                                lfoPhase += (2.0 * PI * 0.13) / sampleRate
-                                if (lfoPhase > 2.0 * PI) lfoPhase -= 2.0 * PI
-                                val swell = (0.30 + 0.70 * (0.5 * (1.0 + sin(lfoPhase)))).toFloat()
-                                filterState = 0.965f * filterState + 0.035f * white
-                                filterState * swell * gain * 1.35f
+                                lfoPhase += (twoPi * 0.105) / sampleRate
+                                if (lfoPhase > twoPi) lfoPhase -= twoPi
+                                lfoPhase2 += (twoPi * 0.037) / sampleRate
+                                if (lfoPhase2 > twoPi) lfoPhase2 -= twoPi
+                                val rawWave = 0.5 * (1.0 + sin(lfoPhase + 0.35 * sin(lfoPhase2)))
+                                val waveCrest = Math.pow(rawWave, 2.8).toFloat()
+                                val cutoff = 0.008f + 0.35f * waveCrest
+                                filterState = (1f - cutoff) * filterState + cutoff * white
+                                secondaryState = 0.992f * secondaryState + 0.008f * white
+                                val surf = filterState * (0.06f + 0.94f * waveCrest) + secondaryState * 0.45f
+                                surf * gain * 1.45f
                             }
                             "cafe" -> {
-                                filterState = (filterState + 0.025f * white) / 1.025f
-                                filterState * gain * 2.2f
+                                lfoPhase += (twoPi * 0.22) / sampleRate
+                                if (lfoPhase > twoPi) lfoPhase -= twoPi
+                                val vibrato = 1.0 + 0.0018 * sin(lfoPhase)
+                                val breathe = (0.72 + 0.28 * sin(lfoPhase * 0.5)).toFloat()
+                                chord1 += (twoPi * 146.83 * vibrato) / sampleRate
+                                chord2 += (twoPi * 174.61 * vibrato) / sampleRate
+                                chord3 += (twoPi * 220.00) / sampleRate
+                                chord4 += (twoPi * 261.63 * vibrato) / sampleRate
+                                if (chord1 > twoPi) chord1 -= twoPi
+                                if (chord2 > twoPi) chord2 -= twoPi
+                                if (chord3 > twoPi) chord3 -= twoPi
+                                if (chord4 > twoPi) chord4 -= twoPi
+                                val chord = (
+                                    sin(chord1).toFloat() * 0.28f +
+                                    sin(chord2).toFloat() * 0.24f +
+                                    sin(chord3).toFloat() * 0.22f +
+                                    sin(chord4).toFloat() * 0.20f
+                                ) * breathe * 0.38f
+                                if (clinkEnv < 0.0008f && Random.nextFloat() > 0.99996f) {
+                                    clinkEnv = 0.35f + Random.nextFloat() * 0.40f
+                                    clinkFreq = 2150.0 + Random.nextDouble() * 700.0
+                                    clinkPhase = 0.0
+                                }
+                                var clink = 0f
+                                if (clinkEnv > 0.0008f) {
+                                    clinkPhase += (twoPi * clinkFreq) / sampleRate
+                                    clink = (sin(clinkPhase).toFloat() * 0.65f + sin(clinkPhase * 1.618).toFloat() * 0.35f) * clinkEnv * 0.35f
+                                    clinkEnv *= 0.996f
+                                }
+                                filterState = 0.991f * filterState + 0.009f * white
+                                (chord + clink + filterState * 0.25f) * gain
                             }
                             "vinyl" -> {
-                                filterState = 0.94f * filterState + 0.06f * white
-                                val crackle = if (Random.nextFloat() > 0.9985f) (Random.nextFloat() * 0.9f - 0.45f) else 0f
-                                (filterState * 0.75f + crackle * 0.25f) * gain
+                                lfoPhase += (twoPi * 0.55) / sampleRate
+                                if (lfoPhase > twoPi) lfoPhase -= twoPi
+                                chord1 += (twoPi * 60.0) / sampleRate
+                                if (chord1 > twoPi) chord1 -= twoPi
+                                val platterWarmth = sin(chord1).toFloat() * (0.04f + 0.03f * sin(lfoPhase).toFloat())
+                                if (vinylPopEnv < 0.002f && Random.nextFloat() > 0.9991f) {
+                                    vinylPopEnv = 0.55f + Random.nextFloat() * 0.45f
+                                    vinylPopFreq = 1400.0 + Random.nextDouble() * 1800.0
+                                    vinylPopPhase = 0.0
+                                }
+                                var popSample = 0f
+                                if (vinylPopEnv > 0.002f) {
+                                    vinylPopPhase += (twoPi * vinylPopFreq) / sampleRate
+                                    popSample = sin(vinylPopPhase).toFloat() * vinylPopEnv * 0.75f
+                                    vinylPopEnv *= 0.972f
+                                }
+                                if (vinylCrackleEnv < 0.01f && Random.nextFloat() > 0.994f) {
+                                    vinylCrackleEnv = 0.20f + Random.nextFloat() * 0.45f
+                                }
+                                var crackleSample = 0f
+                                if (vinylCrackleEnv > 0.01f) {
+                                    crackleSample = white * vinylCrackleEnv * 0.55f
+                                    vinylCrackleEnv *= 0.84f
+                                }
+                                (platterWarmth + popSample + crackleSample) * gain * 1.25f
                             }
                             else -> 0f
                         }
-                        buffer[i] = (sample.coerceIn(-1f, 1f) * Short.MAX_VALUE).toInt().toShort()
+                        buffer[i] = (sample.coerceIn(-0.95f, 0.95f) * Short.MAX_VALUE).toInt().toShort()
                     }
                     track.write(buffer, 0, buffer.size)
                 }

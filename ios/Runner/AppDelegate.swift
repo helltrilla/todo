@@ -18,6 +18,24 @@ import UserNotifications
   private var noiseFilterState: Float = 0.0
   private var secondaryFilterState: Float = 0.0
   private var lfoPhase: Float = 0.0
+  private var lfoPhase2: Float = 0.0
+  private var drop1Env: Float = 0.0
+  private var drop1Phase: Float = 0.0
+  private var drop1Freq: Float = 1100.0
+  private var drop2Env: Float = 0.0
+  private var drop2Phase: Float = 0.0
+  private var drop2Freq: Float = 1900.0
+  private var chordPhase1: Float = 0.0
+  private var chordPhase2: Float = 0.0
+  private var chordPhase3: Float = 0.0
+  private var chordPhase4: Float = 0.0
+  private var clinkEnv: Float = 0.0
+  private var clinkPhase: Float = 0.0
+  private var clinkFreq: Float = 2400.0
+  private var vinylPopEnv: Float = 0.0
+  private var vinylPopPhase: Float = 0.0
+  private var vinylPopFreq: Float = 2100.0
+  private var vinylCrackleEnv: Float = 0.0
 
   override func application(
     _ application: UIApplication,
@@ -337,7 +355,8 @@ import UserNotifications
         guard let self = self else { return noErr }
         let ablPointer = UnsafeMutableAudioBufferListPointer(audioBufferList)
         let mode = self.currentAmbientSound
-        let gain = self.ambientVolume * 0.22
+        let gain = self.ambientVolume * 0.28
+        let twoPi = 2.0 * Float.pi
 
         for frame in 0..<Int(frameCount) {
           let white = Float.random(in: -1.0...1.0)
@@ -345,40 +364,142 @@ import UserNotifications
 
           switch mode {
           case "rain":
-            // Warm rainfall: low-pass filtered noise + subtle droplet texture
-            self.noiseFilterState = 0.90 * self.noiseFilterState + 0.10 * white
-            self.secondaryFilterState = 0.72 * self.secondaryFilterState + 0.28 * (white - self.noiseFilterState)
-            sample = (self.noiseFilterState * 0.65 + self.secondaryFilterState * 0.35) * gain
+            // 1. Soft steady rain shower + distinct resonant water droplets (plops & window patters)
+            self.noiseFilterState = 0.86 * self.noiseFilterState + 0.14 * white
+            let showerBed = (white - self.noiseFilterState) * 0.18 + self.noiseFilterState * 0.22
+
+            // Trigger droplet 1 (medium water plop with upward bubble pitch chirp)
+            if self.drop1Env < 0.001 && Float.random(in: 0.0...1.0) > 0.99945 {
+              self.drop1Env = Float.random(in: 0.55...1.0)
+              self.drop1Freq = Float.random(in: 680.0...1350.0)
+              self.drop1Phase = 0.0
+            }
+            // Trigger droplet 2 (crisp high window patter)
+            if self.drop2Env < 0.001 && Float.random(in: 0.0...1.0) > 0.99935 {
+              self.drop2Env = Float.random(in: 0.45...0.9)
+              self.drop2Freq = Float.random(in: 1550.0...2650.0)
+              self.drop2Phase = 0.0
+            }
+
+            var drops: Float = 0.0
+            if self.drop1Env > 0.001 {
+              self.drop1Freq *= 1.00025 // upward bubble chirp
+              self.drop1Phase += (twoPi * self.drop1Freq) / sampleRate
+              drops += sin(self.drop1Phase) * self.drop1Env * 0.55
+              self.drop1Env *= 0.9962
+            }
+            if self.drop2Env > 0.001 {
+              self.drop2Freq *= 1.00018
+              self.drop2Phase += (twoPi * self.drop2Freq) / sampleRate
+              drops += sin(self.drop2Phase) * self.drop2Env * 0.42
+              self.drop2Env *= 0.9945
+            }
+
+            sample = (showerBed + drops) * gain
 
           case "waves":
-            // Ocean surf swell with slow 0.13 Hz LFO
-            self.lfoPhase += (2.0 * Float.pi * 0.13) / sampleRate
-            if self.lfoPhase > 2.0 * Float.pi {
-              self.lfoPhase -= 2.0 * Float.pi
-            }
-            let swell = 0.30 + 0.70 * (0.5 * (1.0 + sin(self.lfoPhase)))
-            self.noiseFilterState = 0.965 * self.noiseFilterState + 0.035 * white
-            sample = self.noiseFilterState * swell * gain * 1.35
+            // 2. Dramatic coastal ocean waves: calm trough -> rising swell -> bright foamy crash -> retreat
+            self.lfoPhase += (twoPi * 0.105) / sampleRate
+            if self.lfoPhase > twoPi { self.lfoPhase -= twoPi }
+            self.lfoPhase2 += (twoPi * 0.037) / sampleRate
+            if self.lfoPhase2 > twoPi { self.lfoPhase2 -= twoPi }
+
+            let rawWave = 0.5 * (1.0 + sin(self.lfoPhase + 0.35 * sin(self.lfoPhase2)))
+            // Sharpen wave crest so there is quiet calm between waves
+            let waveCrest = powf(rawWave, 2.8)
+            // Dynamic filter cutoff sweeps from deep bass rumble (0.008) to foamy splash (0.36)
+            let cutoff: Float = 0.008 + 0.35 * waveCrest
+            self.noiseFilterState = (1.0 - cutoff) * self.noiseFilterState + cutoff * white
+            // Deep sub-surf undertow
+            self.secondaryFilterState = 0.992 * self.secondaryFilterState + 0.008 * white
+            let surf = self.noiseFilterState * (0.06 + 0.94 * waveCrest) + self.secondaryFilterState * 0.45
+            sample = surf * gain * 1.45
 
           case "cafe":
-            // Deep brown/pink comfort hum
-            self.noiseFilterState = (self.noiseFilterState + 0.025 * white) / 1.025
-            sample = self.noiseFilterState * gain * 2.2
+            // 3. Cozy Lo-Fi Cafe Lounge: warm Rhodes electric piano chord pad + occasional porcelain cup clinks
+            self.lfoPhase += (twoPi * 0.22) / sampleRate
+            if self.lfoPhase > twoPi { self.lfoPhase -= twoPi }
+            let vibrato: Float = 1.0 + 0.0018 * sin(self.lfoPhase)
+            let breathe: Float = 0.72 + 0.28 * sin(self.lfoPhase * 0.5)
+
+            // Warm Dm9 / Fmaj7 chord (D3, F3, A3, C4, E4)
+            self.chordPhase1 += (twoPi * 146.83 * vibrato) / sampleRate
+            self.chordPhase2 += (twoPi * 174.61 * vibrato) / sampleRate
+            self.chordPhase3 += (twoPi * 220.00) / sampleRate
+            self.chordPhase4 += (twoPi * 261.63 * vibrato) / sampleRate
+            if self.chordPhase1 > twoPi { self.chordPhase1 -= twoPi }
+            if self.chordPhase2 > twoPi { self.chordPhase2 -= twoPi }
+            if self.chordPhase3 > twoPi { self.chordPhase3 -= twoPi }
+            if self.chordPhase4 > twoPi { self.chordPhase4 -= twoPi }
+
+            let chord = (
+              sin(self.chordPhase1) * 0.28 +
+              sin(self.chordPhase2) * 0.24 +
+              sin(self.chordPhase3) * 0.22 +
+              sin(self.chordPhase4) * 0.20
+            ) * breathe * 0.38
+
+            // Occasional ceramic coffee cup / spoon clink bell
+            if self.clinkEnv < 0.0008 && Float.random(in: 0.0...1.0) > 0.999982 {
+              self.clinkEnv = Float.random(in: 0.35...0.75)
+              self.clinkFreq = Float.random(in: 2150.0...2850.0)
+              self.clinkPhase = 0.0
+            }
+            var clink: Float = 0.0
+            if self.clinkEnv > 0.0008 {
+              self.clinkPhase += (twoPi * self.clinkFreq) / sampleRate
+              clink = (sin(self.clinkPhase) * 0.65 + sin(self.clinkPhase * 1.618) * 0.35) * self.clinkEnv * 0.35
+              self.clinkEnv *= 0.9982
+            }
+
+            // Very soft warm room murmur (no high hiss)
+            self.noiseFilterState = 0.991 * self.noiseFilterState + 0.009 * white
+            sample = (chord + clink + self.noiseFilterState * 0.25) * gain
 
           case "vinyl":
-            // Cozy lo-fi warm static with occasional soft vinyl crackle
-            self.noiseFilterState = 0.94 * self.noiseFilterState + 0.06 * white
-            let crackle: Float = Float.random(in: 0.0...1.0) > 0.9985 ? Float.random(in: -0.45...0.45) : 0.0
-            sample = (self.noiseFilterState * 0.75 + crackle * 0.25) * gain
+            // 4. Authentic Vinyl Turntable: crisp needle dust pops, surface crackles, and 33.3 RPM analog warmth
+            self.lfoPhase += (twoPi * 0.55) / sampleRate // 33.3 RPM platter rotation
+            if self.lfoPhase > twoPi { self.lfoPhase -= twoPi }
+            self.chordPhase1 += (twoPi * 60.0) / sampleRate
+            if self.chordPhase1 > twoPi { self.chordPhase1 -= twoPi }
+
+            // Subtle turntable motor & groove sub-warmth
+            let platterWarmth = sin(self.chordPhase1) * (0.04 + 0.03 * sin(self.lfoPhase))
+
+            // Trigger distinct vinyl dust pop (resonant damped impulse at 1400..3200 Hz)
+            if self.vinylPopEnv < 0.002 && Float.random(in: 0.0...1.0) > 0.99955 {
+              self.vinylPopEnv = Float.random(in: 0.55...1.0)
+              self.vinylPopFreq = Float.random(in: 1400.0...3200.0)
+              self.vinylPopPhase = 0.0
+            }
+            var popSample: Float = 0.0
+            if self.vinylPopEnv > 0.002 {
+              self.vinylPopPhase += (twoPi * self.vinylPopFreq) / sampleRate
+              popSample = sin(self.vinylPopPhase) * self.vinylPopEnv * 0.75
+              self.vinylPopEnv *= 0.986
+            }
+
+            // Frequent fine needle crackle ticks
+            if self.vinylCrackleEnv < 0.01 && Float.random(in: 0.0...1.0) > 0.9972 {
+              self.vinylCrackleEnv = Float.random(in: 0.20...0.65)
+            }
+            var crackleSample: Float = 0.0
+            if self.vinylCrackleEnv > 0.01 {
+              crackleSample = white * self.vinylCrackleEnv * 0.55
+              self.vinylCrackleEnv *= 0.91
+            }
+
+            sample = (platterWarmth + popSample + crackleSample) * gain * 1.25
 
           default:
             sample = 0.0
           }
 
+          let clamped = max(-0.95, min(0.95, sample))
           for buffer in ablPointer {
             let buf: UnsafeMutableBufferPointer<Float> = UnsafeMutableBufferPointer(buffer)
             if frame < buf.count {
-              buf[frame] = sample
+              buf[frame] = clamped
             }
           }
         }
