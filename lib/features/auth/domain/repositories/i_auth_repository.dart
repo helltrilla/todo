@@ -36,6 +36,9 @@ abstract interface class IAuthRepository {
   /// Clears the active session.
   Future<Result<void>> signOut();
 
+  /// Permanently deletes the current user account and associated credentials.
+  Future<Result<void>> deleteAccount();
+
   /// Returns true if the user has already completed the first-launch onboarding or logged in.
   bool hasSeenOnboarding();
 

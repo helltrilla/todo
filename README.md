@@ -17,6 +17,7 @@
     <img src="https://img.shields.io/badge/Dart-3.11+-0175C2?logo=dart&logoColor=white" alt="Dart" />
     <img src="https://img.shields.io/badge/Supabase-OTP_Auth-3ECF8E?logo=supabase&logoColor=white" alt="Supabase" />
     <img src="https://img.shields.io/badge/Architecture-Feature--First_Clean-8687E7" alt="Clean Architecture" />
+    <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT" /></a>
   </p>
 </div>
 
@@ -222,3 +223,33 @@ It combines smart checklists/subtasks, customizable colored categories with icon
    flutter analyze --fatal-infos
    flutter test --coverage
    ```
+
+---
+
+## 📬 Используете проект? / Using This Project?
+
+Если вы используете этот проект или его части в своём приложении, стартапе или продукте — черканите мне:
+*If you use this project or parts of it in your app, startup, or product — feel free to drop me a line:*
+
+- 📧 **Почта / Email**: [helltrilla66@gmail.com](mailto:helltrilla66@gmail.com)
+- 💬 **Telegram**: [@helltrilla66](https://t.me/helltrilla66)
+
+Мне безумно интересно посмотреть, как проект живет в реальном мире, и я с радостью добавлю ваше приложение в секцию «Showcase»!  
+*I'd love to see how this project lives in the real world and will gladly feature your app in a "Showcase" section!*
+
+---
+
+## 🔒 Политика конфиденциальности / Privacy Policy
+
+Условия хранения данных, работы авторизации и удаления аккаунта описаны в документе [PRIVACY_POLICY.md](PRIVACY_POLICY.md).  
+*Data storage, authentication details, and account deletion instructions are documented in [PRIVACY_POLICY.md](PRIVACY_POLICY.md).*
+
+---
+
+## 📄 Лицензия / License
+
+Проект распространяется под открытой лицензией **MIT** — подробности в файле [LICENSE](LICENSE).  
+Лицензия MIT разрешает свободное коммерческое использование, модификацию, интеграцию в закрытые решения и перепродажу без каких-либо роялти и ограничений.
+
+*This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.*
+

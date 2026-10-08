@@ -349,6 +349,16 @@ class TaskController extends ChangeNotifier {
     }
   }
 
+  /// Deletes all tasks when wiping account data.
+  Future<void> clearAllTasks() async {
+    final ids = _tasks.map((t) => t.id).toList();
+    _tasks = [];
+    notifyListeners();
+    for (final id in ids) {
+      await _repository.delete(id);
+    }
+  }
+
   void clearError() {
     _error = null;
     notifyListeners();

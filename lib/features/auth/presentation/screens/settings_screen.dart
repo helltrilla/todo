@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:todo/core/app_theme/app_colors.dart';
@@ -17,6 +18,9 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  static const String _privacyPolicyUrl =
+      'https://github.com/helltrilla/todo/blob/main/PRIVACY_POLICY.md';
+
   Future<void> _promptEditName(String currentName) async {
     final textController = TextEditingController(text: currentName);
     final updated = await showDialog<String>(
@@ -129,6 +133,204 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (confirmed == true && mounted) {
       await context.read<AuthController>().signOut();
     }
+  }
+
+  Future<void> _confirmDeleteAccount() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text(
+          'Удалить аккаунт и данные?',
+          style: TextStyle(color: AppColors.maintext),
+        ),
+        content: const Text(
+          'Ваш профиль и все созданные задачи будут безвозвратно удалены с этого устройства. Это действие нельзя отменить.',
+          style: TextStyle(color: AppColors.labeltext),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Отмена'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+            child: const Text('Удалить навсегда'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      final taskCtrl = context.read<TaskController>();
+      final authCtrl = context.read<AuthController>();
+      await taskCtrl.clearAllTasks();
+      await authCtrl.deleteAccount();
+    }
+  }
+
+  Future<void> _showPrivacyPolicySheet() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.cardBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.72,
+        minChildSize: 0.45,
+        maxChildSize: 0.92,
+        builder: (_, scrollController) => Padding(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.privacy_tip_outlined,
+                    color: AppColors.active,
+                  ),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text(
+                      'Политика конфиденциальности',
+                      style: TextStyle(
+                        color: AppColors.maintext,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    icon: const Icon(Icons.close, color: AppColors.labeltext),
+                  ),
+                ],
+              ),
+              const Divider(color: Colors.white12),
+              Expanded(
+                child: ListView(
+                  controller: scrollController,
+                  children: const [
+                    SizedBox(height: 8),
+                    Text(
+                      '1. Хранение задач и категорий',
+                      style: TextStyle(
+                        color: AppColors.maintext,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Все ваши задачи, подзадачи, категории и настройки таймера хранятся локально на вашем устройстве и не передаются третьим лицам.',
+                      style: TextStyle(
+                        color: AppColors.labeltext,
+                        fontSize: 13,
+                        height: 1.45,
+                      ),
+                    ),
+                    SizedBox(height: 14),
+                    Text(
+                      '2. Авторизация по Email (Supabase OTP)',
+                      style: TextStyle(
+                        color: AppColors.maintext,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'При выборе входа по Email ваш адрес электронной почты используется исключительно для отправки одноразового 6-значного кода подтверждения (OTP) через Supabase Auth. Мы не рассылаем спам и не передаём ваш Email рекламным сервисам.',
+                      style: TextStyle(
+                        color: AppColors.labeltext,
+                        fontSize: 13,
+                        height: 1.45,
+                      ),
+                    ),
+                    SizedBox(height: 14),
+                    Text(
+                      '3. Удаление аккаунта и данных',
+                      style: TextStyle(
+                        color: AppColors.maintext,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Вы можете в любой момент полностью удалить свой профиль и все сохранённые задачи прямо в приложении в разделе «Профиль и настройки» → «Удалить аккаунт и данные».',
+                      style: TextStyle(
+                        color: AppColors.labeltext,
+                        fontSize: 13,
+                        height: 1.45,
+                      ),
+                    ),
+                    SizedBox(height: 14),
+                    Text(
+                      '4. Контакты разработчика',
+                      style: TextStyle(
+                        color: AppColors.maintext,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Email: helltrilla66@gmail.com\nTelegram: @helltrilla66',
+                      style: TextStyle(
+                        color: AppColors.labeltext,
+                        fontSize: 13,
+                        height: 1.45,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                height: 46,
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    final messenger = ScaffoldMessenger.of(context);
+                    await Clipboard.setData(
+                      const ClipboardData(text: _privacyPolicyUrl),
+                    );
+                    if (ctx.mounted) {
+                      Navigator.pop(ctx);
+                    }
+                    messenger.showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Ссылка на политику конфиденциальности скопирована',
+                        ),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.copy_rounded, size: 17),
+                  label: const Text('Скопировать ссылку на документ'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   String _initialsFor(String name) {
@@ -660,11 +862,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 10),
           _ActionTile(
+            icon: Icons.privacy_tip_outlined,
+            title: 'Политика конфиденциальности',
+            subtitle: 'Условия хранения данных и конфиденциальность',
+            iconColor: AppColors.active,
+            onTap: _showPrivacyPolicySheet,
+          ),
+          const SizedBox(height: 10),
+          _ActionTile(
             icon: Icons.logout_rounded,
             title: 'Выйти из аккаунта',
             subtitle: 'Вернуться на экран приветствия',
-            iconColor: Colors.redAccent,
+            iconColor: Colors.orangeAccent,
             onTap: _confirmSignOut,
+          ),
+          const SizedBox(height: 10),
+          _ActionTile(
+            icon: Icons.delete_forever_outlined,
+            title: 'Удалить аккаунт и данные',
+            subtitle: 'Безвозвратно удалить профиль и все задачи',
+            iconColor: Colors.redAccent,
+            onTap: _confirmDeleteAccount,
           ),
           const SizedBox(height: 16),
 

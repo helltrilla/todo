@@ -257,6 +257,25 @@ class AuthRepositoryImpl implements IAuthRepository {
     }
   }
 
+  @override
+  Future<Result<void>> deleteAccount() async {
+    try {
+      final current = getCurrentUser();
+      if (current != null && current.email != null) {
+        final accounts = _loadInternalAccounts();
+        final key = current.email!.trim().toLowerCase();
+        if (accounts.containsKey(key)) {
+          accounts.remove(key);
+          await _prefs.setString(_internalAccountsKey, json.encode(accounts));
+        }
+      }
+      await _prefs.remove(_currentUserKey);
+      return const Success(null);
+    } catch (_) {
+      return const Error(CacheFailure('Не удалось удалить профиль'));
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Private helpers
   // ---------------------------------------------------------------------------

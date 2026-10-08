@@ -95,6 +95,23 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<bool> deleteAccount() async {
+    _startLoading();
+    final result = await _repository.deleteAccount();
+    _isLoading = false;
+    switch (result) {
+      case Success():
+        _currentUser = null;
+        _error = null;
+        notifyListeners();
+        return true;
+      case Error(:final failure):
+        _error = failure.message;
+        notifyListeners();
+        return false;
+    }
+  }
+
   Future<void> completeOnboarding() async {
     await _repository.completeOnboarding();
     _hasSeenOnboarding = true;
