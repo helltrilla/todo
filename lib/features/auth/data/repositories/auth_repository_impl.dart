@@ -194,6 +194,46 @@ class AuthRepositoryImpl implements IAuthRepository {
   }
 
   @override
+  Future<Result<AppUser>> updateDisplayName(String newName) async {
+    try {
+      final current = getCurrentUser();
+      if (current == null) {
+        return const Error(AuthFailure('Пользователь не авторизован'));
+      }
+
+      final cleanName = newName.trim();
+      if (cleanName.isEmpty) {
+        return const Error(AuthFailure('Имя не может быть пустым'));
+      }
+
+      final updated = AppUser(
+        id: current.id,
+        name: cleanName,
+        email: current.email,
+        isLocal: current.isLocal,
+      );
+
+      if (current.isLocal && current.email != null) {
+        final accounts = _loadInternalAccounts();
+        final key = current.email!.toLowerCase();
+        if (accounts.containsKey(key)) {
+          final record = Map<String, dynamic>.from(
+            accounts[key] as Map<String, dynamic>,
+          );
+          record['user'] = updated.toMap();
+          accounts[key] = record;
+          await _prefs.setString(_internalAccountsKey, json.encode(accounts));
+        }
+      }
+
+      await _saveSession(updated);
+      return Success(updated);
+    } catch (_) {
+      return const Error(CacheFailure('Не удалось обновить имя профиля'));
+    }
+  }
+
+  @override
   Future<Result<void>> signOut() async {
     try {
       await _prefs.remove(_currentUserKey);

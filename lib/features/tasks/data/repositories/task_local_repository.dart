@@ -75,6 +75,28 @@ class TaskLocalRepository implements ITaskRepository {
   }
 
   @override
+  Future<Result<void>> deleteCompleted() async {
+    try {
+      final current = (_prefs.getStringList(_key) ?? []).map(Task.fromJson);
+      final updated = current
+          .where((t) => !t.isCompleted)
+          .map((t) => t.toJson())
+          .toList();
+      final ok = await _prefs.setStringList(_key, updated);
+      if (!ok) {
+        return const Error(
+          CacheFailure('Не удалось очистить выполненные задачи'),
+        );
+      }
+      return const Success(null);
+    } catch (_) {
+      return const Error(
+        CacheFailure('Не удалось очистить выполненные задачи'),
+      );
+    }
+  }
+
+  @override
   List<String> getCategories() {
     final saved = _prefs.getStringList(_categoriesKey);
     if (saved == null || saved.isEmpty) {

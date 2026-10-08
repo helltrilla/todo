@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:todo/core/errors/failures.dart';
 import 'package:todo/core/errors/result.dart';
@@ -32,6 +33,10 @@ class _FailingRepository implements ITaskRepository {
   @override
   Future<Result<void>> delete(int id) async =>
       const Error(CacheFailure('Delete failed'));
+
+  @override
+  Future<Result<void>> deleteCompleted() async =>
+      const Error(CacheFailure('Delete completed failed'));
 
   @override
   List<String> getCategories() => const ['Work', 'Personal'];
@@ -395,17 +400,46 @@ void main() {
 
         expect(find.text('Updated task name'), findsOneWidget);
 
-        // Swipe left -> triggers confirmDismiss dialog
-        await tester.drag(find.byType(Dismissible), const Offset(-500, 0));
+        // Complete the task, then swipe right to archive it!
+        final taskController = tester
+            .element(find.byType(Scaffold).first)
+            .read<TaskController>();
+        final currentTaskId = taskController.tasks.first.id;
+        await taskController.toggleCompleted(currentTaskId);
         await tester.pumpAndSettle();
 
-        expect(find.text('Удалить задачу?'), findsOneWidget);
-
-        // Confirm deletion -> Dismissible is removed cleanly from the tree
-        await tester.tap(find.text('Удалить'));
+        // Swipe right (startToEnd) on completed card -> moves to archive
+        await tester.drag(find.byType(Dismissible), const Offset(500, 0));
         await tester.pumpAndSettle();
 
         expect(find.text('Updated task name'), findsNothing);
+        expect(taskController.archivedTasks.length, 1);
+
+        // Open SettingsScreen via gear icon in AppBar
+        await tester.tap(find.byIcon(Icons.settings_outlined));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Профиль и настройки'), findsOneWidget);
+        expect(find.text('К задачам'), findsOneWidget);
+        expect(find.text('Архив выполненных'), findsOneWidget);
+        expect(find.text('Updated task name'), findsOneWidget);
+
+        // Edit display name in SettingsScreen
+        await tester.tap(find.byIcon(Icons.edit_outlined));
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.widgetWithText(TextField, 'Введите ваше имя'),
+          'Daniil Updated',
+        );
+        await tester.tap(find.text('Сохранить'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Daniil Updated'), findsOneWidget);
+
+        // Tap prominent 'К задачам' button to return to HomeScreen
+        await tester.tap(find.text('К задачам'));
+        await tester.pumpAndSettle();
+        expect(find.text('Daniil Updated'), findsOneWidget);
       },
     );
   });

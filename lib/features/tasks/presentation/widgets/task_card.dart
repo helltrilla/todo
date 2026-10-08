@@ -13,6 +13,7 @@ class TaskCard extends StatelessWidget {
     super.key,
     required this.task,
     required this.onDelete,
+    this.onArchive,
     this.confirmDismiss,
     this.onToggleComplete,
     this.onTap,
@@ -20,6 +21,7 @@ class TaskCard extends StatelessWidget {
 
   final Task task;
   final VoidCallback onDelete;
+  final VoidCallback? onArchive;
   final Future<bool?> Function()? confirmDismiss;
   final VoidCallback? onToggleComplete;
   final VoidCallback? onTap;
@@ -29,21 +31,79 @@ class TaskCard extends StatelessWidget {
     final priority = task.priority;
     final isUrgent =
         !task.isCompleted && task.hasPriority && priority == PriorityLevel.p1;
+    final canSwipeArchive = task.isCompleted && onArchive != null;
+
+    final deleteBackground = Container(
+      alignment: Alignment.centerRight,
+      padding: const EdgeInsets.only(right: 20),
+      decoration: BoxDecoration(
+        color: Colors.redAccent,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Удалить',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+            ),
+          ),
+          SizedBox(width: 8),
+          Icon(Icons.delete_outline, color: Colors.white, size: 26),
+        ],
+      ),
+    );
+
+    final archiveBackground = Container(
+      alignment: Alignment.centerLeft,
+      padding: const EdgeInsets.only(left: 20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF2E7D32),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.inventory_2_outlined, color: Colors.white, size: 24),
+          SizedBox(width: 8),
+          Text(
+            'В архив',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+            ),
+          ),
+        ],
+      ),
+    );
 
     return Dismissible(
       key: ValueKey<int>(task.id),
-      direction: DismissDirection.endToStart,
-      confirmDismiss: confirmDismiss != null ? (_) => confirmDismiss!() : null,
-      background: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        decoration: BoxDecoration(
-          color: Colors.redAccent,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: const Icon(Icons.delete_outline, color: Colors.white, size: 28),
-      ),
-      onDismissed: (_) => onDelete(),
+      direction: canSwipeArchive
+          ? DismissDirection.horizontal
+          : DismissDirection.endToStart,
+      confirmDismiss: (direction) async {
+        if (direction == DismissDirection.startToEnd) {
+          return true;
+        }
+        if (confirmDismiss != null) {
+          return await confirmDismiss!();
+        }
+        return true;
+      },
+      background: canSwipeArchive ? archiveBackground : deleteBackground,
+      secondaryBackground: canSwipeArchive ? deleteBackground : null,
+      onDismissed: (direction) {
+        if (direction == DismissDirection.startToEnd && onArchive != null) {
+          onArchive!();
+        } else {
+          onDelete();
+        }
+      },
       child: Material(
         color: AppColors.cardBg,
         shape: RoundedRectangleBorder(

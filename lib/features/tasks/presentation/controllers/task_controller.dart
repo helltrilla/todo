@@ -52,6 +52,30 @@ class TaskController extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
+  /// Total count of all tasks (unfiltered).
+  int get totalTasksCount => _tasks.length;
+
+  /// Count of completed tasks (unfiltered).
+  int get completedTasksCount => _tasks.where((t) => t.isCompleted).length;
+
+  /// Count of pending (incomplete) tasks (unfiltered).
+  int get pendingTasksCount => _tasks.where((t) => !t.isCompleted).length;
+
+  /// Count of unfinished urgent (p1) tasks (unfiltered).
+  int get urgentPendingCount => _tasks
+      .where((t) => !t.isCompleted && t.priority == PriorityLevel.p1)
+      .length;
+
+  /// All tasks moved to archive via right-swipe on completed cards.
+  List<Task> get archivedTasks {
+    final list = _tasks.where((t) => t.isArchived).toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return List.unmodifiable(list);
+  }
+
+  /// Count of archived tasks.
+  int get archivedTasksCount => _tasks.where((t) => t.isArchived).length;
+
   // ---------------------------------------------------------------------------
   // Public API
   // ---------------------------------------------------------------------------
@@ -102,6 +126,24 @@ class TaskController extends ChangeNotifier {
 
     final result = await _repository.saveCategories(_categories);
     if (result case Error(:final failure)) {
+      _error = failure.message;
+      notifyListeners();
+    }
+  }
+
+  Future<void> removeCategory(String categoryName) async {
+    final snapshot = List<String>.from(_categories);
+    _categories = _categories
+        .where((c) => c.toLowerCase() != categoryName.toLowerCase())
+        .toList();
+    if (_selectedCategory.toLowerCase() == categoryName.toLowerCase()) {
+      _selectedCategory = allCategory;
+    }
+    notifyListeners();
+
+    final result = await _repository.saveCategories(_categories);
+    if (result case Error(:final failure)) {
+      _categories = snapshot;
       _error = failure.message;
       notifyListeners();
     }
@@ -173,6 +215,25 @@ class TaskController extends ChangeNotifier {
     await updateTask(current.copyWith(isCompleted: !current.isCompleted));
   }
 
+  /// Moves a completed task into the archive so it leaves the main board
+  /// but stays viewable in the archive section.
+  Future<void> archiveTask(int id) async {
+    final index = _tasks.indexWhere((t) => t.id == id);
+    if (index == -1) return;
+
+    final current = _tasks[index];
+    await updateTask(current.copyWith(isCompleted: true, isArchived: true));
+  }
+
+  /// Restores an archived task back to the main board.
+  Future<void> unarchiveTask(int id) async {
+    final index = _tasks.indexWhere((t) => t.id == id);
+    if (index == -1) return;
+
+    final current = _tasks[index];
+    await updateTask(current.copyWith(isArchived: false));
+  }
+
   Future<void> delete(int id) async {
     final snapshot = List<Task>.from(_tasks);
 
@@ -180,6 +241,19 @@ class TaskController extends ChangeNotifier {
     notifyListeners();
 
     final result = await _repository.delete(id);
+    if (result case Error(:final failure)) {
+      _tasks = snapshot;
+      _error = failure.message;
+      notifyListeners();
+    }
+  }
+
+  Future<void> clearCompleted() async {
+    final snapshot = List<Task>.from(_tasks);
+    _tasks = _tasks.where((t) => !t.isCompleted).toList();
+    notifyListeners();
+
+    final result = await _repository.deleteCompleted();
     if (result case Error(:final failure)) {
       _tasks = snapshot;
       _error = failure.message;
@@ -199,6 +273,8 @@ class TaskController extends ChangeNotifier {
   List<Task> _filteredAndSorted(List<Task> source) {
     final q = _searchQuery.toLowerCase();
     final filtered = source.where((t) {
+      if (t.isArchived) return false;
+
       final isGlobalTask =
           t.category.toLowerCase() == globalCategory.toLowerCase() ||
           t.category.toLowerCase() == allCategory.toLowerCase();

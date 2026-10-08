@@ -8,6 +8,7 @@ abstract interface class ITaskRepository {
   Future<Result<void>> save(Task task);
   Future<Result<void>> update(Task task);
   Future<Result<void>> delete(int id);
+  Future<Result<void>> deleteCompleted();
   List<String> getCategories();
   Future<Result<void>> saveCategories(List<String> categories);
 }

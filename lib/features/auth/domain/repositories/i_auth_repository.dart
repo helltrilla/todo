@@ -30,6 +30,9 @@ abstract interface class IAuthRepository {
     String? name,
   });
 
+  /// Updates the current user's display name.
+  Future<Result<AppUser>> updateDisplayName(String newName);
+
   /// Clears the active session.
   Future<Result<void>> signOut();
 }

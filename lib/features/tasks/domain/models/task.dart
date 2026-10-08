@@ -11,6 +11,7 @@ class Task {
   final DateTime? dueDate;
   final int priorityIndex;
   final bool isCompleted;
+  final bool isArchived;
   final String category;
 
   const Task({
@@ -21,6 +22,7 @@ class Task {
     required this.priorityIndex,
     this.dueDate,
     this.isCompleted = false,
+    this.isArchived = false,
     this.category = 'Personal',
   });
 
@@ -35,6 +37,7 @@ class Task {
     DateTime? dueDate,
     int? priorityIndex,
     bool? isCompleted,
+    bool? isArchived,
     String? category,
   }) {
     return Task(
@@ -45,6 +48,7 @@ class Task {
       dueDate: dueDate ?? this.dueDate,
       priorityIndex: priorityIndex ?? this.priorityIndex,
       isCompleted: isCompleted ?? this.isCompleted,
+      isArchived: isArchived ?? this.isArchived,
       category: category ?? this.category,
     );
   }
@@ -58,6 +62,7 @@ class Task {
       'dueDate': dueDate?.millisecondsSinceEpoch,
       'priorityIndex': priorityIndex,
       'isCompleted': isCompleted,
+      'isArchived': isArchived,
       'category': category,
     };
   }
@@ -73,6 +78,7 @@ class Task {
           : null,
       priorityIndex: (map['priorityIndex'] as int?) ?? -1,
       isCompleted: (map['isCompleted'] as bool?) ?? false,
+      isArchived: (map['isArchived'] as bool?) ?? false,
       category: (map['category'] as String?) ?? 'Personal',
     );
   }
@@ -86,7 +92,8 @@ class Task {
   String toString() =>
       'Task(id: $id, name: $name, value: $value, '
       'createdAt: $createdAt, dueDate: $dueDate, '
-      'priorityIndex: $priorityIndex, isCompleted: $isCompleted, category: $category)';
+      'priorityIndex: $priorityIndex, isCompleted: $isCompleted, '
+      'isArchived: $isArchived, category: $category)';
 
   @override
   bool operator ==(Object other) =>

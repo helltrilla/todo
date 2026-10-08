@@ -3,6 +3,7 @@ import 'package:todo/core/app_router/app_router_names.dart';
 import 'package:todo/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:todo/features/auth/presentation/screens/email_otp_screen.dart';
 import 'package:todo/features/auth/presentation/screens/internal_auth_screen.dart';
+import 'package:todo/features/auth/presentation/screens/settings_screen.dart';
 import 'package:todo/features/auth/presentation/screens/welcome_screen.dart';
 import 'package:todo/features/tasks/presentation/screens/home_screen.dart';
 
@@ -47,6 +48,11 @@ class AppRouter {
           path: '/home',
           name: AppRouterNames.home,
           builder: (context, state) => const HomeScreen(),
+        ),
+        GoRoute(
+          path: '/settings',
+          name: AppRouterNames.settings,
+          builder: (context, state) => const SettingsScreen(),
         ),
       ],
     );

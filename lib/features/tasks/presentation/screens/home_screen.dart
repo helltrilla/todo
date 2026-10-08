@@ -2,7 +2,9 @@ import 'dart:math' as math;
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:todo/core/app_router/app_router_names.dart';
 import 'package:todo/core/app_theme/app_colors.dart';
 import 'package:todo/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:todo/features/tasks/domain/models/task.dart';
@@ -117,40 +119,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _confirmSignOut() async {
-    final user = context.read<AuthController>().currentUser;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text(
-          'Профиль',
-          style: TextStyle(color: AppColors.maintext),
-        ),
-        content: Text(
-          user != null
-              ? 'Вы вошли как ${user.name}${user.email != null ? ' (${user.email})' : ''}.\nХотите выйти из аккаунта?'
-              : 'Выйти из аккаунта?',
-          style: const TextStyle(color: AppColors.labeltext),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Отмена'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
-            child: const Text('Выйти'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true && mounted) {
-      await context.read<AuthController>().signOut();
-    }
-  }
-
   void _openTaskSheet({Task? task}) {
     showModalBottomSheet(
       context: context,
@@ -176,8 +144,8 @@ class _HomeScreenState extends State<HomeScreen> {
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: IconButton(
-              tooltip: 'Профиль / Выход',
-              onPressed: _confirmSignOut,
+              tooltip: 'Профиль и настройки',
+              onPressed: () => context.pushNamed(AppRouterNames.settings),
               style: IconButton.styleFrom(
                 side: const BorderSide(color: Colors.white24),
                 shape: const CircleBorder(),
@@ -228,6 +196,22 @@ class _HomeScreenState extends State<HomeScreen> {
                               todayTasks: controller.todayTasks,
                               confirmDismiss: _confirmDeleteDialog,
                               onDelete: (task) => controller.delete(task.id),
+                              onArchive: (task) {
+                                controller.archiveTask(task.id);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      '«${task.name}» перемещена в архив профиля',
+                                    ),
+                                    action: SnackBarAction(
+                                      label: 'Вернуть',
+                                      textColor: AppColors.accentYellow,
+                                      onPressed: () =>
+                                          controller.unarchiveTask(task.id),
+                                    ),
+                                  ),
+                                );
+                              },
                               onToggleComplete: (task) =>
                                   controller.toggleCompleted(task.id),
                               onEditTask: (task) => _openTaskSheet(task: task),
@@ -444,6 +428,7 @@ class _SectionedTaskList extends StatelessWidget {
     required this.todayTasks,
     required this.confirmDismiss,
     required this.onDelete,
+    required this.onArchive,
     required this.onToggleComplete,
     required this.onEditTask,
   });
@@ -452,6 +437,7 @@ class _SectionedTaskList extends StatelessWidget {
   final List<Task> todayTasks;
   final Future<bool?> Function(Task) confirmDismiss;
   final void Function(Task) onDelete;
+  final void Function(Task) onArchive;
   final void Function(Task) onToggleComplete;
   final void Function(Task) onEditTask;
 
@@ -477,6 +463,7 @@ class _SectionedTaskList extends StatelessWidget {
                 task: task,
                 confirmDismiss: () => confirmDismiss(task),
                 onDelete: () => onDelete(task),
+                onArchive: () => onArchive(task),
                 onToggleComplete: () => onToggleComplete(task),
                 onTap: () => onEditTask(task),
               ),
@@ -501,6 +488,7 @@ class _SectionedTaskList extends StatelessWidget {
                 task: task,
                 confirmDismiss: () => confirmDismiss(task),
                 onDelete: () => onDelete(task),
+                onArchive: () => onArchive(task),
                 onToggleComplete: () => onToggleComplete(task),
                 onTap: () => onEditTask(task),
               ),

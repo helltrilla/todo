@@ -79,6 +79,12 @@ class AuthController extends ChangeNotifier {
     return _handleUserResult(result);
   }
 
+  Future<bool> updateDisplayName(String newName) async {
+    _startLoading();
+    final result = await _repository.updateDisplayName(newName);
+    return _handleUserResult(result);
+  }
+
   Future<void> signOut() async {
     await _repository.signOut();
     _currentUser = null;
