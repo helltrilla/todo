@@ -88,6 +88,14 @@ class TaskController extends ChangeNotifier {
   /// Count of archived tasks.
   int get archivedTasksCount => _tasks.where((t) => t.isArchived).length;
 
+  /// Total minutes spent in Focus mode across all tasks.
+  int get totalFocusMinutes =>
+      _tasks.fold<int>(0, (sum, t) => sum + t.focusMinutes);
+
+  /// Total completed Pomodoro focus sessions across all tasks.
+  int get totalPomodoroSessions =>
+      _tasks.fold<int>(0, (sum, t) => sum + t.pomodoroCount);
+
   /// Count of tasks completed today.
   int get completedTodayCount {
     final now = DateTime.now();
@@ -303,6 +311,7 @@ class TaskController extends ChangeNotifier {
     String? category,
     List<SubTask> subtasks = const [],
     RecurrenceRule recurrence = RecurrenceRule.none,
+    bool isPinned = false,
   }) async {
     final effectiveCategory =
         category ??
@@ -321,6 +330,7 @@ class TaskController extends ChangeNotifier {
           ? reminderOffsetMinutes
           : null,
       priorityIndex: priorityIndex,
+      isPinned: isPinned,
       category: effectiveCategory,
       subtasks: subtasks,
       recurrence: recurrence,
@@ -432,6 +442,29 @@ class TaskController extends ChangeNotifier {
 
     final current = _tasks[index];
     await updateTask(current.copyWith(isCompleted: !current.isCompleted));
+  }
+
+  /// Toggles the pinned status of a task so it stays at the top of the list.
+  Future<void> togglePin(int id) async {
+    final index = _tasks.indexWhere((t) => t.id == id);
+    if (index == -1) return;
+
+    final current = _tasks[index];
+    await updateTask(current.copyWith(isPinned: !current.isPinned));
+  }
+
+  /// Records a completed Pomodoro focus session (+1 session and +[minutes] focus time) on [taskId].
+  Future<void> recordFocusSession(int taskId, {required int minutes}) async {
+    final index = _tasks.indexWhere((t) => t.id == taskId);
+    if (index == -1) return;
+
+    final current = _tasks[index];
+    await updateTask(
+      current.copyWith(
+        pomodoroCount: current.pomodoroCount + 1,
+        focusMinutes: current.focusMinutes + (minutes > 0 ? minutes : 1),
+      ),
+    );
   }
 
   /// Toggles a single [SubTask] inside a [Task].
@@ -555,6 +588,9 @@ class TaskController extends ChangeNotifier {
     return filtered..sort((a, b) {
       if (a.isCompleted != b.isCompleted) {
         return a.isCompleted ? 1 : -1;
+      }
+      if (!a.isCompleted && a.isPinned != b.isPinned) {
+        return a.isPinned ? -1 : 1;
       }
       final aPriority = a.priorityIndex == -1 ? 999 : a.priorityIndex;
       final bPriority = b.priorityIndex == -1 ? 999 : b.priorityIndex;

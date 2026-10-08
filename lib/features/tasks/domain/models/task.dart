@@ -132,10 +132,13 @@ class Task {
   final int priorityIndex;
   final bool isCompleted;
   final bool isArchived;
+  final bool isPinned;
   final String category;
   final List<SubTask> subtasks;
   final RecurrenceRule recurrence;
   final bool hasSpawnedNext;
+  final int pomodoroCount;
+  final int focusMinutes;
 
   const Task({
     required this.id,
@@ -148,10 +151,13 @@ class Task {
     this.reminderOffsetMinutes,
     this.isCompleted = false,
     this.isArchived = false,
+    this.isPinned = false,
     this.category = 'Personal',
     this.subtasks = const [],
     this.recurrence = RecurrenceRule.none,
     this.hasSpawnedNext = false,
+    this.pomodoroCount = 0,
+    this.focusMinutes = 0,
   });
 
   PriorityLevel get priority => PriorityLevel.fromIndex(priorityIndex);
@@ -193,10 +199,13 @@ class Task {
     int? priorityIndex,
     bool? isCompleted,
     bool? isArchived,
+    bool? isPinned,
     String? category,
     List<SubTask>? subtasks,
     RecurrenceRule? recurrence,
     bool? hasSpawnedNext,
+    int? pomodoroCount,
+    int? focusMinutes,
   }) {
     return Task(
       id: id ?? this.id,
@@ -211,10 +220,13 @@ class Task {
       priorityIndex: priorityIndex ?? this.priorityIndex,
       isCompleted: isCompleted ?? this.isCompleted,
       isArchived: isArchived ?? this.isArchived,
+      isPinned: isPinned ?? this.isPinned,
       category: category ?? this.category,
       subtasks: subtasks ?? this.subtasks,
       recurrence: recurrence ?? this.recurrence,
       hasSpawnedNext: hasSpawnedNext ?? this.hasSpawnedNext,
+      pomodoroCount: pomodoroCount ?? this.pomodoroCount,
+      focusMinutes: focusMinutes ?? this.focusMinutes,
     );
   }
 
@@ -230,10 +242,13 @@ class Task {
       'priorityIndex': priorityIndex,
       'isCompleted': isCompleted,
       'isArchived': isArchived,
+      'isPinned': isPinned,
       'category': category,
       'subtasks': subtasks.map((s) => s.toMap()).toList(),
       'recurrence': recurrence.key,
       'hasSpawnedNext': hasSpawnedNext,
+      'pomodoroCount': pomodoroCount,
+      'focusMinutes': focusMinutes,
     };
   }
 
@@ -260,10 +275,13 @@ class Task {
       priorityIndex: (map['priorityIndex'] as int?) ?? -1,
       isCompleted: (map['isCompleted'] as bool?) ?? false,
       isArchived: (map['isArchived'] as bool?) ?? false,
+      isPinned: (map['isPinned'] as bool?) ?? false,
       category: (map['category'] as String?) ?? 'Personal',
       subtasks: parsedSubtasks,
       recurrence: RecurrenceRule.fromKey(map['recurrence'] as String?),
       hasSpawnedNext: (map['hasSpawnedNext'] as bool?) ?? false,
+      pomodoroCount: (map['pomodoroCount'] as int?) ?? 0,
+      focusMinutes: (map['focusMinutes'] as int?) ?? 0,
     );
   }
 
@@ -278,8 +296,9 @@ class Task {
       'createdAt: $createdAt, dueDate: $dueDate, '
       'reminderOffsetMinutes: $reminderOffsetMinutes, '
       'priorityIndex: $priorityIndex, isCompleted: $isCompleted, '
-      'isArchived: $isArchived, category: $category, '
-      'recurrence: ${recurrence.key}, subtasks: ${subtasks.length})';
+      'isArchived: $isArchived, isPinned: $isPinned, category: $category, '
+      'recurrence: ${recurrence.key}, pomodoros: $pomodoroCount, '
+      'subtasks: ${subtasks.length})';
 
   @override
   bool operator ==(Object other) =>
