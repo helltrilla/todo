@@ -1,4 +1,6 @@
+import AVFoundation
 import Flutter
+import MediaPlayer
 import UIKit
 import UserNotifications
 
@@ -9,6 +11,13 @@ import UserNotifications
   private var pendingQuickAction: String?
   private var isFlutterReadyForQuickActions = false
   private var pendingImageResult: FlutterResult?
+  private var audioEngine: AVAudioEngine?
+  private var sourceNode: AVAudioSourceNode?
+  private var currentAmbientSound: String = "off"
+  private var ambientVolume: Float = 0.45
+  private var noiseFilterState: Float = 0.0
+  private var secondaryFilterState: Float = 0.0
+  private var lfoPhase: Float = 0.0
 
   override func application(
     _ application: UIApplication,
@@ -157,8 +166,140 @@ import UserNotifications
         presenter.present(picker, animated: true)
       }
 
+    case "setAmbientSound":
+      let args = call.arguments as? [String: Any]
+      let sound = (args?["sound"] as? String) ?? "off"
+      let volume = (args?["volume"] as? NSNumber)?.floatValue ?? 0.45
+      configureAmbientAudio(sound: sound, volume: volume)
+      result(nil)
+
+    case "openExternalUrl":
+      let args = call.arguments as? [String: Any]
+      let rawUrl = (args?["url"] as? String) ?? ""
+      let fallbackUrl = args?["fallbackUrl"] as? String
+      DispatchQueue.main.async {
+        if let primary = URL(string: rawUrl) {
+          UIApplication.shared.open(primary, options: [:]) { success in
+            if success {
+              result(true)
+            } else if let fb = fallbackUrl, let fbUrl = URL(string: fb) {
+              UIApplication.shared.open(fbUrl, options: [:]) { fbSuccess in
+                result(fbSuccess)
+              }
+            } else {
+              result(false)
+            }
+          }
+        } else {
+          result(false)
+        }
+      }
+
+    case "sendMediaCommand":
+      let args = call.arguments as? [String: Any]
+      let command = (args?["command"] as? String) ?? "playPause"
+      let player = MPMusicPlayerController.systemMusicPlayer
+      switch command {
+      case "previous":
+        player.skipToPreviousItem()
+      case "next":
+        player.skipToNextItem()
+      default:
+        if player.playbackState == .playing {
+          player.pause()
+        } else {
+          player.play()
+        }
+      }
+      result(nil)
+
     default:
       result(FlutterMethodNotImplemented)
+    }
+  }
+
+  private func configureAmbientAudio(sound: String, volume: Float) {
+    currentAmbientSound = sound
+    ambientVolume = max(0.0, min(1.0, volume))
+
+    if sound == "off" || ambientVolume <= 0.001 {
+      audioEngine?.stop()
+      return
+    }
+
+    do {
+      let session = AVAudioSession.sharedInstance()
+      try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+      try session.setActive(true)
+    } catch {
+      // Ignore session errors and attempt engine playback
+    }
+
+    if audioEngine == nil {
+      let engine = AVAudioEngine()
+      let format = engine.outputNode.inputFormat(forBus: 0)
+      let sampleRate = Float(format.sampleRate > 0 ? format.sampleRate : 44100.0)
+
+      let node = AVAudioSourceNode { [weak self] _, _, frameCount, audioBufferList -> OSStatus in
+        guard let self = self else { return noErr }
+        let ablPointer = UnsafeMutableAudioBufferListPointer(audioBufferList)
+        let mode = self.currentAmbientSound
+        let gain = self.ambientVolume * 0.22
+
+        for frame in 0..<Int(frameCount) {
+          let white = Float.random(in: -1.0...1.0)
+          var sample: Float = 0.0
+
+          switch mode {
+          case "rain":
+            // Warm rainfall: low-pass filtered noise + subtle droplet texture
+            self.noiseFilterState = 0.90 * self.noiseFilterState + 0.10 * white
+            self.secondaryFilterState = 0.72 * self.secondaryFilterState + 0.28 * (white - self.noiseFilterState)
+            sample = (self.noiseFilterState * 0.65 + self.secondaryFilterState * 0.35) * gain
+
+          case "waves":
+            // Ocean surf swell with slow 0.13 Hz LFO
+            self.lfoPhase += (2.0 * Float.pi * 0.13) / sampleRate
+            if self.lfoPhase > 2.0 * Float.pi {
+              self.lfoPhase -= 2.0 * Float.pi
+            }
+            let swell = 0.30 + 0.70 * (0.5 * (1.0 + sin(self.lfoPhase)))
+            self.noiseFilterState = 0.965 * self.noiseFilterState + 0.035 * white
+            sample = self.noiseFilterState * swell * gain * 1.35
+
+          case "cafe":
+            // Deep brown/pink comfort hum
+            self.noiseFilterState = (self.noiseFilterState + 0.025 * white) / 1.025
+            sample = self.noiseFilterState * gain * 2.2
+
+          case "vinyl":
+            // Cozy lo-fi warm static with occasional soft vinyl crackle
+            self.noiseFilterState = 0.94 * self.noiseFilterState + 0.06 * white
+            let crackle: Float = Float.random(in: 0.0...1.0) > 0.9985 ? Float.random(in: -0.45...0.45) : 0.0
+            sample = (self.noiseFilterState * 0.75 + crackle * 0.25) * gain
+
+          default:
+            sample = 0.0
+          }
+
+          for buffer in ablPointer {
+            let buf: UnsafeMutableBufferPointer<Float> = UnsafeMutableBufferPointer(buffer)
+            if frame < buf.count {
+              buf[frame] = sample
+            }
+          }
+        }
+        return noErr
+      }
+
+      engine.attach(node)
+      engine.connect(node, to: engine.mainMixerNode, format: format)
+      self.sourceNode = node
+      self.audioEngine = engine
+    }
+
+    if let engine = audioEngine, !engine.isRunning {
+      try? engine.start()
     }
   }
 

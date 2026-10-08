@@ -9,12 +9,17 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.media.AudioAttributes
+import android.media.AudioFormat
+import android.media.AudioManager
+import android.media.AudioTrack
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Base64
+import android.view.KeyEvent
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
@@ -22,7 +27,10 @@ import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import java.io.ByteArrayOutputStream
+import kotlin.math.PI
 import kotlin.math.max
+import kotlin.math.sin
+import kotlin.random.Random
 
 class MainActivity : FlutterActivity() {
     private val channelName = "com.helltrilla.todoapp/notifications"
@@ -34,6 +42,9 @@ class MainActivity : FlutterActivity() {
     private var pendingQuickAction: String? = null
     private var isFlutterReadyForQuickActions = false
     private var pendingImageResult: MethodChannel.Result? = null
+    @Volatile private var ambientSoundMode: String = "off"
+    @Volatile private var ambientVolume: Float = 0.45f
+    private var ambientThread: Thread? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -149,9 +160,150 @@ class MainActivity : FlutterActivity() {
                     )
                 }
 
+                "setAmbientSound" -> {
+                    val sound = call.argument<String>("sound") ?: "off"
+                    val volume = call.argument<Number>("volume")?.toFloat() ?: 0.45f
+                    configureAmbientAudio(sound, volume)
+                    result.success(null)
+                }
+
+                "openExternalUrl" -> {
+                    val rawUrl = call.argument<String>("url") ?: ""
+                    val fallbackUrl = call.argument<String>("fallbackUrl")
+                    val opened = launchUriWithFallback(rawUrl, fallbackUrl)
+                    result.success(opened)
+                }
+
+                "sendMediaCommand" -> {
+                    val command = call.argument<String>("command") ?: "playPause"
+                    dispatchSystemMediaKey(command)
+                    result.success(null)
+                }
+
                 else -> result.notImplemented()
             }
         }
+    }
+
+    private fun launchUriWithFallback(rawUrl: String, fallbackUrl: String?): Boolean {
+        try {
+            val primaryIntent = Intent(Intent.ACTION_VIEW, Uri.parse(rawUrl)).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(primaryIntent)
+            return true
+        } catch (_: Exception) {
+            if (!fallbackUrl.isNullOrBlank()) {
+                return try {
+                    val fbIntent = Intent(Intent.ACTION_VIEW, Uri.parse(fallbackUrl)).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    startActivity(fbIntent)
+                    true
+                } catch (_: Exception) {
+                    false
+                }
+            }
+            return false
+        }
+    }
+
+    private fun dispatchSystemMediaKey(command: String) {
+        val keyCode = when (command) {
+            "previous" -> KeyEvent.KEYCODE_MEDIA_PREVIOUS
+            "next" -> KeyEvent.KEYCODE_MEDIA_NEXT
+            else -> KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE
+        }
+        val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        audioManager.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, keyCode))
+        audioManager.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_UP, keyCode))
+    }
+
+    private fun configureAmbientAudio(sound: String, volume: Float) {
+        ambientSoundMode = sound
+        ambientVolume = volume.coerceIn(0f, 1f)
+        if (sound == "off" || ambientVolume <= 0.001f) {
+            ambientThread = null
+            return
+        }
+        if (ambientThread?.isAlive == true) return
+
+        val worker = Thread {
+            val sampleRate = 22050
+            val minBuf = AudioTrack.getMinBufferSize(
+                sampleRate,
+                AudioFormat.CHANNEL_OUT_MONO,
+                AudioFormat.ENCODING_PCM_16BIT
+            ).coerceAtLeast(2048)
+
+            val track = AudioTrack.Builder()
+                .setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                        .build()
+                )
+                .setAudioFormat(
+                    AudioFormat.Builder()
+                        .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                        .setSampleRate(sampleRate)
+                        .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                        .build()
+                )
+                .setBufferSizeInBytes(minBuf)
+                .build()
+
+            val buffer = ShortArray(1024)
+            var filterState = 0f
+            var secondaryState = 0f
+            var lfoPhase = 0.0
+
+            try {
+                track.play()
+                while (ambientSoundMode != "off" && ambientVolume > 0.001f) {
+                    val mode = ambientSoundMode
+                    val gain = ambientVolume * 0.22f
+                    for (i in buffer.indices) {
+                        val white = Random.nextFloat() * 2f - 1f
+                        val sample: Float = when (mode) {
+                            "rain" -> {
+                                filterState = 0.90f * filterState + 0.10f * white
+                                secondaryState = 0.72f * secondaryState + 0.28f * (white - filterState)
+                                (filterState * 0.65f + secondaryState * 0.35f) * gain
+                            }
+                            "waves" -> {
+                                lfoPhase += (2.0 * PI * 0.13) / sampleRate
+                                if (lfoPhase > 2.0 * PI) lfoPhase -= 2.0 * PI
+                                val swell = (0.30 + 0.70 * (0.5 * (1.0 + sin(lfoPhase)))).toFloat()
+                                filterState = 0.965f * filterState + 0.035f * white
+                                filterState * swell * gain * 1.35f
+                            }
+                            "cafe" -> {
+                                filterState = (filterState + 0.025f * white) / 1.025f
+                                filterState * gain * 2.2f
+                            }
+                            "vinyl" -> {
+                                filterState = 0.94f * filterState + 0.06f * white
+                                val crackle = if (Random.nextFloat() > 0.9985f) (Random.nextFloat() * 0.9f - 0.45f) else 0f
+                                (filterState * 0.75f + crackle * 0.25f) * gain
+                            }
+                            else -> 0f
+                        }
+                        buffer[i] = (sample.coerceIn(-1f, 1f) * Short.MAX_VALUE).toInt().toShort()
+                    }
+                    track.write(buffer, 0, buffer.size)
+                }
+            } catch (_: Exception) {
+            } finally {
+                try {
+                    track.stop()
+                    track.release()
+                } catch (_: Exception) {}
+            }
+        }
+        worker.isDaemon = true
+        ambientThread = worker
+        worker.start()
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {

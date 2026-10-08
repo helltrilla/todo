@@ -178,6 +178,51 @@ class NotificationService {
     }
   }
 
+  /// Starts, updates, or stops the native procedural ambient sound generator.
+  /// Configured with `mixWithOthers` so Spotify / Apple Music / Yandex Music
+  /// continues playing alongside the ambient soundscape.
+  Future<void> setAmbientSound({
+    required String sound,
+    double volume = 0.45,
+  }) async {
+    if (kIsWeb) return;
+    try {
+      await _channel.invokeMethod<void>('setAmbientSound', <String, dynamic>{
+        'sound': sound,
+        'volume': volume.clamp(0.0, 1.0),
+      });
+    } catch (_) {}
+  }
+
+  /// Opens a deep link or web URL (e.g., `spotify:playlist:...`) in the target app,
+  /// falling back to [fallbackUrl] if the native app scheme is not installed.
+  Future<bool> openExternalUrl({
+    required String url,
+    String? fallbackUrl,
+  }) async {
+    if (kIsWeb) return false;
+    try {
+      final opened = await _channel.invokeMethod<bool>(
+        'openExternalUrl',
+        <String, dynamic>{'url': url, 'fallbackUrl': fallbackUrl},
+      );
+      return opened ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Sends a system media transport command (`'previous'`, `'playPause'`, `'next'`)
+  /// to control background music players right from the Focus screen.
+  Future<void> sendMediaCommand(String command) async {
+    if (kIsWeb) return;
+    try {
+      await _channel.invokeMethod<void>('sendMediaCommand', <String, dynamic>{
+        'command': command,
+      });
+    } catch (_) {}
+  }
+
   Future<void> _scheduleNative({
     required String notificationId,
     required String title,
@@ -185,12 +230,13 @@ class NotificationService {
     required DateTime scheduledAt,
   }) async {
     try {
-      await _channel.invokeMethod<void>('scheduleNotification', <String, dynamic>{
-        'id': notificationId,
-        'title': title,
-        'body': body,
-        'timestampMs': scheduledAt.millisecondsSinceEpoch,
-      });
+      await _channel
+          .invokeMethod<void>('scheduleNotification', <String, dynamic>{
+            'id': notificationId,
+            'title': title,
+            'body': body,
+            'timestampMs': scheduledAt.millisecondsSinceEpoch,
+          });
     } catch (_) {}
   }
 }
