@@ -220,21 +220,28 @@ class TaskController extends ChangeNotifier {
     int priorityIndex = -1,
     String? category,
     List<SubTask> subtasks = const [],
+    RecurrenceRule recurrence = RecurrenceRule.none,
   }) async {
     final effectiveCategory =
         category ??
         (_selectedCategory != allCategory ? _selectedCategory : globalCategory);
 
+    final effectiveDueDate =
+        dueDate ?? (recurrence.isRepeating ? DateTime.now() : null);
+
     final task = Task(
-      id: DateTime.now().millisecondsSinceEpoch,
+      id: _generateUniqueId(),
       name: name,
       value: value,
       createdAt: DateTime.now(),
-      dueDate: dueDate,
-      reminderOffsetMinutes: dueDate != null ? reminderOffsetMinutes : null,
+      dueDate: effectiveDueDate,
+      reminderOffsetMinutes: effectiveDueDate != null
+          ? reminderOffsetMinutes
+          : null,
       priorityIndex: priorityIndex,
       category: effectiveCategory,
       subtasks: subtasks,
+      recurrence: recurrence,
     );
 
     _tasks = [..._tasks, task];
@@ -251,22 +258,42 @@ class TaskController extends ChangeNotifier {
     unawaited(NotificationService.instance.syncTaskNotifications(task));
   }
 
+  int _generateUniqueId() {
+    var candidate = DateTime.now().millisecondsSinceEpoch;
+    while (_tasks.any((t) => t.id == candidate)) {
+      candidate++;
+    }
+    return candidate;
+  }
+
   /// Updates all fields of an existing [updatedTask] with optimistic UI and rollback.
+  /// If a recurring task transitions from incomplete to completed for the first time,
+  /// automatically schedules its next occurrence.
   Future<void> updateTask(Task updatedTask) async {
     final index = _tasks.indexWhere((t) => t.id == updatedTask.id);
     if (index == -1) return;
 
     final original = _tasks[index];
+    final shouldSpawnNext =
+        !original.isCompleted &&
+        updatedTask.isCompleted &&
+        updatedTask.isRecurring &&
+        !updatedTask.hasSpawnedNext;
+
+    final effectiveUpdated = shouldSpawnNext
+        ? updatedTask.copyWith(hasSpawnedNext: true)
+        : updatedTask;
+
     final nextList = List<Task>.from(_tasks);
-    nextList[index] = updatedTask;
+    nextList[index] = effectiveUpdated;
     _tasks = nextList;
     notifyListeners();
 
-    final result = await _repository.update(updatedTask);
+    final result = await _repository.update(effectiveUpdated);
     if (result case Error(:final failure)) {
       final rollbackList = List<Task>.from(_tasks);
       final currentIndex = rollbackList.indexWhere(
-        (t) => t.id == updatedTask.id,
+        (t) => t.id == effectiveUpdated.id,
       );
       if (currentIndex != -1) {
         rollbackList[currentIndex] = original;
@@ -277,7 +304,39 @@ class TaskController extends ChangeNotifier {
       return;
     }
 
-    unawaited(NotificationService.instance.syncTaskNotifications(updatedTask));
+    unawaited(
+      NotificationService.instance.syncTaskNotifications(effectiveUpdated),
+    );
+
+    if (shouldSpawnNext) {
+      final baseDue = effectiveUpdated.dueDate ?? DateTime.now();
+      final nextDue = effectiveUpdated.recurrence.nextDueDate(baseDue);
+      final nextTask = Task(
+        id: _generateUniqueId(),
+        name: effectiveUpdated.name,
+        value: effectiveUpdated.value,
+        createdAt: DateTime.now(),
+        dueDate: nextDue,
+        reminderOffsetMinutes: effectiveUpdated.reminderOffsetMinutes ?? 15,
+        priorityIndex: effectiveUpdated.priorityIndex,
+        category: effectiveUpdated.category,
+        recurrence: effectiveUpdated.recurrence,
+        subtasks: effectiveUpdated.subtasks
+            .map((s) => s.copyWith(isCompleted: false))
+            .toList(),
+      );
+      _tasks = [..._tasks, nextTask];
+      notifyListeners();
+
+      final saveResult = await _repository.save(nextTask);
+      if (saveResult case Error(:final failure)) {
+        _tasks = _tasks.where((t) => t.id != nextTask.id).toList();
+        _error = failure.message;
+        notifyListeners();
+      } else {
+        unawaited(NotificationService.instance.syncTaskNotifications(nextTask));
+      }
+    }
   }
 
   Future<void> toggleCompleted(int id) async {

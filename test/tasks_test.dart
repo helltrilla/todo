@@ -338,6 +338,39 @@ void main() {
         expect(failingController.error, isNull);
       },
     );
+
+    test(
+      'spawns next occurrence with reset subtasks when a recurring task is completed',
+      () async {
+        final baseDate = DateTime(2026, 10, 9, 10, 0);
+        await controller.add(
+          name: 'Morning workout',
+          value: 'Pushups and stretching',
+          dueDate: baseDate,
+          recurrence: RecurrenceRule.weekdays,
+          subtasks: const [SubTask(id: 1, title: 'Warm up', isCompleted: true)],
+        );
+
+        expect(controller.tasks.length, 1);
+        final originalTask = controller.tasks.first;
+        expect(originalTask.recurrence, RecurrenceRule.weekdays);
+
+        // Complete the Friday (Oct 9, 2026) task -> should spawn Monday (Oct 12, 2026)
+        await controller.toggleCompleted(originalTask.id);
+        expect(controller.tasks.length, 2);
+
+        final pendingNext = controller.tasks.firstWhere((t) => !t.isCompleted);
+        expect(pendingNext.name, 'Morning workout');
+        expect(pendingNext.dueDate, DateTime(2026, 10, 12, 10, 0));
+        expect(pendingNext.recurrence, RecurrenceRule.weekdays);
+        expect(pendingNext.subtasks.first.isCompleted, isFalse);
+
+        // Toggling the completed task off and on again should not duplicate the next occurrence
+        await controller.toggleCompleted(originalTask.id);
+        await controller.toggleCompleted(originalTask.id);
+        expect(controller.tasks.length, 2);
+      },
+    );
   });
 
   group('Auth & HomeScreen Widget Flow', () {
