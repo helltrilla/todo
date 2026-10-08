@@ -118,10 +118,11 @@ jobs:
             ## TodoApp ${{ github.event.inputs.tag_name || github.ref_name }}
 
             ### Новое в этом релизе / What's New (Русский)
-            - **🔔 Двойная система локальных Push-уведомлений (iOS & Android)**:
-              - Автоматическое оповещение ровно в момент задачи + настраиваемое напоминание заранее (`За 5 мин`, `За 15 мин`, `За 30 мин`, `За 1 час`, `За 1 день`).
-            - **📳 Тактильный отклик (`Taptic Engine` / `AppHaptics`) и 3D Touch (`Quick Actions`)**:
-              - Механические щелчки при прокрутке времени, переключении вкладок и завершении задач + быстрые действия по зажатию иконки приложения на домашнем экране.
+            - **🔁 Повторяющиеся задачи (`RecurrenceRule`)**:
+              - Поддержка режимов `Каждый день`, `По будням (Пн–Пт)`, `Каждую неделю` и `Каждый месяц`.
+              - При завершении повторяющейся задачи автоматически создаётся следующее вхождение на новую дату со сброшенным чек-листом подзадач и пуш-напоминанием.
+            - **🔥 Продуктивный стрик (`Стрик дней подряд`)**:
+              - Счётчик дней подряд без пропусков в шапке главного экрана (`🔥 X дн.`) и карточка серии в профиле с рекордом и полоской огоньков за последние 7 дней недели (`Пн–Вс`).
             - **👤 Отдельный «Профиль» с фото из галереи и компактный «Архив»**:
               - Выделенная вкладка профиля с выбором фото из галереи, сменой никнейма и компактным архивом выполненных задач с живым поиском.
 
@@ -134,9 +135,10 @@ jobs:
             ---
 
             ### Release Highlights (English)
-            - **🔔 Dual Local Push Notifications (iOS & Android)**:
-              - Automatic due-time alert + configurable advance reminder (`5 min`, `15 min`, `30 min`, `1 hour`, `1 day` before).
-            - **📳 Tactile Haptics & Home Screen Quick Actions (`3D Touch`)**:
-              - Crisp haptic feedback across all interactions + launcher icon shortcuts for *New Task*, *Focus Mode*, and *Task Calendar*.
+            - **🔁 Recurring Tasks (`RecurrenceRule`)**:
+              - Supports `Daily`, `Weekdays (Mon–Fri)`, `Weekly`, and `Monthly` schedules.
+              - Completing a recurring task automatically schedules the next occurrence with reset checklist steps and local push notifications.
+            - **🔥 Daily Productivity Streak**:
+              - Interactive streak badge in the main header (`🔥 X дн.`) and a 7-day flame tracker card with personal best record in the Profile tab.
             - **👤 Dedicated Profile Tab, Avatar Photo Picker & Searchable Archive**:
               - Separate Profile and Settings screens, native gallery photo picker with square crop, and a compact searchable sheet for archived tasks.
