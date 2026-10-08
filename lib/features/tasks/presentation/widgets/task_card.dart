@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:todo/core/app_theme/app_colors.dart';
+import 'package:todo/core/haptics/app_haptics.dart';
 import 'package:todo/features/tasks/domain/models/priority_level.dart';
 import 'package:todo/features/tasks/domain/models/task.dart';
 import 'package:todo/features/tasks/presentation/controllers/task_controller.dart';
@@ -235,10 +236,13 @@ class _TaskInfo extends StatelessWidget {
             (sub) => Padding(
               padding: const EdgeInsets.only(bottom: 4),
               child: GestureDetector(
-                onTap: () => context.read<TaskController>().toggleSubTask(
-                  task.id,
-                  sub.id,
-                ),
+                onTap: () {
+                  AppHaptics.light();
+                  context.read<TaskController>().toggleSubTask(
+                    task.id,
+                    sub.id,
+                  );
+                },
                 behavior: HitTestBehavior.opaque,
                 child: Row(
                   mainAxisSize: MainAxisSize.min,

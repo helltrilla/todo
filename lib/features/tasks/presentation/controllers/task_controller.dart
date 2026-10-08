@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:todo/core/errors/result.dart';
 import 'package:todo/core/notifications/notification_service.dart';
@@ -246,7 +248,7 @@ class TaskController extends ChangeNotifier {
       return;
     }
 
-    await NotificationService.instance.syncTaskNotifications(task);
+    unawaited(NotificationService.instance.syncTaskNotifications(task));
   }
 
   /// Updates all fields of an existing [updatedTask] with optimistic UI and rollback.
@@ -275,7 +277,7 @@ class TaskController extends ChangeNotifier {
       return;
     }
 
-    await NotificationService.instance.syncTaskNotifications(updatedTask);
+    unawaited(NotificationService.instance.syncTaskNotifications(updatedTask));
   }
 
   Future<void> toggleCompleted(int id) async {
@@ -345,7 +347,7 @@ class TaskController extends ChangeNotifier {
       return;
     }
 
-    await NotificationService.instance.cancelTaskNotifications(id);
+    unawaited(NotificationService.instance.cancelTaskNotifications(id));
   }
 
   Future<void> clearCompleted() async {
@@ -369,7 +371,7 @@ class TaskController extends ChangeNotifier {
     for (final id in ids) {
       await _repository.delete(id);
     }
-    await NotificationService.instance.cancelAllNotifications();
+    unawaited(NotificationService.instance.cancelAllNotifications());
   }
 
   void clearError() {

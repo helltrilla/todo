@@ -4,6 +4,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:todo/core/app_theme/app_colors.dart';
+import 'package:todo/core/haptics/app_haptics.dart';
+import 'package:todo/core/notifications/notification_service.dart';
 import 'package:todo/features/tasks/presentation/controllers/task_controller.dart';
 
 /// Listodo Focus Mode (Pomodoro Timer) tab view.
@@ -35,6 +37,7 @@ class _FocusTabViewState extends State<FocusTabView> {
   }
 
   void _selectPreset(int minutes) {
+    AppHaptics.selection();
     _timer?.cancel();
     setState(() {
       _selectedMinutes = minutes;
@@ -44,6 +47,7 @@ class _FocusTabViewState extends State<FocusTabView> {
   }
 
   void _toggleTimer() {
+    AppHaptics.medium();
     if (_isRunning) {
       _timer?.cancel();
       setState(() => _isRunning = false);
@@ -58,6 +62,20 @@ class _FocusTabViewState extends State<FocusTabView> {
       }
       if (_remainingSeconds <= 1) {
         timer.cancel();
+        AppHaptics.heavy();
+        final tasks = context.read<TaskController>().tasks;
+        String? focusedName;
+        if (_focusedTaskId != null) {
+          for (final t in tasks) {
+            if (t.id == _focusedTaskId) {
+              focusedName = t.name;
+              break;
+            }
+          }
+        }
+        NotificationService.instance.sendFocusCompletedNotification(
+          taskName: focusedName,
+        );
         setState(() {
           _remainingSeconds = 0;
           _isRunning = false;
@@ -74,6 +92,7 @@ class _FocusTabViewState extends State<FocusTabView> {
   }
 
   void _resetTimer() {
+    AppHaptics.light();
     _timer?.cancel();
     setState(() {
       _remainingSeconds = _selectedMinutes * 60;
@@ -254,7 +273,10 @@ class _FocusTabViewState extends State<FocusTabView> {
             return Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: InkWell(
-                onTap: () => setState(() => _focusedTaskId = task.id),
+                onTap: () {
+                  AppHaptics.selection();
+                  setState(() => _focusedTaskId = task.id);
+                },
                 borderRadius: BorderRadius.circular(14),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
@@ -296,6 +318,7 @@ class _FocusTabViewState extends State<FocusTabView> {
                       if (isFocused)
                         TextButton(
                           onPressed: () {
+                            AppHaptics.heavy();
                             controller.toggleCompleted(task.id);
                             setState(() => _focusedTaskId = null);
                           },

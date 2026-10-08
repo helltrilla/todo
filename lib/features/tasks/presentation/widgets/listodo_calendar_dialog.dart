@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:todo/core/app_theme/app_colors.dart';
+import 'package:todo/core/haptics/app_haptics.dart';
 
 /// Custom dark calendar + iOS-style dual wheel time picker dialog + reminder picker.
 /// Returns the selected [DateTime] (with hour & minute) when the user taps Save.
@@ -78,6 +79,7 @@ class _ListodoCalendarDialogState extends State<ListodoCalendarDialog> {
   }
 
   void _changeMonth(int offset) {
+    AppHaptics.selection();
     setState(() {
       _displayedMonth = DateTime(
         _displayedMonth.year,
@@ -87,6 +89,7 @@ class _ListodoCalendarDialogState extends State<ListodoCalendarDialog> {
   }
 
   void _selectPreset(DateTime target) {
+    AppHaptics.selection();
     setState(() {
       _selectedDate = DateTime(target.year, target.month, target.day);
       _displayedMonth = DateTime(target.year, target.month);
@@ -253,7 +256,10 @@ class _ListodoCalendarDialogState extends State<ListodoCalendarDialog> {
                   final isToday = DateUtils.isSameDay(cellDate, today);
 
                   return GestureDetector(
-                    onTap: () => setState(() => _selectedDate = cellDate),
+                    onTap: () {
+                      AppHaptics.selection();
+                      setState(() => _selectedDate = cellDate);
+                    },
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 140),
                       alignment: Alignment.center,
@@ -334,6 +340,7 @@ class _ListodoCalendarDialogState extends State<ListodoCalendarDialog> {
                               background: Color(0x228875FF),
                             ),
                         onSelectedItemChanged: (index) {
+                          AppHaptics.selection();
                           setState(() => _selectedHour = index);
                         },
                         children: List.generate(24, (hour) {
@@ -373,6 +380,7 @@ class _ListodoCalendarDialogState extends State<ListodoCalendarDialog> {
                               background: Color(0x228875FF),
                             ),
                         onSelectedItemChanged: (index) {
+                          AppHaptics.selection();
                           setState(() => _selectedMinute = index);
                         },
                         children: List.generate(60, (minute) {
@@ -438,6 +446,7 @@ class _ListodoCalendarDialogState extends State<ListodoCalendarDialog> {
                   final isSelected = _selectedReminderMinutes == minutes;
                   return GestureDetector(
                     onTap: () {
+                      AppHaptics.selection();
                       setState(() => _selectedReminderMinutes = minutes);
                     },
                     child: AnimatedContainer(
@@ -505,6 +514,7 @@ class _ListodoCalendarDialogState extends State<ListodoCalendarDialog> {
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () {
+                        AppHaptics.medium();
                         widget.onReminderChanged?.call(
                           _selectedReminderMinutes,
                         );

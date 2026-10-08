@@ -105,6 +105,52 @@ class NotificationService {
     } catch (_) {}
   }
 
+  ValueChanged<String>? _quickActionHandler;
+
+  /// Registers a callback for Home Screen Quick Actions (3D Touch / Haptic Touch):
+  /// - `'add_task'` -> Open AddTaskSheet
+  /// - `'open_focus'` -> Switch to Focus (Pomodoro) tab
+  /// - `'open_calendar'` -> Switch to Calendar tab
+  Future<void> registerQuickActionHandler(
+    ValueChanged<String> onQuickAction,
+  ) async {
+    _quickActionHandler = onQuickAction;
+    if (kIsWeb) return;
+
+    _channel.setMethodCallHandler((call) async {
+      if (call.method == 'onQuickAction') {
+        final actionType = call.arguments as String?;
+        if (actionType != null && actionType.isNotEmpty) {
+          _quickActionHandler?.call(actionType);
+        }
+      }
+    });
+
+    try {
+      final initialAction = await _channel.invokeMethod<String>(
+        'consumeInitialQuickAction',
+      );
+      if (initialAction != null && initialAction.isNotEmpty) {
+        _quickActionHandler?.call(initialAction);
+      }
+    } catch (_) {}
+  }
+
+  /// Sends an immediate notification when a Pomodoro focus session finishes.
+  Future<void> sendFocusCompletedNotification({String? taskName}) async {
+    if (kIsWeb) return;
+    final fireAt = DateTime.now().add(const Duration(seconds: 1));
+    final body = (taskName != null && taskName.trim().isNotEmpty)
+        ? 'Сессия фокуса по задаче «${taskName.trim()}» успешно завершена!'
+        : 'Сессия фокуса успешно завершена! Время сделать небольшой перерыв.';
+    await _scheduleNative(
+      notificationId: 'todoapp_focus_complete',
+      title: '🔥 Фокус-сессия завершена!',
+      body: body,
+      scheduledAt: fireAt,
+    );
+  }
+
   /// Sends an immediate test notification (after 2 seconds) to verify push setup.
   Future<bool> sendTestNotification() async {
     if (kIsWeb) return false;
@@ -119,6 +165,17 @@ class NotificationService {
       scheduledAt: fireAt,
     );
     return true;
+  }
+
+  /// Opens the native system photo picker (with square crop on iOS) and returns
+  /// the selected image encoded as a base64 JPEG string, or `null` if cancelled.
+  Future<String?> pickProfileImage() async {
+    if (kIsWeb) return null;
+    try {
+      return await _channel.invokeMethod<String>('pickProfileImage');
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> _scheduleNative({
