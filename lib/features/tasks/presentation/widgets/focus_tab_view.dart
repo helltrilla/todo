@@ -38,6 +38,7 @@ class _FocusTabViewState extends State<FocusTabView> {
 
   String _ambientSound = 'off';
   double _ambientVolume = 0.45;
+  double _systemVolume = 0.65;
   String? _customPlaylistUrl;
   String _customPlaylistTitle = 'Мой плейлист';
 
@@ -50,11 +51,13 @@ class _FocusTabViewState extends State<FocusTabView> {
 
   Future<void> _loadSavedPlaylist() async {
     final prefs = await SharedPreferences.getInstance();
+    final sysVol = await NotificationService.instance.getSystemVolume();
     if (!mounted) return;
     setState(() {
       _customPlaylistUrl = prefs.getString(_customPlaylistUrlKey);
       _customPlaylistTitle =
           prefs.getString(_customPlaylistTitleKey) ?? 'Мой плейлист';
+      _systemVolume = sysVol;
     });
   }
 
@@ -92,6 +95,11 @@ class _FocusTabViewState extends State<FocusTabView> {
         volume: value,
       );
     }
+  }
+
+  void _updateSystemVolume(double value) {
+    setState(() => _systemVolume = value);
+    NotificationService.instance.setSystemVolume(value);
   }
 
   Future<void> _launchMusicPreset({
@@ -449,12 +457,12 @@ class _FocusTabViewState extends State<FocusTabView> {
 
         const SizedBox(height: 24),
 
-        // 1. Ambient Soundscape Mixer (plays alongside Spotify via mixWithOthers)
+        // 1. Ambient Soundscape + Dual Audio Mixer (In-App Ambient + System Phone Volume)
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: AppColors.cardBg,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: _ambientSound != 'off'
                   ? AppColors.accentYellow.withValues(alpha: 0.45)
@@ -467,14 +475,14 @@ class _FocusTabViewState extends State<FocusTabView> {
               Row(
                 children: [
                   const Icon(
-                    Icons.graphic_eq_rounded,
+                    Icons.tune_rounded,
                     color: AppColors.accentYellow,
                     size: 20,
                   ),
                   const SizedBox(width: 8),
                   const Expanded(
                     child: Text(
-                      'Фоновая атмосфера',
+                      'Аудио-микшер и атмосфера',
                       style: TextStyle(
                         color: AppColors.maintext,
                         fontSize: 15,
@@ -493,7 +501,7 @@ class _FocusTabViewState extends State<FocusTabView> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Text(
-                        'Mix со Spotify',
+                        'Mix активен',
                         style: TextStyle(
                           color: AppColors.accentYellow,
                           fontSize: 10,
@@ -519,8 +527,8 @@ class _FocusTabViewState extends State<FocusTabView> {
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 160),
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
+                            horizontal: 13,
+                            vertical: 9,
                           ),
                           decoration: BoxDecoration(
                             color: selected
@@ -538,7 +546,7 @@ class _FocusTabViewState extends State<FocusTabView> {
                             children: [
                               Icon(
                                 icon,
-                                size: 15,
+                                size: 16,
                                 color: selected
                                     ? Colors.black
                                     : AppColors.labeltext,
@@ -562,51 +570,152 @@ class _FocusTabViewState extends State<FocusTabView> {
                   }).toList(),
                 ),
               ),
-              if (_ambientSound != 'off') ...[
-                const SizedBox(height: 10),
-                Row(
+              const SizedBox(height: 16),
+              // Dual Mixer Container
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.bgmain,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.white10),
+                ),
+                child: Column(
                   children: [
-                    const Icon(
-                      Icons.volume_down_rounded,
-                      color: AppColors.labeltext,
-                      size: 18,
-                    ),
-                    Expanded(
-                      child: SliderTheme(
-                        data: SliderTheme.of(context).copyWith(
-                          activeTrackColor: AppColors.accentYellow,
-                          inactiveTrackColor: Colors.white12,
-                          thumbColor: AppColors.accentYellow,
-                          trackHeight: 3,
+                    // Channel 1: In-app Ambient Volume
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.water_drop_rounded,
+                          color: _ambientSound != 'off'
+                              ? AppColors.accentYellow
+                              : AppColors.labeltext,
+                          size: 16,
                         ),
-                        child: Slider(
-                          value: _ambientVolume,
-                          min: 0.05,
-                          max: 1.0,
-                          onChanged: _updateAmbientVolume,
+                        const SizedBox(width: 6),
+                        const SizedBox(
+                          width: 82,
+                          child: Text(
+                            'Атмосфера',
+                            style: TextStyle(
+                              color: AppColors.maintext,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
-                      ),
+                        Expanded(
+                          child: SliderTheme(
+                            data: SliderTheme.of(context).copyWith(
+                              activeTrackColor: _ambientSound != 'off'
+                                  ? AppColors.accentYellow
+                                  : Colors.white24,
+                              inactiveTrackColor: Colors.white12,
+                              thumbColor: _ambientSound != 'off'
+                                  ? AppColors.accentYellow
+                                  : Colors.white54,
+                              trackHeight: 4,
+                              overlayShape: const RoundSliderOverlayShape(
+                                overlayRadius: 14,
+                              ),
+                            ),
+                            child: Slider(
+                              value: _ambientVolume,
+                              min: 0.05,
+                              max: 1.0,
+                              onChanged: _updateAmbientVolume,
+                            ),
+                          ),
+                        ),
+                        SizedBox(
+                          width: 36,
+                          child: Text(
+                            _ambientSound == 'off'
+                                ? 'ВЫКЛ'
+                                : '${(_ambientVolume * 100).round()}%',
+                            textAlign: TextAlign.right,
+                            style: TextStyle(
+                              color: _ambientSound != 'off'
+                                  ? AppColors.accentYellow
+                                  : AppColors.labeltext,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    const Icon(
-                      Icons.volume_up_rounded,
-                      color: AppColors.accentYellow,
-                      size: 18,
+                    const Divider(color: Colors.white10, height: 8),
+                    // Channel 2: System Phone / Music Volume
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.speaker_rounded,
+                          color: Color(0xFF1DB954),
+                          size: 16,
+                        ),
+                        const SizedBox(width: 6),
+                        const SizedBox(
+                          width: 82,
+                          child: Text(
+                            'Телефон',
+                            style: TextStyle(
+                              color: AppColors.maintext,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: SliderTheme(
+                            data: SliderTheme.of(context).copyWith(
+                              activeTrackColor: const Color(0xFF1DB954),
+                              inactiveTrackColor: Colors.white12,
+                              thumbColor: const Color(0xFF1DB954),
+                              trackHeight: 4,
+                              overlayShape: const RoundSliderOverlayShape(
+                                overlayRadius: 14,
+                              ),
+                            ),
+                            child: Slider(
+                              value: _systemVolume,
+                              min: 0.0,
+                              max: 1.0,
+                              onChanged: _updateSystemVolume,
+                            ),
+                          ),
+                        ),
+                        SizedBox(
+                          width: 36,
+                          child: Text(
+                            '${(_systemVolume * 100).round()}%',
+                            textAlign: TextAlign.right,
+                            style: const TextStyle(
+                              color: Color(0xFF1DB954),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
+              ),
             ],
           ),
         ),
 
         const SizedBox(height: 16),
 
-        // 2. Spotify & Music Streaming Hub + System Media Remote
+        // 2. Large System Media Deck + Horizontal Playlist Cover Carousel
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: AppColors.cardBg,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(20),
             border: Border.all(color: Colors.white12),
           ),
           child: Column(
@@ -630,106 +739,193 @@ class _FocusTabViewState extends State<FocusTabView> {
                       ),
                     ),
                   ),
-                  // Mini media remote for system music player
-                  _MediaIconBtn(
-                    icon: Icons.skip_previous_rounded,
-                    tooltip: 'Предыдущий трек',
-                    onTap: () {
-                      AppHaptics.light();
-                      NotificationService.instance.sendMediaCommand('previous');
-                    },
-                  ),
-                  const SizedBox(width: 4),
-                  _MediaIconBtn(
-                    icon: Icons.play_arrow_rounded,
-                    tooltip: 'Плей / Пауза',
-                    onTap: () {
-                      AppHaptics.medium();
-                      NotificationService.instance.sendMediaCommand(
-                        'playPause',
-                      );
-                    },
-                  ),
-                  const SizedBox(width: 4),
-                  _MediaIconBtn(
-                    icon: Icons.skip_next_rounded,
-                    tooltip: 'Следующий трек',
-                    onTap: () {
-                      AppHaptics.light();
-                      NotificationService.instance.sendMediaCommand('next');
-                    },
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white10,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text(
+                      'Активный плеер на шторке',
+                      style: TextStyle(
+                        color: AppColors.labeltext,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
-              const Text(
-                'Запусти подборку в любимом плеере — она продолжит играть вместе с таймером и шумом дождя:',
-                style: TextStyle(color: AppColors.labeltext, fontSize: 11),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
+              const SizedBox(height: 14),
+              // Large tactile media control deck
+              Row(
                 children: [
-                  _MusicServiceChip(
-                    label: 'Spotify: Deep Focus',
-                    accentColor: const Color(0xFF1DB954),
-                    icon: Icons.album_rounded,
-                    onTap: () => _launchMusicPreset(
-                      primaryUrl: 'spotify:playlist:37i9dQZF1DWZeKCadgRdKQ',
-                      fallbackUrl:
-                          'https://open.spotify.com/playlist/37i9dQZF1DWZeKCadgRdKQ',
+                  Expanded(
+                    flex: 2,
+                    child: _LargeMediaTransportBtn(
+                      icon: Icons.skip_previous_rounded,
+                      label: 'Назад',
+                      onTap: () {
+                        AppHaptics.light();
+                        NotificationService.instance.sendMediaCommand(
+                          'previous',
+                        );
+                      },
                     ),
                   ),
-                  _MusicServiceChip(
-                    label: 'Spotify: Lo-Fi Beats',
-                    accentColor: const Color(0xFF1DB954),
-                    icon: Icons.music_note_rounded,
-                    onTap: () => _launchMusicPreset(
-                      primaryUrl: 'spotify:playlist:37i9dQZF1DWWQRwui0ExPn',
-                      fallbackUrl:
-                          'https://open.spotify.com/playlist/37i9dQZF1DWWQRwui0ExPn',
+                  const SizedBox(width: 10),
+                  Expanded(
+                    flex: 3,
+                    child: _LargeMediaTransportBtn(
+                      icon: Icons.play_arrow_rounded,
+                      secondaryIcon: Icons.pause_rounded,
+                      label: 'Плей / Пауза',
+                      isPrimary: true,
+                      onTap: () {
+                        AppHaptics.medium();
+                        NotificationService.instance.sendMediaCommand(
+                          'playPause',
+                        );
+                      },
                     ),
                   ),
-                  _MusicServiceChip(
-                    label: 'Apple Music: Focus',
-                    accentColor: const Color(0xFFFA243C),
-                    icon: Icons.library_music_rounded,
-                    onTap: () => _launchMusicPreset(
-                      primaryUrl:
-                          'https://music.apple.com/us/playlist/pure-focus/pl.dbd712beded846dca273d5d3259d28aa',
+                  const SizedBox(width: 10),
+                  Expanded(
+                    flex: 2,
+                    child: _LargeMediaTransportBtn(
+                      icon: Icons.skip_next_rounded,
+                      label: 'Вперёд',
+                      onTap: () {
+                        AppHaptics.light();
+                        NotificationService.instance.sendMediaCommand('next');
+                      },
                     ),
-                  ),
-                  _MusicServiceChip(
-                    label: 'Яндекс Музыка',
-                    accentColor: const Color(0xFFFFCC00),
-                    icon: Icons.play_circle_fill_rounded,
-                    onTap: () => _launchMusicPreset(
-                      primaryUrl: 'yandexmusic://',
-                      fallbackUrl: 'https://music.yandex.ru/',
-                    ),
-                  ),
-                  _MusicServiceChip(
-                    label: _customPlaylistUrl != null
-                        ? '★ $_customPlaylistTitle'
-                        : '+ Свой плейлист',
-                    accentColor: AppColors.accentYellow,
-                    icon: _customPlaylistUrl != null
-                        ? Icons.star_rounded
-                        : Icons.add_link_rounded,
-                    onTap: () {
-                      if (_customPlaylistUrl != null &&
-                          _customPlaylistUrl!.isNotEmpty) {
-                        _launchMusicPreset(primaryUrl: _customPlaylistUrl!);
-                      } else {
-                        _configureCustomPlaylist();
-                      }
-                    },
-                    onSecondaryTap: _customPlaylistUrl != null
-                        ? _configureCustomPlaylist
-                        : null,
                   ),
                 ],
+              ),
+              const SizedBox(height: 18),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Подборки и потоки',
+                    style: TextStyle(
+                      color: AppColors.maintext,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: _configureCustomPlaylist,
+                    child: const Text(
+                      'Изменить свой URL',
+                      style: TextStyle(
+                        color: AppColors.accentYellow,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                height: 152,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    _PlaylistCoverCard(
+                      serviceBadge: 'SPOTIFY',
+                      title: 'Deep Focus',
+                      subtitle: 'Погружение без слов',
+                      gradientColors: const [
+                        Color(0xFF1DB954),
+                        Color(0xFF0E3B22),
+                      ],
+                      icon: Icons.graphic_eq_rounded,
+                      onTap: () => _launchMusicPreset(
+                        primaryUrl: 'spotify:playlist:37i9dQZF1DWZeKCadgRdKQ',
+                        fallbackUrl:
+                            'https://open.spotify.com/playlist/37i9dQZF1DWZeKCadgRdKQ',
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    _PlaylistCoverCard(
+                      serviceBadge: 'SPOTIFY',
+                      title: 'Lo-Fi Beats',
+                      subtitle: 'Мягкий бит для кода',
+                      gradientColors: const [
+                        Color(0xFF6366F1),
+                        Color(0xFF1E1B4B),
+                      ],
+                      icon: Icons.headphones_rounded,
+                      onTap: () => _launchMusicPreset(
+                        primaryUrl: 'spotify:playlist:37i9dQZF1DWWQRwui0ExPn',
+                        fallbackUrl:
+                            'https://open.spotify.com/playlist/37i9dQZF1DWWQRwui0ExPn',
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    _PlaylistCoverCard(
+                      serviceBadge: 'APPLE MUSIC',
+                      title: 'Pure Focus',
+                      subtitle: 'Чистая концентрация',
+                      gradientColors: const [
+                        Color(0xFFFA243C),
+                        Color(0xFF4C0519),
+                      ],
+                      icon: Icons.library_music_rounded,
+                      onTap: () => _launchMusicPreset(
+                        primaryUrl:
+                            'https://music.apple.com/us/playlist/pure-focus/pl.dbd712beded846dca273d5d3259d28aa',
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    _PlaylistCoverCard(
+                      serviceBadge: 'ЯНДЕКС МУЗЫКА',
+                      title: 'Моя волна',
+                      subtitle: 'Персональный поток',
+                      gradientColors: const [
+                        Color(0xFFF59E0B),
+                        Color(0xFF451A03),
+                      ],
+                      icon: Icons.waves_rounded,
+                      onTap: () => _launchMusicPreset(
+                        primaryUrl: 'yandexmusic://',
+                        fallbackUrl: 'https://music.yandex.ru/',
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    _PlaylistCoverCard(
+                      serviceBadge: 'СВОЙ ПЛЕЙЛИСТ',
+                      title: _customPlaylistUrl != null
+                          ? _customPlaylistTitle
+                          : '+ Добавить ссылку',
+                      subtitle: _customPlaylistUrl != null
+                          ? 'Твой быстрый поток'
+                          : 'Spotify / Яндекс / YouTube',
+                      gradientColors: const [
+                        Color(0xFFD97706),
+                        Color(0xFF1F2937),
+                      ],
+                      icon: _customPlaylistUrl != null
+                          ? Icons.star_rounded
+                          : Icons.add_link_rounded,
+                      onTap: () {
+                        if (_customPlaylistUrl != null &&
+                            _customPlaylistUrl!.isNotEmpty) {
+                          _launchMusicPreset(primaryUrl: _customPlaylistUrl!);
+                        } else {
+                          _configureCustomPlaylist();
+                        }
+                      },
+                      onEditTap: _configureCustomPlaylist,
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -851,88 +1047,208 @@ class _FocusTabViewState extends State<FocusTabView> {
   }
 }
 
-class _MediaIconBtn extends StatelessWidget {
-  const _MediaIconBtn({
+class _LargeMediaTransportBtn extends StatelessWidget {
+  const _LargeMediaTransportBtn({
     required this.icon,
-    required this.tooltip,
+    required this.label,
     required this.onTap,
+    this.secondaryIcon,
+    this.isPrimary = false,
   });
 
   final IconData icon;
-  final String tooltip;
+  final IconData? secondaryIcon;
+  final String label;
   final VoidCallback onTap;
+  final bool isPrimary;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Tooltip(
-        message: tooltip,
+    final bgColor = isPrimary
+        ? const Color(0xFF1DB954).withValues(alpha: 0.18)
+        : AppColors.bgmain;
+    final borderColor = isPrimary
+        ? const Color(0xFF1DB954).withValues(alpha: 0.65)
+        : Colors.white12;
+    final fgColor = isPrimary ? const Color(0xFF1DB954) : AppColors.maintext;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
         child: Container(
-          padding: const EdgeInsets.all(6),
+          height: 58,
           decoration: BoxDecoration(
-            color: AppColors.bgmain,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: Colors.white12),
+            color: bgColor,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: borderColor, width: isPrimary ? 1.4 : 1),
           ),
-          child: Icon(icon, size: 18, color: AppColors.maintext),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, size: isPrimary ? 26 : 24, color: fgColor),
+                  if (secondaryIcon != null) ...[
+                    Icon(secondaryIcon, size: 22, color: fgColor),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 2),
+              Text(
+                label,
+                style: TextStyle(
+                  color: fgColor,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _MusicServiceChip extends StatelessWidget {
-  const _MusicServiceChip({
-    required this.label,
-    required this.accentColor,
+class _PlaylistCoverCard extends StatelessWidget {
+  const _PlaylistCoverCard({
+    required this.serviceBadge,
+    required this.title,
+    required this.subtitle,
+    required this.gradientColors,
     required this.icon,
     required this.onTap,
-    this.onSecondaryTap,
+    this.onEditTap,
   });
 
-  final String label;
-  final Color accentColor;
+  final String serviceBadge;
+  final String title;
+  final String subtitle;
+  final List<Color> gradientColors;
   final IconData icon;
   final VoidCallback onTap;
-  final VoidCallback? onSecondaryTap;
+  final VoidCallback? onEditTap;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+        width: 158,
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: accentColor.withValues(alpha: 0.14),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: accentColor.withValues(alpha: 0.45)),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: gradientColors,
+          ),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
+          boxShadow: [
+            BoxShadow(
+              color: gradientColors.first.withValues(alpha: 0.22),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+            ),
+          ],
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
+        child: Stack(
           children: [
-            Icon(icon, size: 15, color: accentColor),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: const TextStyle(
-                color: AppColors.maintext,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
+            // Subtle decorative vinyl / soundwave circle in top-right
+            Positioned(
+              right: -18,
+              bottom: -18,
+              child: Icon(
+                icon,
+                size: 84,
+                color: Colors.white.withValues(alpha: 0.10),
               ),
             ),
-            if (onSecondaryTap != null) ...[
-              const SizedBox(width: 6),
-              GestureDetector(
-                onTap: onSecondaryTap,
-                child: Icon(
-                  Icons.edit_outlined,
-                  size: 14,
-                  color: accentColor,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.32),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        serviceBadge,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
+                    if (onEditTap != null)
+                      GestureDetector(
+                        onTap: onEditTap,
+                        child: Container(
+                          padding: const EdgeInsets.all(5),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.35),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.edit_rounded,
+                            size: 13,
+                            color: Colors.white,
+                          ),
+                        ),
+                      )
+                    else
+                      Container(
+                        padding: const EdgeInsets.all(5),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.22),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.play_arrow_rounded,
+                          size: 14,
+                          color: Colors.white,
+                        ),
+                      ),
+                  ],
                 ),
-              ),
-            ],
+                const Spacer(),
+                Icon(icon, color: Colors.white, size: 24),
+                const SizedBox(height: 8),
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.78),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
