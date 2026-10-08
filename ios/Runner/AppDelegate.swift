@@ -3,14 +3,22 @@ import UIKit
 import UserNotifications
 
 @main
-@objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
+@objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+  static weak var shared: AppDelegate?
   private var notificationChannel: FlutterMethodChannel?
+  private var pendingQuickAction: String?
+  private var isFlutterReadyForQuickActions = false
+  private var pendingImageResult: FlutterResult?
 
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+    AppDelegate.shared = self
     UNUserNotificationCenter.current().delegate = self
+    if let shortcutItem = launchOptions?[.shortcutItem] as? UIApplicationShortcutItem {
+      pendingQuickAction = shortcutItem.type
+    }
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
@@ -26,6 +34,24 @@ import UserNotifications
       self?.handleNotificationCall(call: call, result: result)
     }
     self.notificationChannel = channel
+  }
+
+  func handleQuickAction(_ shortcutItem: UIApplicationShortcutItem) {
+    let actionType = shortcutItem.type
+    if isFlutterReadyForQuickActions, let channel = notificationChannel {
+      channel.invokeMethod("onQuickAction", arguments: actionType)
+    } else {
+      pendingQuickAction = actionType
+    }
+  }
+
+  override func application(
+    _ application: UIApplication,
+    performActionFor shortcutItem: UIApplicationShortcutItem,
+    completionHandler: @escaping (Bool) -> Void
+  ) {
+    handleQuickAction(shortcutItem)
+    completionHandler(true)
   }
 
   override func userNotificationCenter(
@@ -44,6 +70,12 @@ import UserNotifications
     let center = UNUserNotificationCenter.current()
 
     switch call.method {
+    case "consumeInitialQuickAction":
+      isFlutterReadyForQuickActions = true
+      let action = pendingQuickAction
+      pendingQuickAction = nil
+      result(action)
+
     case "requestPermissions":
       center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
         DispatchQueue.main.async {
@@ -111,8 +143,98 @@ import UserNotifications
       center.removeAllDeliveredNotifications()
       result(nil)
 
+    case "pickProfileImage":
+      DispatchQueue.main.async {
+        guard let presenter = self.topViewController() else {
+          result(nil)
+          return
+        }
+        self.pendingImageResult = result
+        let picker = UIImagePickerController()
+        picker.sourceType = .photoLibrary
+        picker.allowsEditing = true
+        picker.delegate = self
+        presenter.present(picker, animated: true)
+      }
+
     default:
       result(FlutterMethodNotImplemented)
     }
+  }
+
+  private func topViewController() -> UIViewController? {
+    let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+    for scene in scenes {
+      if let root = scene.windows.first(where: { $0.isKeyWindow })?.rootViewController ?? scene.windows.first?.rootViewController {
+        var current = root
+        while let presented = current.presentedViewController {
+          current = presented
+        }
+        return current
+      }
+    }
+    return nil
+  }
+
+  func imagePickerController(
+    _ picker: UIImagePickerController,
+    didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]
+  ) {
+    picker.dismiss(animated: true)
+    let chosen = (info[.editedImage] as? UIImage) ?? (info[.originalImage] as? UIImage)
+    guard let image = chosen else {
+      pendingImageResult?(nil)
+      pendingImageResult = nil
+      return
+    }
+
+    let targetSize = CGSize(width: 320, height: 320)
+    let renderer = UIGraphicsImageRenderer(size: targetSize)
+    let resized = renderer.image { _ in
+      let aspectWidth = targetSize.width / image.size.width
+      let aspectHeight = targetSize.height / image.size.height
+      let scale = max(aspectWidth, aspectHeight)
+      let scaledWidth = image.size.width * scale
+      let scaledHeight = image.size.height * scale
+      let drawRect = CGRect(
+        x: (targetSize.width - scaledWidth) / 2.0,
+        y: (targetSize.height - scaledHeight) / 2.0,
+        width: scaledWidth,
+        height: scaledHeight
+      )
+      image.draw(in: drawRect)
+    }
+
+    let base64 = resized.jpegData(compressionQuality: 0.82)?.base64EncodedString()
+    pendingImageResult?(base64)
+    pendingImageResult = nil
+  }
+
+  func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+    picker.dismiss(animated: true)
+    pendingImageResult?(nil)
+    pendingImageResult = nil
+  }
+}
+
+@objc class SceneDelegate: FlutterSceneDelegate {
+  override func scene(
+    _ scene: UIScene,
+    willConnectTo session: UISceneSession,
+    options connectionOptions: UIScene.ConnectionOptions
+  ) {
+    super.scene(scene, willConnectTo: session, options: connectionOptions)
+    if let shortcutItem = connectionOptions.shortcutItem {
+      AppDelegate.shared?.handleQuickAction(shortcutItem)
+    }
+  }
+
+  override func windowScene(
+    _ windowScene: UIWindowScene,
+    performActionFor shortcutItem: UIApplicationShortcutItem,
+    completionHandler: @escaping (Bool) -> Void
+  ) {
+    AppDelegate.shared?.handleQuickAction(shortcutItem)
+    completionHandler(true)
   }
 }

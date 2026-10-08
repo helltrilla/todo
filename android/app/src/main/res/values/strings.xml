@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="shortcut_add_task_short">Новая задача</string>
+    <string name="shortcut_add_task_long">Быстро создать задачу</string>
+    <string name="shortcut_focus_short">Режим фокуса</string>
+    <string name="shortcut_focus_long">Запустить Помодоро-таймер</string>
+    <string name="shortcut_calendar_short">Календарь задач</string>
+    <string name="shortcut_calendar_long">План задач по дням</string>
+</resources>

@@ -118,14 +118,12 @@ jobs:
             ## TodoApp ${{ github.event.inputs.tag_name || github.ref_name }}
 
             ### Новое в этом релизе / What's New (Русский)
-            - **🔔 Двойная система локальных Push-уведомлений (iOS & Android)**:
-              - **Автоматическое оповещение в момент задачи**: срабатывает ровно в назначенное время задачи (`⏰ Время задачи: ...`).
-              - **Настраиваемое предварительное напоминание**: при выборе даты и времени в календаре можно выбрать дополнительное оповещение заранее (`Только в момент`, `За 5 мин`, `За 15 мин`, `За 30 мин`, `За 1 час`, `За 1 день`).
-              - **Автоматическая отмена**: при выполнении, архивации или удалении задачи её запланированные уведомления автоматически снимаются.
-              - **Быстрый тест пушей**: в экране «Профиль и настройки» добавлена кнопка *«Проверить Push-уведомление»*.
-            - **Готовность к сторам и приватность**:
-              - Идентификатор приложения обновлён на `com.helltrilla.todoapp`.
-              - Добавлены «Политика конфиденциальности» (`PRIVACY_POLICY.md`), лицензия MIT (`LICENSE`) и функция полного удаления аккаунта и данных в профиле.
+            - **📳 Тактильный отклик (`Taptic Engine` / `AppHaptics`)**:
+              - Физическая микровибрация разной интенсивности при прокрутке барабанов времени, переключении вкладок, отметке подзадач, завершении задач и окончании Помодоро-таймера.
+            - **⚡ Быстрые действия с иконки на домашнем экране (`3D Touch` / `Quick Actions`)**:
+              - Зажатие иконки **TodoApp** на iOS и Android открывает контекстное меню: *«Новая задача»*, *«Режим фокуса»* и *«Календарь задач»*.
+            - **🔔 Уведомление о завершении сессии фокуса**:
+              - По окончании Помодоро-таймера приходит локальное Push-уведомление, даже если экран телефона заблокирован.
 
             #### Файлы для скачивания:
             - **Android (`.apk`)**: `TodoApp-*-android.apk` — готовый установочный файл для любого Android-устройства.
@@ -136,10 +134,9 @@ jobs:
             ---
 
             ### Release Highlights (English)
-            - **🔔 Dual Local Push Notifications (iOS & Android)**:
-              - **Automatic Due-Time Alert**: Fires automatically at the exact scheduled minute of the task (`⏰ Task Time: ...`).
-              - **Configurable Advance Reminder**: Choose an advance reminder right inside the date & time picker (`At task time only`, `5 min before`, `15 min before`, `30 min before`, `1 hour before`, `1 day before`).
-              - **Smart Cancellation**: Completing, archiving, or deleting a task automatically cancels its pending notifications.
-              - **1-Tap Test Notification**: Added a *"Test Push Notification"* action in Profile & Settings.
-            - **Store Readiness & Privacy**:
-              - Updated bundle/application ID to `com.helltrilla.todoapp`, added `PRIVACY_POLICY.md`, MIT `LICENSE`, and in-app Account & Data Deletion.
+            - **📳 Tactile Haptic Feedback (`Taptic Engine` / `AppHaptics`)**:
+              - Crisp haptic ticks and impacts across time-picker wheels, navigation tabs, subtask checkboxes, task completion, and Pomodoro focus sessions.
+            - **⚡ Home Screen Quick Actions (`3D Touch` / App Shortcuts)**:
+              - Long-pressing the **TodoApp** launcher icon on iOS and Android provides instant shortcuts to *New Task*, *Focus Mode*, and *Task Calendar*.
+            - **🔔 Focus Session Completion Alert**:
+              - Fires a local push notification when the Pomodoro timer completes.

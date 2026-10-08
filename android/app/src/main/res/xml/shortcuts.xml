@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="add_task"
+        android:enabled="true"
+        android:icon="@android:drawable/ic_input_add"
+        android:shortcutShortLabel="@string/shortcut_add_task_short"
+        android:shortcutLongLabel="@string/shortcut_add_task_long">
+        <intent
+            android:action="com.helltrilla.todoapp.QUICK_ACTION_ADD_TASK"
+            android:targetPackage="com.helltrilla.todoapp"
+            android:targetClass="com.helltrilla.todoapp.MainActivity" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="open_focus"
+        android:enabled="true"
+        android:icon="@android:drawable/ic_lock_idle_alarm"
+        android:shortcutShortLabel="@string/shortcut_focus_short"
+        android:shortcutLongLabel="@string/shortcut_focus_long">
+        <intent
+            android:action="com.helltrilla.todoapp.QUICK_ACTION_FOCUS"
+            android:targetPackage="com.helltrilla.todoapp"
+            android:targetClass="com.helltrilla.todoapp.MainActivity" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="open_calendar"
+        android:enabled="true"
+        android:icon="@android:drawable/ic_menu_today"
+        android:shortcutShortLabel="@string/shortcut_calendar_short"
+        android:shortcutLongLabel="@string/shortcut_calendar_long">
+        <intent
+            android:action="com.helltrilla.todoapp.QUICK_ACTION_CALENDAR"
+            android:targetPackage="com.helltrilla.todoapp"
+            android:targetClass="com.helltrilla.todoapp.MainActivity" />
+    </shortcut>
+</shortcuts>
