@@ -210,80 +210,73 @@ import UserNotifications
 
   private var isExternalAudioPaused = false
 
+  private func sendSystemMediaRemoteCommand(_ command: UInt32) -> Bool {
+    guard let handle = dlopen(
+      "/System/Library/PrivateFrameworks/MediaRemote.framework/MediaRemote",
+      RTLD_NOW
+    ) else {
+      return false
+    }
+    guard let sym = dlsym(handle, "MRMediaRemoteSendCommand") else {
+      return false
+    }
+    typealias MRMediaRemoteSendCommandFn = @convention(c) (UInt32, UnsafeRawPointer?) -> Bool
+    let sendCommand = unsafeBitCast(sym, to: MRMediaRemoteSendCommandFn.self)
+    return sendCommand(command, nil)
+  }
+
   private func handleMediaCommand(command: String) {
     let session = AVAudioSession.sharedInstance()
-    let authStatus = MPMediaLibrary.authorizationStatus()
 
-    if authStatus == .authorized {
-      let player = MPMusicPlayerController.systemMusicPlayer
-      if player.nowPlayingItem != nil || player.playbackState == .playing {
-        switch command {
-        case "previous":
-          player.skipToPreviousItem()
-          return
-        case "next":
-          player.skipToNextItem()
-          return
-        default:
-          if player.playbackState == .playing {
-            player.pause()
-          } else {
-            player.play()
-          }
-          return
+    switch command {
+    case "previous":
+      // kMRPreviousTrack = 5
+      _ = sendSystemMediaRemoteCommand(5)
+    case "next":
+      // kMRNextTrack = 4
+      _ = sendSystemMediaRemoteCommand(4)
+    default:
+      let wasOtherPlaying = session.isOtherAudioPlaying
+      // kMRTogglePlayPause = 2
+      _ = sendSystemMediaRemoteCommand(2)
+
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { [weak self] in
+        guard let self = self else { return }
+        if session.isOtherAudioPlaying == wasOtherPlaying {
+          self.toggleExternalAudioSession()
         }
       }
     }
+  }
 
-    if command == "playPause" {
-      if session.isOtherAudioPlaying && !isExternalAudioPaused {
-        audioEngine?.stop()
-        do {
-          try session.setCategory(.playback, mode: .default, options: [])
-          try session.setActive(true)
-          isExternalAudioPaused = true
-        } catch {}
-      } else if isExternalAudioPaused {
-        do {
-          try session.setActive(false, options: [.notifyOthersOnDeactivation])
-        } catch {}
-        isExternalAudioPaused = false
+  private func toggleExternalAudioSession() {
+    let session = AVAudioSession.sharedInstance()
+    if session.isOtherAudioPlaying {
+      audioEngine?.stop()
+      try? session.setActive(false)
+      do {
+        try session.setCategory(.playback, mode: .default, options: [])
+        try session.setActive(true)
+        isExternalAudioPaused = true
         if currentAmbientSound != "off" && ambientVolume > 0.001 {
-          let sound = currentAmbientSound
-          let vol = ambientVolume
-          DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
-            self?.configureAmbientAudio(sound: sound, volume: vol)
-          }
+          try? audioEngine?.start()
         }
-      } else if authStatus == .notDetermined {
-        MPMediaLibrary.requestAuthorization { status in
-          if status == .authorized {
-            DispatchQueue.main.async {
-              let player = MPMusicPlayerController.systemMusicPlayer
-              if player.playbackState == .playing {
-                player.pause()
-              } else if player.nowPlayingItem != nil {
-                player.play()
-              }
-            }
-          }
-        }
-      }
+      } catch {}
     } else {
-      if authStatus == .notDetermined {
-        MPMediaLibrary.requestAuthorization { status in
-          if status == .authorized {
-            DispatchQueue.main.async {
-              let player = MPMusicPlayerController.systemMusicPlayer
-              if player.nowPlayingItem != nil {
-                if command == "previous" {
-                  player.skipToPreviousItem()
-                } else {
-                  player.skipToNextItem()
-                }
-              }
-            }
-          }
+      audioEngine?.stop()
+      do {
+        if !isExternalAudioPaused {
+          try? session.setCategory(.playback, mode: .default, options: [])
+          try? session.setActive(true)
+        }
+        try session.setActive(false, options: [.notifyOthersOnDeactivation])
+      } catch {}
+      isExternalAudioPaused = false
+      if currentAmbientSound != "off" && ambientVolume > 0.001 {
+        let sound = currentAmbientSound
+        let vol = ambientVolume
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
+          self?.configureAmbientAudio(sound: sound, volume: vol)
         }
       }
     }
