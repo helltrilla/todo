@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:todo/core/errors/result.dart';
 import 'package:todo/features/tasks/domain/models/priority_level.dart';
 import 'package:todo/features/tasks/domain/models/task.dart';
+import 'package:todo/features/tasks/domain/models/task_category_style.dart';
 import 'package:todo/features/tasks/domain/repositories/i_task_repository.dart';
 
 /// Application-layer controller for task management.
@@ -11,6 +12,7 @@ import 'package:todo/features/tasks/domain/repositories/i_task_repository.dart';
 class TaskController extends ChangeNotifier {
   TaskController(this._repository) {
     _categories = _repository.getCategories();
+    _categoryStyles = _repository.getCategoryStyles();
   }
 
   final ITaskRepository _repository;
@@ -20,6 +22,7 @@ class TaskController extends ChangeNotifier {
 
   List<Task> _tasks = [];
   List<String> _categories = ['Work', 'Personal'];
+  Map<String, TaskCategoryStyle> _categoryStyles = {};
   String _selectedCategory = allCategory;
   String _searchQuery = '';
   bool _isLoading = false;
@@ -51,6 +54,12 @@ class TaskController extends ChangeNotifier {
   String get searchQuery => _searchQuery;
   bool get isLoading => _isLoading;
   String? get error => _error;
+
+  /// Returns the custom or default [TaskCategoryStyle] for [categoryName].
+  TaskCategoryStyle styleForCategory(String categoryName) {
+    final key = categoryName.trim().toLowerCase();
+    return _categoryStyles[key] ?? TaskCategoryStyle.defaultFor(categoryName);
+  }
 
   /// Total count of all tasks (unfiltered).
   int get totalTasksCount => _tasks.length;
@@ -120,6 +129,7 @@ class TaskController extends ChangeNotifier {
     notifyListeners();
 
     _categories = _repository.getCategories();
+    _categoryStyles = _repository.getCategoryStyles();
     final result = await _repository.getAll();
 
     switch (result) {
@@ -146,7 +156,11 @@ class TaskController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> addCategory(String categoryName) async {
+  Future<void> addCategory(
+    String categoryName, {
+    int? iconIndex,
+    int? colorIndex,
+  }) async {
     final clean = categoryName.trim();
     if (clean.isEmpty ||
         clean.toLowerCase() == allCategory.toLowerCase() ||
@@ -156,9 +170,21 @@ class TaskController extends ChangeNotifier {
     }
     _categories = [..._categories, clean];
     _selectedCategory = clean;
+
+    final fallback = TaskCategoryStyle.defaultFor(clean);
+    final style = TaskCategoryStyle(
+      name: clean,
+      iconIndex: iconIndex ?? fallback.iconIndex,
+      colorIndex: colorIndex ?? fallback.colorIndex,
+    );
+    _categoryStyles = <String, TaskCategoryStyle>{
+      ..._categoryStyles,
+      clean.toLowerCase(): style,
+    };
     notifyListeners();
 
     final result = await _repository.saveCategories(_categories);
+    await _repository.saveCategoryStyles(_categoryStyles);
     if (result case Error(:final failure)) {
       _error = failure.message;
       notifyListeners();

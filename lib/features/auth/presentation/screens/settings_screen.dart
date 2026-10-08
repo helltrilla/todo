@@ -4,7 +4,9 @@ import 'package:provider/provider.dart';
 import 'package:todo/core/app_theme/app_colors.dart';
 import 'package:todo/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:todo/features/tasks/domain/models/task.dart';
+import 'package:todo/features/tasks/domain/models/task_category_style.dart';
 import 'package:todo/features/tasks/presentation/controllers/task_controller.dart';
+import 'package:todo/features/tasks/presentation/widgets/create_category_dialog.dart';
 
 /// Listodo Profile & Settings screen.
 class SettingsScreen extends StatefulWidget {
@@ -52,38 +54,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _promptAddCategory() async {
-    final textController = TextEditingController();
-    final created = await showDialog<String>(
+    final created = await showDialog<TaskCategoryStyle>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text(
-          'Новая категория',
-          style: TextStyle(color: AppColors.maintext),
-        ),
-        content: TextField(
-          controller: textController,
-          autofocus: true,
-          style: const TextStyle(color: AppColors.maintext),
-          decoration: const InputDecoration(
-            hintText: 'Например, Study или Fitness',
-            hintStyle: TextStyle(color: AppColors.labeltext),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Отмена'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, textController.text.trim()),
-            child: const Text('Добавить'),
-          ),
-        ],
-      ),
+      builder: (_) => const CreateCategoryDialog(),
     );
 
-    if (created != null && created.isNotEmpty && mounted) {
-      await context.read<TaskController>().addCategory(created);
+    if (created != null && mounted) {
+      await context.read<TaskController>().addCategory(
+        created.name,
+        iconIndex: created.iconIndex,
+        colorIndex: created.colorIndex,
+      );
     }
   }
 
@@ -603,48 +584,53 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ],
                   ),
                 ),
-                // User categories with delete button
-                ...taskController.categories.map(
-                  (cat) => Container(
+                // User categories with custom icon, color, and delete button
+                ...taskController.categories.map((cat) {
+                  final style = taskController.styleForCategory(cat);
+                  return Container(
                     padding: const EdgeInsets.only(
-                      left: 12,
+                      left: 10,
                       right: 6,
                       top: 6,
                       bottom: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.bg,
+                      color: style.color.withValues(alpha: 0.14),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.white24),
+                      border: Border.all(
+                        color: style.color.withValues(alpha: 0.45),
+                      ),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        Icon(style.icon, size: 14, color: style.color),
+                        const SizedBox(width: 6),
                         Text(
                           cat,
-                          style: const TextStyle(
-                            color: AppColors.maintext,
+                          style: TextStyle(
+                            color: style.color,
                             fontSize: 12,
-                            fontWeight: FontWeight.w500,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                         const SizedBox(width: 6),
                         InkWell(
                           borderRadius: BorderRadius.circular(12),
                           onTap: () => taskController.removeCategory(cat),
-                          child: const Padding(
-                            padding: EdgeInsets.all(2),
+                          child: Padding(
+                            padding: const EdgeInsets.all(2),
                             child: Icon(
                               Icons.close,
                               size: 14,
-                              color: AppColors.labeltext,
+                              color: style.color.withValues(alpha: 0.8),
                             ),
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ),
+                  );
+                }),
               ],
             ),
           ),

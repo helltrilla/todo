@@ -35,4 +35,10 @@ abstract interface class IAuthRepository {
 
   /// Clears the active session.
   Future<Result<void>> signOut();
+
+  /// Returns true if the user has already completed the first-launch onboarding or logged in.
+  bool hasSeenOnboarding();
+
+  /// Marks the first-launch onboarding as seen.
+  Future<void> completeOnboarding();
 }

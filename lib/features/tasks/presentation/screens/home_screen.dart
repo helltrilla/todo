@@ -8,9 +8,11 @@ import 'package:todo/core/app_router/app_router_names.dart';
 import 'package:todo/core/app_theme/app_colors.dart';
 import 'package:todo/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:todo/features/tasks/domain/models/task.dart';
+import 'package:todo/features/tasks/domain/models/task_category_style.dart';
 import 'package:todo/features/tasks/presentation/controllers/task_controller.dart';
 import 'package:todo/features/tasks/presentation/widgets/add_task_sheet.dart';
 import 'package:todo/features/tasks/presentation/widgets/calendar_tab_view.dart';
+import 'package:todo/features/tasks/presentation/widgets/create_category_dialog.dart';
 import 'package:todo/features/tasks/presentation/widgets/focus_tab_view.dart';
 import 'package:todo/features/tasks/presentation/widgets/task_card.dart';
 
@@ -87,38 +89,17 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _promptAddCategory() async {
-    final textController = TextEditingController();
-    final created = await showDialog<String>(
+    final created = await showDialog<TaskCategoryStyle>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text(
-          'Новая категория',
-          style: TextStyle(color: AppColors.maintext),
-        ),
-        content: TextField(
-          controller: textController,
-          autofocus: true,
-          style: const TextStyle(color: AppColors.maintext),
-          decoration: const InputDecoration(
-            hintText: 'Например, Study или Fitness',
-            hintStyle: TextStyle(color: AppColors.labeltext),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Отмена'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, textController.text.trim()),
-            child: const Text('Добавить'),
-          ),
-        ],
-      ),
+      builder: (_) => const CreateCategoryDialog(),
     );
 
-    if (created != null && created.isNotEmpty && mounted) {
-      await context.read<TaskController>().addCategory(created);
+    if (created != null && mounted) {
+      await context.read<TaskController>().addCategory(
+        created.name,
+        iconIndex: created.iconIndex,
+        colorIndex: created.colorIndex,
+      );
     }
   }
 
@@ -484,6 +465,7 @@ class _CategoryFilterRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final controller = context.watch<TaskController>();
     final allItems = [TaskController.allCategory, ...categories];
 
     return SingleChildScrollView(
@@ -504,7 +486,11 @@ class _CategoryFilterRow extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           ...allItems.map((category) {
+            final isAll = category == TaskController.allCategory;
             final isSelected = selectedCategory == category;
+            final style = isAll ? null : controller.styleForCategory(category);
+            final activeColor = isAll ? AppColors.accentYellow : style!.color;
+
             return Padding(
               padding: const EdgeInsets.only(right: 8),
               child: GestureDetector(
@@ -512,29 +498,50 @@ class _CategoryFilterRow extends StatelessWidget {
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 160),
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 18,
-                    vertical: 9,
+                    horizontal: 14,
+                    vertical: 8,
                   ),
                   decoration: BoxDecoration(
                     color: isSelected
-                        ? AppColors.accentYellow
-                        : Colors.transparent,
+                        ? activeColor
+                        : (style != null
+                              ? style.color.withValues(alpha: 0.1)
+                              : Colors.transparent),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
                       color: isSelected
-                          ? AppColors.accentYellow
-                          : Colors.white24,
+                          ? activeColor
+                          : (style != null
+                                ? style.color.withValues(alpha: 0.4)
+                                : Colors.white24),
                     ),
                   ),
-                  child: Text(
-                    category,
-                    style: TextStyle(
-                      color: isSelected ? Colors.black : AppColors.labeltext,
-                      fontSize: 13,
-                      fontWeight: isSelected
-                          ? FontWeight.w700
-                          : FontWeight.w500,
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (style != null) ...[
+                        Icon(
+                          style.icon,
+                          size: 15,
+                          color: isSelected ? Colors.black : style.color,
+                        ),
+                        const SizedBox(width: 6),
+                      ],
+                      Text(
+                        category,
+                        style: TextStyle(
+                          color: isSelected
+                              ? Colors.black
+                              : (style != null
+                                    ? AppColors.maintext
+                                    : AppColors.labeltext),
+                          fontSize: 13,
+                          fontWeight: isSelected
+                              ? FontWeight.w700
+                              : FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),

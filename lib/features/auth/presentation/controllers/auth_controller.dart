@@ -10,16 +10,19 @@ import 'package:todo/features/auth/domain/repositories/i_auth_repository.dart';
 class AuthController extends ChangeNotifier {
   AuthController(this._repository) {
     _currentUser = _repository.getCurrentUser();
+    _hasSeenOnboarding = _repository.hasSeenOnboarding();
   }
 
   final IAuthRepository _repository;
 
   AppUser? _currentUser;
+  bool _hasSeenOnboarding = false;
   bool _isLoading = false;
   String? _error;
 
   AppUser? get currentUser => _currentUser;
   bool get isAuthenticated => _currentUser != null;
+  bool get hasSeenOnboarding => _hasSeenOnboarding || _currentUser != null;
   bool get isLoading => _isLoading;
   String? get error => _error;
 
@@ -89,6 +92,12 @@ class AuthController extends ChangeNotifier {
     await _repository.signOut();
     _currentUser = null;
     _error = null;
+    notifyListeners();
+  }
+
+  Future<void> completeOnboarding() async {
+    await _repository.completeOnboarding();
+    _hasSeenOnboarding = true;
     notifyListeners();
   }
 

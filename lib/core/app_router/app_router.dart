@@ -3,6 +3,7 @@ import 'package:todo/core/app_router/app_router_names.dart';
 import 'package:todo/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:todo/features/auth/presentation/screens/email_otp_screen.dart';
 import 'package:todo/features/auth/presentation/screens/internal_auth_screen.dart';
+import 'package:todo/features/auth/presentation/screens/onboarding_screen.dart';
 import 'package:todo/features/auth/presentation/screens/settings_screen.dart';
 import 'package:todo/features/auth/presentation/screens/welcome_screen.dart';
 import 'package:todo/features/tasks/presentation/screens/home_screen.dart';
@@ -14,12 +15,20 @@ class AppRouter {
       refreshListenable: authController,
       redirect: (context, state) {
         final isLoggedIn = authController.isAuthenticated;
+        final hasSeenOnboarding = authController.hasSeenOnboarding;
         final path = state.uri.path;
+        final isOnboardingRoute = path == '/onboarding';
         final isAuthRoute =
             path == '/welcome' ||
             path == '/email-auth' ||
             path == '/internal-auth';
 
+        if (!isLoggedIn && !hasSeenOnboarding) {
+          return isOnboardingRoute ? null : '/onboarding';
+        }
+        if (hasSeenOnboarding && isOnboardingRoute) {
+          return isLoggedIn ? '/home' : '/welcome';
+        }
         if (!isLoggedIn && !isAuthRoute) {
           return '/welcome';
         }
@@ -29,6 +38,11 @@ class AppRouter {
         return null;
       },
       routes: [
+        GoRoute(
+          path: '/onboarding',
+          name: AppRouterNames.onboarding,
+          builder: (context, state) => const OnboardingScreen(),
+        ),
         GoRoute(
           path: '/welcome',
           name: AppRouterNames.welcome,

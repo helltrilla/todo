@@ -23,6 +23,20 @@ class AuthRepositoryImpl implements IAuthRepository {
 
   static const _currentUserKey = 'auth_current_user';
   static const _internalAccountsKey = 'auth_internal_accounts';
+  static const _seenOnboardingKey = 'auth_seen_onboarding';
+
+  @override
+  bool hasSeenOnboarding() {
+    if (_prefs.getBool(_seenOnboardingKey) == true) return true;
+    final hasSession = getCurrentUser() != null;
+    final hasAccounts = _loadInternalAccounts().isNotEmpty;
+    return hasSession || hasAccounts;
+  }
+
+  @override
+  Future<void> completeOnboarding() async {
+    await _prefs.setBool(_seenOnboardingKey, true);
+  }
 
   @override
   AppUser? getCurrentUser() {
@@ -296,6 +310,7 @@ class AuthRepositoryImpl implements IAuthRepository {
   }
 
   Future<void> _saveSession(AppUser user) async {
+    await _prefs.setBool(_seenOnboardingKey, true);
     await _prefs.setString(_currentUserKey, user.toJson());
   }
 }

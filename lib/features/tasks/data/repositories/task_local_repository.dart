@@ -2,6 +2,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:todo/core/errors/failures.dart';
 import 'package:todo/core/errors/result.dart';
 import 'package:todo/features/tasks/domain/models/task.dart';
+import 'package:todo/features/tasks/domain/models/task_category_style.dart';
 import 'package:todo/features/tasks/domain/repositories/i_task_repository.dart';
 
 /// Persists tasks and custom categories in SharedPreferences.
@@ -12,6 +13,7 @@ class TaskLocalRepository implements ITaskRepository {
   final SharedPreferences _prefs;
   static const _key = 'tasks';
   static const _categoriesKey = 'task_categories';
+  static const _categoryStylesKey = 'task_category_styles';
   static const defaultCategories = ['Work', 'Personal'];
 
   @override
@@ -112,6 +114,34 @@ class TaskLocalRepository implements ITaskRepository {
       return const Success(null);
     } catch (_) {
       return const Error(CacheFailure('Не удалось сохранить категории'));
+    }
+  }
+
+  @override
+  Map<String, TaskCategoryStyle> getCategoryStyles() {
+    final rawList = _prefs.getStringList(_categoryStylesKey);
+    final result = <String, TaskCategoryStyle>{};
+    if (rawList != null) {
+      for (final item in rawList) {
+        try {
+          final style = TaskCategoryStyle.fromJson(item);
+          result[style.name.toLowerCase()] = style;
+        } catch (_) {}
+      }
+    }
+    return result;
+  }
+
+  @override
+  Future<Result<void>> saveCategoryStyles(
+    Map<String, TaskCategoryStyle> styles,
+  ) async {
+    try {
+      final list = styles.values.map((s) => s.toJson()).toList();
+      await _prefs.setStringList(_categoryStylesKey, list);
+      return const Success(null);
+    } catch (_) {
+      return const Error(CacheFailure('Не удалось сохранить стиль категории'));
     }
   }
 }

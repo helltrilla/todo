@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:todo/core/app_theme/app_colors.dart';
 import 'package:todo/features/tasks/domain/models/priority_level.dart';
 import 'package:todo/features/tasks/domain/models/task.dart';
+import 'package:todo/features/tasks/presentation/controllers/task_controller.dart';
 
 /// Displays a single clickable task card styled after the Listodo UI Kit:
 /// - Left accent bar & border tinted by task priority
@@ -317,34 +319,51 @@ class _CategoryTag extends StatelessWidget {
         category.toLowerCase() == 'общее' ||
         category.toLowerCase() == 'all task';
 
+    if (isGlobal) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: AppColors.active.withValues(alpha: 0.16),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppColors.active.withValues(alpha: 0.4)),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.public_rounded, size: 11, color: AppColors.accentYellow),
+            SizedBox(width: 4),
+            Text(
+              'Общее',
+              style: TextStyle(
+                color: AppColors.maintext,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final style = context.watch<TaskController>().styleForCategory(category);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: isGlobal
-            ? AppColors.active.withValues(alpha: 0.16)
-            : Colors.white.withValues(alpha: 0.06),
+        color: style.color.withValues(alpha: 0.16),
         borderRadius: BorderRadius.circular(8),
-        border: isGlobal
-            ? Border.all(color: AppColors.active.withValues(alpha: 0.4))
-            : null,
+        border: Border.all(color: style.color.withValues(alpha: 0.45)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (isGlobal) ...[
-            const Icon(
-              Icons.public_rounded,
-              size: 11,
-              color: AppColors.accentYellow,
-            ),
-            const SizedBox(width: 4),
-          ],
+          Icon(style.icon, size: 11, color: style.color),
+          const SizedBox(width: 4),
           Text(
-            isGlobal ? 'Общее' : category,
+            category,
             style: TextStyle(
-              color: isGlobal ? AppColors.maintext : AppColors.labeltext,
+              color: style.color,
               fontSize: 10,
-              fontWeight: isGlobal ? FontWeight.w600 : FontWeight.w400,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],

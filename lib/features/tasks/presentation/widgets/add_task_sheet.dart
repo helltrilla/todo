@@ -131,7 +131,8 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final userCategories = context.watch<TaskController>().categories;
+    final taskController = context.watch<TaskController>();
+    final userCategories = taskController.categories;
     final sheetCategories = <String>[
       TaskController.globalCategory,
       ...userCategories,
@@ -250,6 +251,11 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
               children: sheetCategories.map((cat) {
                 final isGlobal = cat == TaskController.globalCategory;
                 final isSelected = _selectedCategory == cat;
+                final style = isGlobal
+                    ? null
+                    : taskController.styleForCategory(cat);
+                final chipColor = isGlobal ? AppColors.active : style!.color;
+
                 return Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: GestureDetector(
@@ -261,38 +267,32 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                       ),
                       decoration: BoxDecoration(
                         color: isSelected
-                            ? (isGlobal
-                                  ? AppColors.active
-                                  : AppColors.accentYellow)
-                            : AppColors.cardBg,
+                            ? chipColor
+                            : chipColor.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(18),
                         border: Border.all(
                           color: isSelected
-                              ? (isGlobal
-                                    ? AppColors.active
-                                    : AppColors.accentYellow)
-                              : Colors.white24,
+                              ? chipColor
+                              : chipColor.withValues(alpha: 0.45),
                         ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          if (isGlobal) ...[
-                            Icon(
-                              Icons.public_rounded,
-                              size: 14,
-                              color: isSelected
-                                  ? Colors.white
-                                  : AppColors.accentYellow,
-                            ),
-                            const SizedBox(width: 5),
-                          ],
+                          Icon(
+                            isGlobal ? Icons.public_rounded : style!.icon,
+                            size: 14,
+                            color: isSelected
+                                ? (isGlobal ? Colors.white : Colors.black)
+                                : chipColor,
+                          ),
+                          const SizedBox(width: 5),
                           Text(
                             isGlobal ? 'Общее (Во всех)' : cat,
                             style: TextStyle(
                               color: isSelected
                                   ? (isGlobal ? Colors.white : Colors.black)
-                                  : AppColors.labeltext,
+                                  : AppColors.maintext,
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
                             ),

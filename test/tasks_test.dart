@@ -13,6 +13,7 @@ import 'package:todo/features/auth/domain/models/app_user.dart';
 import 'package:todo/features/tasks/data/repositories/task_local_repository.dart';
 import 'package:todo/features/tasks/domain/models/priority_level.dart';
 import 'package:todo/features/tasks/domain/models/task.dart';
+import 'package:todo/features/tasks/domain/models/task_category_style.dart';
 import 'package:todo/features/tasks/domain/repositories/i_task_repository.dart';
 import 'package:todo/features/tasks/presentation/controllers/task_controller.dart';
 import 'package:todo/main.dart';
@@ -44,6 +45,14 @@ class _FailingRepository implements ITaskRepository {
   @override
   Future<Result<void>> saveCategories(List<String> categories) async =>
       const Error(CacheFailure('Save categories failed'));
+
+  @override
+  Map<String, TaskCategoryStyle> getCategoryStyles() => const {};
+
+  @override
+  Future<Result<void>> saveCategoryStyles(
+    Map<String, TaskCategoryStyle> styles,
+  ) async => const Error(CacheFailure('Save category styles failed'));
 }
 
 void main() {
@@ -301,6 +310,12 @@ void main() {
         controller.setSearchQuery('');
         await controller.toggleCompleted(controller.tasks.first.id);
         expect(controller.tasks.any((t) => t.isCompleted), isTrue);
+
+        // Add custom category with custom iconIndex and colorIndex
+        await controller.addCategory('Fitness', iconIndex: 3, colorIndex: 2);
+        final fitnessStyle = controller.styleForCategory('Fitness');
+        expect(fitnessStyle.iconIndex, 3);
+        expect(fitnessStyle.colorIndex, 2);
       },
     );
 
@@ -320,19 +335,34 @@ void main() {
   });
 
   group('Auth & HomeScreen Widget Flow', () {
-    testWidgets('redirects unauthenticated user to WelcomeScreen', (
-      tester,
-    ) async {
-      SharedPreferences.setMockInitialValues({});
-      final prefs = await SharedPreferences.getInstance();
+    testWidgets(
+      'redirects fresh install to OnboardingScreen and then to WelcomeScreen',
+      (tester) async {
+        SharedPreferences.setMockInitialValues({});
+        final prefs = await SharedPreferences.getInstance();
 
-      await tester.pumpWidget(MainApp(prefs: prefs));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(MainApp(prefs: prefs));
+        await tester.pumpAndSettle();
 
-      expect(find.text('Listtodo'), findsOneWidget);
-      expect(find.text('Вход по Почте (Код OTP)'), findsOneWidget);
-      expect(find.text('Внутренняя регистрация / Вход'), findsOneWidget);
-    });
+        // First launch shows OnboardingScreen
+        expect(find.text('УМНЫЕ ЗАДАЧИ'), findsOneWidget);
+        expect(find.text('ДАЛЕЕ'), findsOneWidget);
+
+        // Tap through slides or Skip ('Пропустить')
+        await tester.tap(find.text('ДАЛЕЕ'));
+        await tester.pumpAndSettle();
+        expect(find.text('РАСПИСАНИЕ И КАЛЕНДАРЬ'), findsOneWidget);
+
+        await tester.tap(find.text('Пропустить'));
+        await tester.pumpAndSettle();
+
+        // Now on WelcomeScreen and onboarding is persisted
+        expect(find.text('Listtodo'), findsOneWidget);
+        expect(find.text('Вход по Почте (Код OTP)'), findsOneWidget);
+        expect(find.text('Внутренняя регистрация / Вход'), findsOneWidget);
+        expect(prefs.getBool('auth_seen_onboarding'), isTrue);
+      },
+    );
 
     testWidgets(
       'authenticated user adds task, opens custom calendar, edits task on card tap, and swipes to dismiss',
