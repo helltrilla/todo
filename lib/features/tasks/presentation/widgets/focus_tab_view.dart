@@ -1,13 +1,81 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:todo/core/app_theme/app_colors.dart';
 import 'package:todo/core/haptics/app_haptics.dart';
 import 'package:todo/core/notifications/notification_service.dart';
 import 'package:todo/features/tasks/presentation/controllers/task_controller.dart';
+
+class _UserPlaylist {
+  const _UserPlaylist({
+    required this.id,
+    required this.title,
+    required this.url,
+    this.coverImageUrl,
+    this.coverImageBase64,
+  });
+
+  final String id;
+  final String title;
+  final String url;
+  final String? coverImageUrl;
+  final String? coverImageBase64;
+
+  String get serviceBadge {
+    final lower = url.toLowerCase();
+    if (lower.contains('spotify')) return 'SPOTIFY';
+    if (lower.contains('yandex')) return 'ЯНДЕКС';
+    if (lower.contains('apple.com') || lower.startsWith('music:')) {
+      return 'APPLE MUSIC';
+    }
+    if (lower.contains('youtube') || lower.contains('youtu.be')) {
+      return 'YOUTUBE';
+    }
+    if (lower.contains('vk.com') || lower.contains('boom')) return 'VK МУЗЫКА';
+    return 'ПЛЕЙЛИСТ';
+  }
+
+  List<Color> get fallbackGradient {
+    final lower = url.toLowerCase();
+    if (lower.contains('spotify')) {
+      return const [Color(0xFF1DB954), Color(0xFF0E3B22)];
+    }
+    if (lower.contains('yandex')) {
+      return const [Color(0xFFF59E0B), Color(0xFF451A03)];
+    }
+    if (lower.contains('apple.com') || lower.startsWith('music:')) {
+      return const [Color(0xFFFA243C), Color(0xFF4C0519)];
+    }
+    if (lower.contains('youtube') || lower.contains('youtu.be')) {
+      return const [Color(0xFFEF4444), Color(0xFF450A0A)];
+    }
+    return const [Color(0xFF6366F1), Color(0xFF1E1B4B)];
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'title': title,
+    'url': url,
+    'coverImageUrl': coverImageUrl,
+    'coverImageBase64': coverImageBase64,
+  };
+
+  factory _UserPlaylist.fromJson(Map<String, dynamic> json) => _UserPlaylist(
+    id:
+        (json['id'] as String?) ??
+        DateTime.now().millisecondsSinceEpoch.toString(),
+    title: (json['title'] as String?) ?? 'Мой плейлист',
+    url: (json['url'] as String?) ?? '',
+    coverImageUrl: json['coverImageUrl'] as String?,
+    coverImageBase64: json['coverImageBase64'] as String?,
+  );
+}
 
 /// Listodo Focus Mode (Pomodoro Timer + Ambient Mixer + Spotify/Music Hub) tab view.
 class FocusTabView extends StatefulWidget {
@@ -19,8 +87,9 @@ class FocusTabView extends StatefulWidget {
 
 class _FocusTabViewState extends State<FocusTabView> {
   static const _presetsMinutes = [15, 25, 45];
-  static const _customPlaylistUrlKey = 'focus_custom_playlist_url';
-  static const _customPlaylistTitleKey = 'focus_custom_playlist_title';
+  static const _userPlaylistsKey = 'focus_user_playlists_v2';
+  static const _legacyCustomPlaylistUrlKey = 'focus_custom_playlist_url';
+  static const _legacyCustomPlaylistTitleKey = 'focus_custom_playlist_title';
 
   static const List<(String, String, IconData)> _ambientOptions = [
     ('off', 'Выкл', Icons.volume_off_rounded),
@@ -39,26 +108,150 @@ class _FocusTabViewState extends State<FocusTabView> {
   String _ambientSound = 'off';
   double _ambientVolume = 0.45;
   double _systemVolume = 0.65;
-  String? _customPlaylistUrl;
-  String _customPlaylistTitle = 'Мой плейлист';
+  List<_UserPlaylist> _userPlaylists = [];
 
   @override
   void initState() {
     super.initState();
     _remainingSeconds = _selectedMinutes * 60;
-    _loadSavedPlaylist();
+    _loadSavedPlaylists();
   }
 
-  Future<void> _loadSavedPlaylist() async {
+  Future<void> _loadSavedPlaylists() async {
     final prefs = await SharedPreferences.getInstance();
     final sysVol = await NotificationService.instance.getSystemVolume();
+    final rawJson = prefs.getString(_userPlaylistsKey);
+    final loaded = <_UserPlaylist>[];
+
+    if (rawJson != null && rawJson.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(rawJson) as List<dynamic>;
+        for (final item in decoded) {
+          if (item is Map<String, dynamic>) {
+            loaded.add(_UserPlaylist.fromJson(item));
+          }
+        }
+      } catch (_) {}
+    } else {
+      // Migrate single legacy custom playlist if present
+      final legacyUrl = prefs.getString(_legacyCustomPlaylistUrlKey);
+      final legacyTitle =
+          prefs.getString(_legacyCustomPlaylistTitleKey) ?? 'Мой плейлист';
+      if (legacyUrl != null && legacyUrl.isNotEmpty) {
+        loaded.add(
+          _UserPlaylist(
+            id: DateTime.now().millisecondsSinceEpoch.toString(),
+            title: legacyTitle,
+            url: legacyUrl,
+          ),
+        );
+      }
+    }
+
     if (!mounted) return;
     setState(() {
-      _customPlaylistUrl = prefs.getString(_customPlaylistUrlKey);
-      _customPlaylistTitle =
-          prefs.getString(_customPlaylistTitleKey) ?? 'Мой плейлист';
+      _userPlaylists = loaded;
       _systemVolume = sysVol;
     });
+
+    // Auto-fetch missing cover artwork in the background for migrated playlists
+    for (var i = 0; i < _userPlaylists.length; i++) {
+      final item = _userPlaylists[i];
+      if (item.coverImageUrl == null && item.coverImageBase64 == null) {
+        final meta = await _fetchPlaylistMetadata(item.url);
+        if (meta.$2 != null && mounted) {
+          setState(() {
+            _userPlaylists[i] = _UserPlaylist(
+              id: item.id,
+              title: item.title,
+              url: item.url,
+              coverImageUrl: meta.$2,
+              coverImageBase64: item.coverImageBase64,
+            );
+          });
+          await _persistPlaylists();
+        }
+      }
+    }
+  }
+
+  Future<void> _persistPlaylists() async {
+    final prefs = await SharedPreferences.getInstance();
+    final encoded = jsonEncode(_userPlaylists.map((e) => e.toJson()).toList());
+    await prefs.setString(_userPlaylistsKey, encoded);
+  }
+
+  /// Automatically fetches `(title, coverImageUrl)` from Spotify oEmbed,
+  /// YouTube oEmbed, or OpenGraph (`og:image` / `og:title`) tags.
+  Future<(String?, String?)> _fetchPlaylistMetadata(String rawUrl) async {
+    final trimmed = rawUrl.trim();
+    if (trimmed.isEmpty) return (null, null);
+
+    var webUrl = trimmed;
+    if (trimmed.startsWith('spotify:')) {
+      // Convert spotify:playlist:ID to https://open.spotify.com/playlist/ID
+      final parts = trimmed.split(':');
+      if (parts.length >= 3) {
+        webUrl = 'https://open.spotify.com/${parts[1]}/${parts[2]}';
+      }
+    }
+
+    try {
+      final lower = webUrl.toLowerCase();
+      if (lower.contains('open.spotify.com')) {
+        final oembedUri = Uri.parse(
+          'https://open.spotify.com/oembed?url=${Uri.encodeComponent(webUrl)}',
+        );
+        final resp = await http
+            .get(oembedUri)
+            .timeout(const Duration(seconds: 4));
+        if (resp.statusCode == 200) {
+          final data = jsonDecode(resp.body) as Map<String, dynamic>;
+          final title = data['title'] as String?;
+          final thumb = data['thumbnail_url'] as String?;
+          return (title, thumb);
+        }
+      } else if (lower.contains('youtube.com') || lower.contains('youtu.be')) {
+        final oembedUri = Uri.parse(
+          'https://www.youtube.com/oembed?url=${Uri.encodeComponent(webUrl)}&format=json',
+        );
+        final resp = await http
+            .get(oembedUri)
+            .timeout(const Duration(seconds: 4));
+        if (resp.statusCode == 200) {
+          final data = jsonDecode(resp.body) as Map<String, dynamic>;
+          final title = data['title'] as String?;
+          final thumb = data['thumbnail_url'] as String?;
+          return (title, thumb);
+        }
+      }
+
+      if (webUrl.startsWith('http://') || webUrl.startsWith('https://')) {
+        final resp = await http
+            .get(
+              Uri.parse(webUrl),
+              headers: {'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0)'},
+            )
+            .timeout(const Duration(seconds: 4));
+        if (resp.statusCode == 200) {
+          final html = resp.body;
+          final ogImageMatch = RegExp(
+            r'<meta[^>]+property=["\x27]og:image["\x27][^>]+content=["\x27]([^"\x27]+)["\x27]',
+            caseSensitive: false,
+          ).firstMatch(html) ??
+              RegExp(
+                r'<meta[^>]+content=["\x27]([^"\x27]+)["\x27][^>]+property=["\x27]og:image["\x27]',
+                caseSensitive: false,
+              ).firstMatch(html);
+          final ogTitleMatch = RegExp(
+            r'<meta[^>]+property=["\x27]og:title["\x27][^>]+content=["\x27]([^"\x27]+)["\x27]',
+            caseSensitive: false,
+          ).firstMatch(html);
+          return (ogTitleMatch?.group(1), ogImageMatch?.group(1));
+        }
+      }
+    } catch (_) {}
+    return (null, null);
   }
 
   @override
@@ -120,133 +313,290 @@ class _FocusTabViewState extends State<FocusTabView> {
     }
   }
 
-  Future<void> _configureCustomPlaylist() async {
+  Future<void> _openPlaylistDialog({_UserPlaylist? existing}) async {
     AppHaptics.light();
-    final titleCtrl = TextEditingController(text: _customPlaylistTitle);
-    final urlCtrl = TextEditingController(text: _customPlaylistUrl ?? '');
+    final titleCtrl = TextEditingController(text: existing?.title ?? '');
+    final urlCtrl = TextEditingController(text: existing?.url ?? '');
+    String? previewUrl = existing?.coverImageUrl;
+    String? previewBase64 = existing?.coverImageBase64;
+    bool isFetchingCover = false;
 
-    final saved = await showDialog<(String, String)>(
+    final action = await showDialog<String>(
       context: context,
-      builder: (ctx) => Dialog(
-        backgroundColor: AppColors.cardBg,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Row(
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          Future<void> autoFetchFromLink() async {
+            final link = urlCtrl.text.trim();
+            if (link.isEmpty) return;
+            setDialogState(() => isFetchingCover = true);
+            final meta = await _fetchPlaylistMetadata(link);
+            setDialogState(() {
+              isFetchingCover = false;
+              if (meta.$2 != null) {
+                previewUrl = meta.$2;
+                previewBase64 = null;
+              }
+              if (titleCtrl.text.trim().isEmpty && meta.$1 != null) {
+                titleCtrl.text = meta.$1!;
+              }
+            });
+          }
+
+          Uint8List? decodedBytes;
+          if (previewBase64 != null && previewBase64!.isNotEmpty) {
+            try {
+              decodedBytes = base64Decode(previewBase64!);
+            } catch (_) {}
+          }
+
+          return Dialog(
+            backgroundColor: AppColors.cardBg,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    Icons.queue_music_rounded,
-                    color: Color(0xFF1DB954),
-                    size: 22,
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.album_rounded,
+                        color: Color(0xFF1DB954),
+                        size: 22,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          existing == null
+                              ? 'Добавить плейлист'
+                              : 'Настроить плейлист',
+                          style: const TextStyle(
+                            color: AppColors.maintext,
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      if (existing != null)
+                        IconButton(
+                          tooltip: 'Удалить плейлист',
+                          onPressed: () => Navigator.of(ctx).pop('delete'),
+                          icon: const Icon(
+                            Icons.delete_outline_rounded,
+                            color: Colors.redAccent,
+                            size: 20,
+                          ),
+                        ),
+                    ],
                   ),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Привязать свой плейлист',
-                      style: TextStyle(
-                        color: AppColors.maintext,
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
+                  const SizedBox(height: 12),
+                  // Cover preview + actions row
+                  Row(
+                    children: [
+                      Container(
+                        width: 74,
+                        height: 74,
+                        decoration: BoxDecoration(
+                          color: AppColors.bgmain,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.white12),
+                          image: decodedBytes != null
+                              ? DecorationImage(
+                                  image: MemoryImage(decodedBytes),
+                                  fit: BoxFit.cover,
+                                )
+                              : (previewUrl != null && previewUrl!.isNotEmpty)
+                              ? DecorationImage(
+                                  image: NetworkImage(previewUrl!),
+                                  fit: BoxFit.cover,
+                                )
+                              : null,
+                        ),
+                        child:
+                            (decodedBytes == null &&
+                                (previewUrl == null || previewUrl!.isEmpty))
+                            ? const Icon(
+                                Icons.music_note_rounded,
+                                color: AppColors.labeltext,
+                                size: 30,
+                              )
+                            : null,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            OutlinedButton.icon(
+                              onPressed: () async {
+                                final b64 = await NotificationService.instance
+                                    .pickProfileImage();
+                                if (b64 != null && b64.isNotEmpty) {
+                                  setDialogState(() {
+                                    previewBase64 = b64;
+                                  });
+                                }
+                              },
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppColors.maintext,
+                                side: const BorderSide(color: Colors.white24),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 8,
+                                ),
+                                visualDensity: VisualDensity.compact,
+                              ),
+                              icon: const Icon(
+                                Icons.photo_library_outlined,
+                                size: 15,
+                              ),
+                              label: const Text(
+                                'Фото из галереи',
+                                style: TextStyle(fontSize: 11),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            GestureDetector(
+                              onTap: isFetchingCover ? null : autoFetchFromLink,
+                              child: Text(
+                                isFetchingCover
+                                    ? 'Загружаем обложку...'
+                                    : '✨ Подтянуть обложку по ссылке',
+                                style: const TextStyle(
+                                  color: AppColors.accentYellow,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: urlCtrl,
+                    style: const TextStyle(
+                      color: AppColors.maintext,
+                      fontSize: 13,
+                    ),
+                    onChanged: (val) {
+                      if (val.contains('http') || val.startsWith('spotify:')) {
+                        autoFetchFromLink();
+                      }
+                    },
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                      hintText: 'https://open.spotify.com/playlist/...',
+                      labelText: 'Ссылка на плейлист (URL)',
+                      labelStyle: TextStyle(
+                        color: AppColors.labeltext,
+                        fontSize: 12,
                       ),
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Вставь ссылку на любимый плейлист из Spotify, Яндекс Музыки, Apple Music или YouTube Music:',
-                style: TextStyle(color: AppColors.labeltext, fontSize: 12),
-              ),
-              const SizedBox(height: 14),
-              TextField(
-                controller: titleCtrl,
-                style: const TextStyle(color: AppColors.maintext, fontSize: 14),
-                decoration: const InputDecoration(
-                  isDense: true,
-                  border: OutlineInputBorder(),
-                  labelText: 'Название кнопки',
-                  labelStyle: TextStyle(
-                    color: AppColors.labeltext,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: urlCtrl,
-                style: const TextStyle(color: AppColors.maintext, fontSize: 13),
-                decoration: const InputDecoration(
-                  isDense: true,
-                  border: OutlineInputBorder(),
-                  hintText: 'https://open.spotify.com/playlist/...',
-                  labelText: 'Ссылка (URL)',
-                  labelStyle: TextStyle(
-                    color: AppColors.labeltext,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.of(ctx).pop(),
-                    child: const Text(
-                      'Отмена',
-                      style: TextStyle(color: AppColors.labeltext),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: titleCtrl,
+                    style: const TextStyle(
+                      color: AppColors.maintext,
+                      fontSize: 14,
+                    ),
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                      hintText: 'Например: Lo-Fi для работы',
+                      labelText: 'Название плейлиста',
+                      labelStyle: TextStyle(
+                        color: AppColors.labeltext,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: () {
-                      final title = titleCtrl.text.trim().isEmpty
-                          ? 'Мой плейлист'
-                          : titleCtrl.text.trim();
-                      final url = urlCtrl.text.trim();
-                      Navigator.of(ctx).pop((title, url));
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1DB954),
-                      foregroundColor: Colors.black,
-                    ),
-                    child: const Text(
-                      'Сохранить',
-                      style: TextStyle(fontWeight: FontWeight.w700),
-                    ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        child: const Text(
+                          'Отмена',
+                          style: TextStyle(color: AppColors.labeltext),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: () => Navigator.of(ctx).pop('save'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF1DB954),
+                          foregroundColor: Colors.black,
+                        ),
+                        child: const Text(
+                          'Сохранить',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
 
-    if (saved != null) {
-      final prefs = await SharedPreferences.getInstance();
-      final title = saved.$1;
-      final url = saved.$2;
-      if (url.isEmpty) {
-        await prefs.remove(_customPlaylistUrlKey);
-        if (!mounted) return;
-        setState(() {
-          _customPlaylistUrl = null;
-          _customPlaylistTitle = 'Мой плейлист';
-        });
-      } else {
-        await prefs.setString(_customPlaylistTitleKey, title);
-        await prefs.setString(_customPlaylistUrlKey, url);
-        if (!mounted) return;
-        setState(() {
-          _customPlaylistTitle = title;
-          _customPlaylistUrl = url;
-        });
+    if (action == 'delete' && existing != null) {
+      setState(() {
+        _userPlaylists.removeWhere((e) => e.id == existing.id);
+      });
+      await _persistPlaylists();
+      return;
+    }
+
+    if (action == 'save') {
+      final url = urlCtrl.text.trim();
+      if (url.isEmpty) return;
+
+      var title = titleCtrl.text.trim();
+      if (previewUrl == null && previewBase64 == null) {
+        final meta = await _fetchPlaylistMetadata(url);
+        previewUrl = meta.$2;
+        if (title.isEmpty && meta.$1 != null) {
+          title = meta.$1!;
+        }
       }
+      if (title.isEmpty) {
+        title = 'Мой плейлист';
+      }
+
+      final updatedItem = _UserPlaylist(
+        id: existing?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+        title: title,
+        url: url,
+        coverImageUrl: previewUrl,
+        coverImageBase64: previewBase64,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        if (existing != null) {
+          final idx = _userPlaylists.indexWhere((e) => e.id == existing.id);
+          if (idx >= 0) {
+            _userPlaylists[idx] = updatedItem;
+          } else {
+            _userPlaylists.add(updatedItem);
+          }
+        } else {
+          _userPlaylists.add(updatedItem);
+        }
+      });
+      await _persistPlaylists();
     }
   }
 
@@ -811,7 +1161,7 @@ class _FocusTabViewState extends State<FocusTabView> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
-                    'Подборки и потоки',
+                    'Мои плейлисты',
                     style: TextStyle(
                       color: AppColors.maintext,
                       fontSize: 13,
@@ -819,9 +1169,9 @@ class _FocusTabViewState extends State<FocusTabView> {
                     ),
                   ),
                   GestureDetector(
-                    onTap: _configureCustomPlaylist,
+                    onTap: () => _openPlaylistDialog(),
                     child: const Text(
-                      'Изменить свой URL',
+                      '+ Добавить плейлист',
                       style: TextStyle(
                         color: AppColors.accentYellow,
                         fontSize: 11,
@@ -832,101 +1182,104 @@ class _FocusTabViewState extends State<FocusTabView> {
                 ],
               ),
               const SizedBox(height: 10),
-              SizedBox(
-                height: 152,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  children: [
-                    _PlaylistCoverCard(
-                      serviceBadge: 'SPOTIFY',
-                      title: 'Deep Focus',
-                      subtitle: 'Погружение без слов',
-                      gradientColors: const [
-                        Color(0xFF1DB954),
-                        Color(0xFF0E3B22),
-                      ],
-                      icon: Icons.graphic_eq_rounded,
-                      onTap: () => _launchMusicPreset(
-                        primaryUrl: 'spotify:playlist:37i9dQZF1DWZeKCadgRdKQ',
-                        fallbackUrl:
-                            'https://open.spotify.com/playlist/37i9dQZF1DWZeKCadgRdKQ',
+              if (_userPlaylists.isEmpty)
+                GestureDetector(
+                  onTap: () => _openPlaylistDialog(),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 20,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.bgmain,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: AppColors.accentYellow.withValues(alpha: 0.35),
+                        style: BorderStyle.solid,
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    _PlaylistCoverCard(
-                      serviceBadge: 'SPOTIFY',
-                      title: 'Lo-Fi Beats',
-                      subtitle: 'Мягкий бит для кода',
-                      gradientColors: const [
-                        Color(0xFF6366F1),
-                        Color(0xFF1E1B4B),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.add_circle_outline_rounded,
+                          color: AppColors.accentYellow,
+                          size: 22,
+                        ),
+                        SizedBox(width: 10),
+                        Flexible(
+                          child: Text(
+                            'Добавить свой плейлист (Spotify / Яндекс / Apple Music)',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: AppColors.maintext,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
                       ],
-                      icon: Icons.headphones_rounded,
-                      onTap: () => _launchMusicPreset(
-                        primaryUrl: 'spotify:playlist:37i9dQZF1DWWQRwui0ExPn',
-                        fallbackUrl:
-                            'https://open.spotify.com/playlist/37i9dQZF1DWWQRwui0ExPn',
+                    ),
+                  ),
+                )
+              else
+                SizedBox(
+                  height: 154,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    children: [
+                      ..._userPlaylists.map((pl) {
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 12),
+                          child: _PlaylistCoverCard(
+                            serviceBadge: pl.serviceBadge,
+                            title: pl.title,
+                            subtitle: 'Нажми для запуска',
+                            gradientColors: pl.fallbackGradient,
+                            coverImageUrl: pl.coverImageUrl,
+                            coverImageBase64: pl.coverImageBase64,
+                            icon: Icons.album_rounded,
+                            onTap: () => _launchMusicPreset(primaryUrl: pl.url),
+                            onEditTap: () => _openPlaylistDialog(existing: pl),
+                          ),
+                        );
+                      }),
+                      // "+ Add another playlist" card at the end of carousel
+                      GestureDetector(
+                        onTap: () => _openPlaylistDialog(),
+                        child: Container(
+                          width: 124,
+                          decoration: BoxDecoration(
+                            color: AppColors.bgmain,
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(color: Colors.white12),
+                          ),
+                          child: const Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.add_circle_outline_rounded,
+                                color: AppColors.accentYellow,
+                                size: 28,
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                '+ Добавить',
+                                style: TextStyle(
+                                  color: AppColors.maintext,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    _PlaylistCoverCard(
-                      serviceBadge: 'APPLE MUSIC',
-                      title: 'Pure Focus',
-                      subtitle: 'Чистая концентрация',
-                      gradientColors: const [
-                        Color(0xFFFA243C),
-                        Color(0xFF4C0519),
-                      ],
-                      icon: Icons.library_music_rounded,
-                      onTap: () => _launchMusicPreset(
-                        primaryUrl:
-                            'https://music.apple.com/us/playlist/pure-focus/pl.dbd712beded846dca273d5d3259d28aa',
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    _PlaylistCoverCard(
-                      serviceBadge: 'ЯНДЕКС МУЗЫКА',
-                      title: 'Моя волна',
-                      subtitle: 'Персональный поток',
-                      gradientColors: const [
-                        Color(0xFFF59E0B),
-                        Color(0xFF451A03),
-                      ],
-                      icon: Icons.waves_rounded,
-                      onTap: () => _launchMusicPreset(
-                        primaryUrl: 'yandexmusic://',
-                        fallbackUrl: 'https://music.yandex.ru/',
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    _PlaylistCoverCard(
-                      serviceBadge: 'СВОЙ ПЛЕЙЛИСТ',
-                      title: _customPlaylistUrl != null
-                          ? _customPlaylistTitle
-                          : '+ Добавить ссылку',
-                      subtitle: _customPlaylistUrl != null
-                          ? 'Твой быстрый поток'
-                          : 'Spotify / Яндекс / YouTube',
-                      gradientColors: const [
-                        Color(0xFFD97706),
-                        Color(0xFF1F2937),
-                      ],
-                      icon: _customPlaylistUrl != null
-                          ? Icons.star_rounded
-                          : Icons.add_link_rounded,
-                      onTap: () {
-                        if (_customPlaylistUrl != null &&
-                            _customPlaylistUrl!.isNotEmpty) {
-                          _launchMusicPreset(primaryUrl: _customPlaylistUrl!);
-                        } else {
-                          _configureCustomPlaylist();
-                        }
-                      },
-                      onEditTap: _configureCustomPlaylist,
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
             ],
           ),
         ),
@@ -1121,6 +1474,8 @@ class _PlaylistCoverCard extends StatelessWidget {
     required this.gradientColors,
     required this.icon,
     required this.onTap,
+    this.coverImageUrl,
+    this.coverImageBase64,
     this.onEditTap,
   });
 
@@ -1128,23 +1483,30 @@ class _PlaylistCoverCard extends StatelessWidget {
   final String title;
   final String subtitle;
   final List<Color> gradientColors;
+  final String? coverImageUrl;
+  final String? coverImageBase64;
   final IconData icon;
   final VoidCallback onTap;
   final VoidCallback? onEditTap;
 
   @override
   Widget build(BuildContext context) {
+    Uint8List? memoryBytes;
+    if (coverImageBase64 != null && coverImageBase64!.isNotEmpty) {
+      try {
+        memoryBytes = base64Decode(coverImageBase64!);
+      } catch (_) {}
+    }
+
+    final hasCoverImage =
+        memoryBytes != null ||
+        (coverImageUrl != null && coverImageUrl!.isNotEmpty);
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         width: 158,
-        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: gradientColors,
-          ),
           borderRadius: BorderRadius.circular(18),
           border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
           boxShadow: [
@@ -1155,106 +1517,168 @@ class _PlaylistCoverCard extends StatelessWidget {
             ),
           ],
         ),
-        child: Stack(
-          children: [
-            // Subtle decorative vinyl / soundwave circle in top-right
-            Positioned(
-              right: -18,
-              bottom: -18,
-              child: Icon(
-                icon,
-                size: 84,
-                color: Colors.white.withValues(alpha: 0.10),
-              ),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Flexible(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 7,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.32),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          serviceBadge,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 9,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // 1. Cover Image or Fallback Gradient Background
+              if (memoryBytes != null)
+                Image.memory(memoryBytes, fit: BoxFit.cover)
+              else if (coverImageUrl != null && coverImageUrl!.isNotEmpty)
+                Image.network(
+                  coverImageUrl!,
+                  fit: BoxFit.cover,
+                  errorBuilder: (ctx, err, stack) => Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: gradientColors,
                       ),
                     ),
-                    const SizedBox(width: 6),
-                    if (onEditTap != null)
-                      GestureDetector(
-                        onTap: onEditTap,
-                        child: Container(
-                          padding: const EdgeInsets.all(5),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.35),
-                            shape: BoxShape.circle,
+                  ),
+                )
+              else
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: gradientColors,
+                    ),
+                  ),
+                ),
+
+              // 2. High-contrast gradient scrim for legibility
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      hasCoverImage
+                          ? Colors.black.withValues(alpha: 0.35)
+                          : Colors.transparent,
+                      Colors.black.withValues(alpha: hasCoverImage ? 0.88 : 0.45),
+                    ],
+                  ),
+                ),
+              ),
+
+              // 3. Subtle vinyl icon watermark in top-right if no cover
+              if (!hasCoverImage)
+                Positioned(
+                  right: -18,
+                  bottom: -18,
+                  child: Icon(
+                    icon,
+                    size: 84,
+                    color: Colors.white.withValues(alpha: 0.10),
+                  ),
+                ),
+
+              // 4. Foreground content: badge, edit icon, title, subtitle
+              Padding(
+                padding: const EdgeInsets.all(13),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Flexible(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 7,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.55),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              serviceBadge,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
                           ),
-                          child: const Icon(
-                            Icons.edit_rounded,
-                            size: 13,
-                            color: Colors.white,
+                        ),
+                        const SizedBox(width: 6),
+                        if (onEditTap != null)
+                          GestureDetector(
+                            onTap: onEditTap,
+                            child: Container(
+                              padding: const EdgeInsets.all(5),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.55),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.edit_rounded,
+                                size: 13,
+                                color: Colors.white,
+                              ),
+                            ),
+                          )
+                        else
+                          Container(
+                            padding: const EdgeInsets.all(5),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.25),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.play_arrow_rounded,
+                              size: 14,
+                              color: Colors.white,
+                            ),
                           ),
-                        ),
-                      )
-                    else
-                      Container(
-                        padding: const EdgeInsets.all(5),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.22),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.play_arrow_rounded,
-                          size: 14,
-                          color: Colors.white,
-                        ),
+                      ],
+                    ),
+                    const Spacer(),
+                    if (!hasCoverImage) ...[
+                      Icon(icon, color: Colors.white, size: 22),
+                      const SizedBox(height: 6),
+                    ],
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        shadows: [
+                          Shadow(color: Colors.black87, blurRadius: 4),
+                        ],
                       ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.85),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        shadows: const [
+                          Shadow(color: Colors.black87, blurRadius: 4),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
-                const Spacer(),
-                Icon(icon, color: Colors.white, size: 24),
-                const SizedBox(height: 8),
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.78),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );
