@@ -3,12 +3,13 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:todo/core/app_theme/app_colors.dart';
 import 'package:todo/core/haptics/app_haptics.dart';
 import 'package:todo/core/notifications/notification_service.dart';
 import 'package:todo/features/tasks/presentation/controllers/task_controller.dart';
 
-/// Listodo Focus Mode (Pomodoro Timer) tab view.
+/// Listodo Focus Mode (Pomodoro Timer + Ambient Mixer + Spotify/Music Hub) tab view.
 class FocusTabView extends StatefulWidget {
   const FocusTabView({super.key});
 
@@ -18,21 +19,49 @@ class FocusTabView extends StatefulWidget {
 
 class _FocusTabViewState extends State<FocusTabView> {
   static const _presetsMinutes = [15, 25, 45];
+  static const _customPlaylistUrlKey = 'focus_custom_playlist_url';
+  static const _customPlaylistTitleKey = 'focus_custom_playlist_title';
+
+  static const List<(String, String, IconData)> _ambientOptions = [
+    ('off', 'Выкл', Icons.volume_off_rounded),
+    ('rain', '🌧 Дождь', Icons.water_drop_outlined),
+    ('waves', '🌊 Прибой', Icons.waves_rounded),
+    ('cafe', '☕️ Кафе', Icons.local_cafe_outlined),
+    ('vinyl', '💿 Винил', Icons.album_outlined),
+  ];
+
   int _selectedMinutes = 25;
   late int _remainingSeconds;
   bool _isRunning = false;
   Timer? _timer;
   int? _focusedTaskId;
 
+  String _ambientSound = 'off';
+  double _ambientVolume = 0.45;
+  String? _customPlaylistUrl;
+  String _customPlaylistTitle = 'Мой плейлист';
+
   @override
   void initState() {
     super.initState();
     _remainingSeconds = _selectedMinutes * 60;
+    _loadSavedPlaylist();
+  }
+
+  Future<void> _loadSavedPlaylist() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _customPlaylistUrl = prefs.getString(_customPlaylistUrlKey);
+      _customPlaylistTitle =
+          prefs.getString(_customPlaylistTitleKey) ?? 'Мой плейлист';
+    });
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    NotificationService.instance.setAmbientSound(sound: 'off');
     super.dispose();
   }
 
@@ -44,6 +73,173 @@ class _FocusTabViewState extends State<FocusTabView> {
       _remainingSeconds = minutes * 60;
       _isRunning = false;
     });
+  }
+
+  void _selectAmbientSound(String soundKey) {
+    AppHaptics.selection();
+    setState(() => _ambientSound = soundKey);
+    NotificationService.instance.setAmbientSound(
+      sound: soundKey,
+      volume: _ambientVolume,
+    );
+  }
+
+  void _updateAmbientVolume(double value) {
+    setState(() => _ambientVolume = value);
+    if (_ambientSound != 'off') {
+      NotificationService.instance.setAmbientSound(
+        sound: _ambientSound,
+        volume: value,
+      );
+    }
+  }
+
+  Future<void> _launchMusicPreset({
+    required String primaryUrl,
+    String? fallbackUrl,
+  }) async {
+    AppHaptics.light();
+    final opened = await NotificationService.instance.openExternalUrl(
+      url: primaryUrl,
+      fallbackUrl: fallbackUrl,
+    );
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Не удалось открыть ссылку музыкального сервиса'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _configureCustomPlaylist() async {
+    AppHaptics.light();
+    final titleCtrl = TextEditingController(text: _customPlaylistTitle);
+    final urlCtrl = TextEditingController(text: _customPlaylistUrl ?? '');
+
+    final saved = await showDialog<(String, String)>(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: AppColors.cardBg,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(
+                    Icons.queue_music_rounded,
+                    color: Color(0xFF1DB954),
+                    size: 22,
+                  ),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Привязать свой плейлист',
+                      style: TextStyle(
+                        color: AppColors.maintext,
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Вставь ссылку на любимый плейлист из Spotify, Яндекс Музыки, Apple Music или YouTube Music:',
+                style: TextStyle(color: AppColors.labeltext, fontSize: 12),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: titleCtrl,
+                style: const TextStyle(color: AppColors.maintext, fontSize: 14),
+                decoration: const InputDecoration(
+                  isDense: true,
+                  border: OutlineInputBorder(),
+                  labelText: 'Название кнопки',
+                  labelStyle: TextStyle(
+                    color: AppColors.labeltext,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: urlCtrl,
+                style: const TextStyle(color: AppColors.maintext, fontSize: 13),
+                decoration: const InputDecoration(
+                  isDense: true,
+                  border: OutlineInputBorder(),
+                  hintText: 'https://open.spotify.com/playlist/...',
+                  labelText: 'Ссылка (URL)',
+                  labelStyle: TextStyle(
+                    color: AppColors.labeltext,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    child: const Text(
+                      'Отмена',
+                      style: TextStyle(color: AppColors.labeltext),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: () {
+                      final title = titleCtrl.text.trim().isEmpty
+                          ? 'Мой плейлист'
+                          : titleCtrl.text.trim();
+                      final url = urlCtrl.text.trim();
+                      Navigator.of(ctx).pop((title, url));
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1DB954),
+                      foregroundColor: Colors.black,
+                    ),
+                    child: const Text(
+                      'Сохранить',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (saved != null) {
+      final prefs = await SharedPreferences.getInstance();
+      final title = saved.$1;
+      final url = saved.$2;
+      if (url.isEmpty) {
+        await prefs.remove(_customPlaylistUrlKey);
+        if (!mounted) return;
+        setState(() {
+          _customPlaylistUrl = null;
+          _customPlaylistTitle = 'Мой плейлист';
+        });
+      } else {
+        await prefs.setString(_customPlaylistTitleKey, title);
+        await prefs.setString(_customPlaylistUrlKey, url);
+        if (!mounted) return;
+        setState(() {
+          _customPlaylistTitle = title;
+          _customPlaylistUrl = url;
+        });
+      }
+    }
   }
 
   void _toggleTimer() {
@@ -63,7 +259,8 @@ class _FocusTabViewState extends State<FocusTabView> {
       if (_remainingSeconds <= 1) {
         timer.cancel();
         AppHaptics.heavy();
-        final tasks = context.read<TaskController>().tasks;
+        final taskController = context.read<TaskController>();
+        final tasks = taskController.tasks;
         String? focusedName;
         if (_focusedTaskId != null) {
           for (final t in tasks) {
@@ -72,6 +269,10 @@ class _FocusTabViewState extends State<FocusTabView> {
               break;
             }
           }
+          taskController.recordFocusSession(
+            _focusedTaskId!,
+            minutes: _selectedMinutes,
+          );
         }
         NotificationService.instance.sendFocusCompletedNotification(
           taskName: focusedName,
@@ -81,8 +282,12 @@ class _FocusTabViewState extends State<FocusTabView> {
           _isRunning = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Сессия фокуса завершена! Отличная работа 🔥'),
+          SnackBar(
+            content: Text(
+              focusedName != null
+                  ? 'Фокус-сессия (+1 🍅) по задаче «$focusedName» завершена!'
+                  : 'Сессия фокуса завершена! Отличная работа 🔥',
+            ),
           ),
         );
       } else {
@@ -157,13 +362,13 @@ class _FocusTabViewState extends State<FocusTabView> {
             );
           }).toList(),
         ),
-        const SizedBox(height: 28),
+        const SizedBox(height: 24),
 
         // Circular Countdown Ring
         Center(
           child: SizedBox(
-            width: 220,
-            height: 220,
+            width: 210,
+            height: 210,
             child: CustomPaint(
               painter: _FocusRingPainter(progress: progress),
               child: Center(
@@ -193,7 +398,7 @@ class _FocusTabViewState extends State<FocusTabView> {
             ),
           ),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 20),
 
         // Start / Pause & Reset buttons
         Row(
@@ -242,9 +447,297 @@ class _FocusTabViewState extends State<FocusTabView> {
           ],
         ),
 
-        const SizedBox(height: 28),
+        const SizedBox(height: 24),
 
-        // Task selector for current focus session
+        // 1. Ambient Soundscape Mixer (plays alongside Spotify via mixWithOthers)
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.cardBg,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: _ambientSound != 'off'
+                  ? AppColors.accentYellow.withValues(alpha: 0.45)
+                  : Colors.white12,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    Icons.graphic_eq_rounded,
+                    color: AppColors.accentYellow,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Фоновая атмосфера',
+                      style: TextStyle(
+                        color: AppColors.maintext,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  if (_ambientSound != 'off')
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.accentYellow.withValues(alpha: 0.16),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        'Mix со Spotify',
+                        style: TextStyle(
+                          color: AppColors.accentYellow,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: _ambientOptions.map((opt) {
+                    final key = opt.$1;
+                    final label = opt.$2;
+                    final icon = opt.$3;
+                    final selected = _ambientSound == key;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: GestureDetector(
+                        onTap: () => _selectAmbientSound(key),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 160),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: selected
+                                ? AppColors.accentYellow
+                                : AppColors.bgmain,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: selected
+                                  ? AppColors.accentYellow
+                                  : Colors.white12,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                icon,
+                                size: 15,
+                                color: selected
+                                    ? Colors.black
+                                    : AppColors.labeltext,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                label,
+                                style: TextStyle(
+                                  color: selected
+                                      ? Colors.black
+                                      : AppColors.maintext,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+              if (_ambientSound != 'off') ...[
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.volume_down_rounded,
+                      color: AppColors.labeltext,
+                      size: 18,
+                    ),
+                    Expanded(
+                      child: SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          activeTrackColor: AppColors.accentYellow,
+                          inactiveTrackColor: Colors.white12,
+                          thumbColor: AppColors.accentYellow,
+                          trackHeight: 3,
+                        ),
+                        child: Slider(
+                          value: _ambientVolume,
+                          min: 0.05,
+                          max: 1.0,
+                          onChanged: _updateAmbientVolume,
+                        ),
+                      ),
+                    ),
+                    const Icon(
+                      Icons.volume_up_rounded,
+                      color: AppColors.accentYellow,
+                      size: 18,
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 16),
+
+        // 2. Spotify & Music Streaming Hub + System Media Remote
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.cardBg,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: Colors.white12),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    Icons.headphones_rounded,
+                    color: Color(0xFF1DB954),
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Музыка для фокуса',
+                      style: TextStyle(
+                        color: AppColors.maintext,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  // Mini media remote for system music player
+                  _MediaIconBtn(
+                    icon: Icons.skip_previous_rounded,
+                    tooltip: 'Предыдущий трек',
+                    onTap: () {
+                      AppHaptics.light();
+                      NotificationService.instance.sendMediaCommand('previous');
+                    },
+                  ),
+                  const SizedBox(width: 4),
+                  _MediaIconBtn(
+                    icon: Icons.play_arrow_rounded,
+                    tooltip: 'Плей / Пауза',
+                    onTap: () {
+                      AppHaptics.medium();
+                      NotificationService.instance.sendMediaCommand(
+                        'playPause',
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 4),
+                  _MediaIconBtn(
+                    icon: Icons.skip_next_rounded,
+                    tooltip: 'Следующий трек',
+                    onTap: () {
+                      AppHaptics.light();
+                      NotificationService.instance.sendMediaCommand('next');
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Запусти подборку в любимом плеере — она продолжит играть вместе с таймером и шумом дождя:',
+                style: TextStyle(color: AppColors.labeltext, fontSize: 11),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _MusicServiceChip(
+                    label: 'Spotify: Deep Focus',
+                    accentColor: const Color(0xFF1DB954),
+                    icon: Icons.album_rounded,
+                    onTap: () => _launchMusicPreset(
+                      primaryUrl: 'spotify:playlist:37i9dQZF1DWZeKCadgRdKQ',
+                      fallbackUrl:
+                          'https://open.spotify.com/playlist/37i9dQZF1DWZeKCadgRdKQ',
+                    ),
+                  ),
+                  _MusicServiceChip(
+                    label: 'Spotify: Lo-Fi Beats',
+                    accentColor: const Color(0xFF1DB954),
+                    icon: Icons.music_note_rounded,
+                    onTap: () => _launchMusicPreset(
+                      primaryUrl: 'spotify:playlist:37i9dQZF1DWWQRwui0ExPn',
+                      fallbackUrl:
+                          'https://open.spotify.com/playlist/37i9dQZF1DWWQRwui0ExPn',
+                    ),
+                  ),
+                  _MusicServiceChip(
+                    label: 'Apple Music: Focus',
+                    accentColor: const Color(0xFFFA243C),
+                    icon: Icons.library_music_rounded,
+                    onTap: () => _launchMusicPreset(
+                      primaryUrl:
+                          'https://music.apple.com/us/playlist/pure-focus/pl.dbd712beded846dca273d5d3259d28aa',
+                    ),
+                  ),
+                  _MusicServiceChip(
+                    label: 'Яндекс Музыка',
+                    accentColor: const Color(0xFFFFCC00),
+                    icon: Icons.play_circle_fill_rounded,
+                    onTap: () => _launchMusicPreset(
+                      primaryUrl: 'yandexmusic://',
+                      fallbackUrl: 'https://music.yandex.ru/',
+                    ),
+                  ),
+                  _MusicServiceChip(
+                    label: _customPlaylistUrl != null
+                        ? '★ $_customPlaylistTitle'
+                        : '+ Свой плейлист',
+                    accentColor: AppColors.accentYellow,
+                    icon: _customPlaylistUrl != null
+                        ? Icons.star_rounded
+                        : Icons.add_link_rounded,
+                    onTap: () {
+                      if (_customPlaylistUrl != null &&
+                          _customPlaylistUrl!.isNotEmpty) {
+                        _launchMusicPreset(primaryUrl: _customPlaylistUrl!);
+                      } else {
+                        _configureCustomPlaylist();
+                      }
+                    },
+                    onSecondaryTap: _customPlaylistUrl != null
+                        ? _configureCustomPlaylist
+                        : null,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 24),
+
+        // 3. Task selector for current focus session
         const Text(
           'Фокус на задаче',
           style: TextStyle(
@@ -306,13 +799,29 @@ class _FocusTabViewState extends State<FocusTabView> {
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: Text(
-                          task.name,
-                          style: const TextStyle(
-                            color: AppColors.maintext,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              task.name,
+                              style: const TextStyle(
+                                color: AppColors.maintext,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            if (task.pomodoroCount > 0) ...[
+                              const SizedBox(height: 3),
+                              Text(
+                                '🍅 ${task.pomodoroCount} сессий • ${task.focusMinutes} мин в фокусе',
+                                style: const TextStyle(
+                                  color: AppColors.accentYellow,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       ),
                       if (isFocused)
@@ -338,6 +847,95 @@ class _FocusTabViewState extends State<FocusTabView> {
           }),
         const SizedBox(height: 80),
       ],
+    );
+  }
+}
+
+class _MediaIconBtn extends StatelessWidget {
+  const _MediaIconBtn({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Tooltip(
+        message: tooltip,
+        child: Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: AppColors.bgmain,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.white12),
+          ),
+          child: Icon(icon, size: 18, color: AppColors.maintext),
+        ),
+      ),
+    );
+  }
+}
+
+class _MusicServiceChip extends StatelessWidget {
+  const _MusicServiceChip({
+    required this.label,
+    required this.accentColor,
+    required this.icon,
+    required this.onTap,
+    this.onSecondaryTap,
+  });
+
+  final String label;
+  final Color accentColor;
+  final IconData icon;
+  final VoidCallback onTap;
+  final VoidCallback? onSecondaryTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+        decoration: BoxDecoration(
+          color: accentColor.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: accentColor.withValues(alpha: 0.45)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 15, color: accentColor),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: const TextStyle(
+                color: AppColors.maintext,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            if (onSecondaryTap != null) ...[
+              const SizedBox(width: 6),
+              GestureDetector(
+                onTap: onSecondaryTap,
+                child: Icon(
+                  Icons.edit_outlined,
+                  size: 14,
+                  color: accentColor,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }
