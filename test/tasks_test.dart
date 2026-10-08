@@ -1,6 +1,12 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:todo/features/auth/data/repositories/auth_repository_impl.dart';
+import 'package:todo/features/auth/domain/models/app_user.dart';
 import 'package:todo/features/tasks/data/repositories/task_local_repository.dart';
 import 'package:todo/features/tasks/domain/models/priority_level.dart';
 import 'package:todo/features/tasks/domain/models/task.dart';
@@ -74,6 +80,71 @@ void main() {
       expect(updated.name, 'New');
       expect(updated.value, 'Desc');
       expect(updated.priority, PriorityLevel.p3);
+    });
+  });
+
+  group('AuthRepositoryImpl (Internal & Supabase OTP)', () {
+    late SharedPreferences prefs;
+
+    setUp(() async {
+      SharedPreferences.setMockInitialValues({});
+      prefs = await SharedPreferences.getInstance();
+    });
+
+    test('registers and signs in internal account locally', () async {
+      final repo = AuthRepositoryImpl(prefs);
+      expect(repo.getCurrentUser(), isNull);
+
+      final registered = await repo.registerInternal(
+        name: 'Daniil',
+        login: 'daniil_dev',
+        password: 'secret',
+      );
+      expect(registered.name, 'Daniil');
+      expect(registered.isLocal, isTrue);
+      expect(repo.getCurrentUser(), equals(registered));
+
+      await repo.signOut();
+      expect(repo.getCurrentUser(), isNull);
+
+      final signedIn = await repo.signInInternal(
+        login: 'daniil_dev',
+        password: 'secret',
+      );
+      expect(signedIn.name, 'Daniil');
+    });
+
+    test('sends and verifies Supabase Email OTP via REST API', () async {
+      final mockClient = MockClient((request) async {
+        if (request.url.path.endsWith('/auth/v1/otp')) {
+          return http.Response('{}', 200);
+        }
+        if (request.url.path.endsWith('/auth/v1/verify')) {
+          return http.Response(
+            json.encode({
+              'user': {
+                'id': 'sb-user-1',
+                'email': 'test@example.com',
+                'user_metadata': {'name': 'Supabase User'},
+              },
+            }),
+            200,
+          );
+        }
+        return http.Response('Not Found', 404);
+      });
+
+      final repo = AuthRepositoryImpl(prefs, httpClient: mockClient);
+      await repo.sendEmailOtp(email: 'test@example.com', name: 'Supabase User');
+      final user = await repo.verifyEmailOtp(
+        email: 'test@example.com',
+        code: '123456',
+      );
+
+      expect(user.id, 'sb-user-1');
+      expect(user.name, 'Supabase User');
+      expect(user.isLocal, isFalse);
+      expect(repo.getCurrentUser(), equals(user));
     });
   });
 
@@ -155,8 +226,8 @@ void main() {
     );
   });
 
-  group('HomeScreen Widget Test', () {
-    testWidgets('renders empty state and adds a task via bottom sheet', (
+  group('Auth & HomeScreen Widget Flow', () {
+    testWidgets('redirects unauthenticated user to WelcomeScreen', (
       tester,
     ) async {
       SharedPreferences.setMockInitialValues({});
@@ -165,20 +236,44 @@ void main() {
       await tester.pumpWidget(MainApp(prefs: prefs));
       await tester.pumpAndSettle();
 
-      expect(find.text('Tasks'), findsOneWidget);
-
-      await tester.tap(find.byType(FloatingActionButton));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Add task'), findsOneWidget);
-
-      await tester.enterText(find.byType(TextField).first, 'Write tests');
-      await tester.enterText(find.byType(TextField).last, 'Ensure 100% pass');
-      await tester.tap(find.byIcon(Icons.send));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Write tests'), findsOneWidget);
-      expect(find.text('Ensure 100% pass'), findsOneWidget);
+      expect(find.text('Listtodo'), findsOneWidget);
+      expect(find.text('Вход по Почте (Код OTP)'), findsOneWidget);
+      expect(find.text('Внутренняя регистрация / Вход'), findsOneWidget);
     });
+
+    testWidgets(
+      'authenticated user sees personalized HomeScreen and adds task',
+      (tester) async {
+        const user = AppUser(
+          id: 'local_1',
+          name: 'Vasudev Krishna',
+          email: 'vasudev@example.com',
+          isLocal: true,
+        );
+        SharedPreferences.setMockInitialValues({
+          'auth_current_user': user.toJson(),
+        });
+        final prefs = await SharedPreferences.getInstance();
+
+        await tester.pumpWidget(MainApp(prefs: prefs));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Vasudev Krishna'), findsOneWidget);
+        expect(find.text('to-do'), findsOneWidget);
+
+        await tester.tap(find.byType(FloatingActionButton));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Add task'), findsOneWidget);
+
+        await tester.enterText(find.byType(TextField).first, 'Write tests');
+        await tester.enterText(find.byType(TextField).last, 'Ensure 100% pass');
+        await tester.tap(find.byIcon(Icons.send));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Write tests'), findsOneWidget);
+        expect(find.text('Ensure 100% pass'), findsOneWidget);
+      },
+    );
   });
 }

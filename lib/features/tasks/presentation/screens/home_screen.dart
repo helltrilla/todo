@@ -1,7 +1,10 @@
+import 'dart:math' as math;
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:todo/core/app_theme/app_colors.dart';
+import 'package:todo/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:todo/features/tasks/domain/models/task.dart';
 import 'package:todo/features/tasks/presentation/controllers/task_controller.dart';
 import 'package:todo/features/tasks/presentation/widgets/add_task_sheet.dart';
@@ -70,6 +73,37 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _confirmSignOut() async {
+    final user = context.read<AuthController>().currentUser;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Профиль'),
+        content: Text(
+          user != null
+              ? 'Вы вошли как ${user.name}${user.email != null ? ' (${user.email})' : ''}.\nХотите выйти из аккаунта?'
+              : 'Выйти из аккаунта?',
+          style: const TextStyle(color: AppColors.labeltext),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Отмена'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+            child: const Text('Выйти'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      await context.read<AuthController>().signOut();
+    }
+  }
+
   void _openAddSheet() {
     showModalBottomSheet(
       context: context,
@@ -81,18 +115,32 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final user = context.watch<AuthController>().currentUser;
+    final displayName = (user != null && user.name.trim().isNotEmpty)
+        ? user.name
+        : 'Tasks';
+
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          onPressed: () {},
-          icon: const Icon(Icons.sort, color: AppColors.white),
-        ),
-        title: Text('Tasks', style: Theme.of(context).textTheme.titleMedium),
-        centerTitle: true,
+        automaticallyImplyLeading: false,
+        titleSpacing: 20,
+        title: _ListodoHeaderTitle(name: displayName),
         actions: [
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.panorama_fisheye_outlined),
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: IconButton(
+              tooltip: 'Профиль / Выход',
+              onPressed: _confirmSignOut,
+              style: IconButton.styleFrom(
+                side: const BorderSide(color: Colors.white24),
+                shape: const CircleBorder(),
+              ),
+              icon: const Icon(
+                Icons.settings_outlined,
+                color: AppColors.white,
+                size: 20,
+              ),
+            ),
           ),
         ],
       ),
@@ -135,6 +183,55 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
+class _ListodoHeaderTitle extends StatelessWidget {
+  const _ListodoHeaderTitle({required this.name});
+
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(right: 44, top: 6),
+          child: Text(
+            name,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: AppColors.maintext,
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        Positioned(
+          top: -2,
+          right: 0,
+          child: Transform.rotate(
+            angle: 12 * math.pi / 180,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+              decoration: BoxDecoration(
+                color: AppColors.accentYellow,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Text(
+                'to-do',
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _EmptyState extends StatelessWidget {
   const _EmptyState();
 
@@ -157,8 +254,7 @@ class _TaskList extends StatelessWidget {
     return ListView.separated(
       padding: const EdgeInsets.only(bottom: 100),
       itemCount: tasks.length,
-      separatorBuilder: (_, _) =>
-          const Divider(height: 1, color: Colors.white12),
+      separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (_, index) {
         final task = tasks[index];
         return TaskCard(task: task, onDelete: () => onDelete(task));
