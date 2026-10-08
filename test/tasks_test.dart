@@ -373,6 +373,11 @@ void main() {
     testWidgets(
       'authenticated user adds task, opens custom calendar, edits task on card tap, and swipes to dismiss',
       (tester) async {
+        tester.view.physicalSize = const Size(800, 1400);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
         const user = AppUser(
           id: 'local_1',
           name: 'Vasudev Krishna',
@@ -451,31 +456,43 @@ void main() {
         expect(find.text('Updated task name'), findsNothing);
         expect(taskController.archivedTasks.length, 1);
 
-        // Open SettingsScreen via gear icon in AppBar
-        await tester.tap(find.byIcon(Icons.settings_outlined));
+        // Switch to 'Профиль' tab in bottom navigation bar
+        await tester.tap(find.text('Профиль'));
         await tester.pumpAndSettle();
 
-        expect(find.text('Профиль и настройки'), findsOneWidget);
-        expect(find.text('К задачам'), findsOneWidget);
+        expect(find.text('Мой профиль'), findsOneWidget);
         expect(find.text('Архив выполненных'), findsOneWidget);
-        expect(find.text('Updated task name'), findsOneWidget);
 
-        // Edit display name in SettingsScreen
-        await tester.tap(find.byIcon(Icons.edit_outlined));
+        // Tap compact 'Архив выполненных' card to open the searchable sheet
+        await tester.tap(find.text('Архив выполненных'));
         await tester.pumpAndSettle();
+        expect(find.text('Updated task name'), findsOneWidget);
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.close));
+        await tester.pumpAndSettle();
+
+        // Open Profile Settings sheet ('Настройка профиля') inside ProfileTabView
+        await tester.tap(find.byIcon(Icons.tune_rounded));
+        await tester.pumpAndSettle();
+        expect(find.text('Настройка профиля'), findsOneWidget);
+        expect(find.text('Выбрать фото'), findsOneWidget);
         await tester.enterText(
           find.widgetWithText(TextField, 'Введите ваше имя'),
           'Daniil Updated',
         );
-        await tester.tap(find.text('Сохранить'));
+        await tester.tap(find.text('Сохранить изменения'));
         await tester.pumpAndSettle();
 
         expect(find.text('Daniil Updated'), findsOneWidget);
 
-        // Tap prominent 'К задачам' button to return to HomeScreen
-        await tester.tap(find.text('К задачам'));
+        // Open dedicated SettingsScreen via gear icon in AppBar
+        await tester.tap(find.byIcon(Icons.settings_outlined));
         await tester.pumpAndSettle();
-        expect(find.text('Daniil Updated'), findsOneWidget);
+        expect(find.text('Настройки'), findsOneWidget);
+        expect(find.text('Тактильная вибрация (Haptics)'), findsOneWidget);
+
+        // Tap 'Назад' button to return from SettingsScreen
+        await tester.tap(find.text('Назад'));
+        await tester.pumpAndSettle();
 
         // Switch to 'Календарь' tab in bottom navigation bar
         await tester.tap(find.text('Календарь'));

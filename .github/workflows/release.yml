@@ -118,12 +118,12 @@ jobs:
             ## TodoApp ${{ github.event.inputs.tag_name || github.ref_name }}
 
             ### Новое в этом релизе / What's New (Русский)
-            - **📳 Тактильный отклик (`Taptic Engine` / `AppHaptics`)**:
-              - Физическая микровибрация разной интенсивности при прокрутке барабанов времени, переключении вкладок, отметке подзадач, завершении задач и окончании Помодоро-таймера.
-            - **⚡ Быстрые действия с иконки на домашнем экране (`3D Touch` / `Quick Actions`)**:
-              - Зажатие иконки **TodoApp** на iOS и Android открывает контекстное меню: *«Новая задача»*, *«Режим фокуса»* и *«Календарь задач»*.
-            - **🔔 Уведомление о завершении сессии фокуса**:
-              - По окончании Помодоро-таймера приходит локальное Push-уведомление, даже если экран телефона заблокирован.
+            - **👤 Отдельная вкладка «Профиль» и экран «Настройки»**:
+              - Профиль вынесен в полноценную 4-ю вкладку нижней панели (статистика задач, категории и архив), а шестерёнка сверху справа открывает отдельный экран настроек приложения.
+            - **📷 Фото профиля из галереи и настройка никнейма**:
+              - В карточке профиля добавлено окно *«Настройка профиля»* с выбором фотографии из галереи телефона (с квадратной обрезкой) и сменой никнейма.
+            - **📦 Компактный «Архив выполненных» с живым поиском**:
+              - Архив выполненных задач оформлен компактной карточкой, открывающей отдельную шторку с поиском по названию, описанию и категории.
 
             #### Файлы для скачивания:
             - **Android (`.apk`)**: `TodoApp-*-android.apk` — готовый установочный файл для любого Android-устройства.
@@ -134,9 +134,9 @@ jobs:
             ---
 
             ### Release Highlights (English)
-            - **📳 Tactile Haptic Feedback (`Taptic Engine` / `AppHaptics`)**:
-              - Crisp haptic ticks and impacts across time-picker wheels, navigation tabs, subtask checkboxes, task completion, and Pomodoro focus sessions.
-            - **⚡ Home Screen Quick Actions (`3D Touch` / App Shortcuts)**:
-              - Long-pressing the **TodoApp** launcher icon on iOS and Android provides instant shortcuts to *New Task*, *Focus Mode*, and *Task Calendar*.
-            - **🔔 Focus Session Completion Alert**:
-              - Fires a local push notification when the Pomodoro timer completes.
+            - **👤 Dedicated Profile Tab & Separate Settings Screen**:
+              - Separated the user Profile tab (task analytics, categories, archive) from the system Settings screen.
+            - **📷 Profile Photo Picker & Nickname Customization**:
+              - Added a dedicated *Profile Settings* sheet allowing users to pick and crop a profile avatar from their photo library and update their display name.
+            - **📦 Compact Searchable Archive Sheet**:
+              - Replaced the inline archive list with a compact card that opens a searchable bottom sheet for archived tasks.

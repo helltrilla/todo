@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:todo/core/app_router/app_router_names.dart';
 import 'package:todo/core/app_theme/app_colors.dart';
+import 'package:todo/core/haptics/app_haptics.dart';
 import 'package:todo/core/notifications/notification_service.dart';
 import 'package:todo/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:todo/features/tasks/domain/models/task.dart';
@@ -15,6 +16,7 @@ import 'package:todo/features/tasks/presentation/widgets/add_task_sheet.dart';
 import 'package:todo/features/tasks/presentation/widgets/calendar_tab_view.dart';
 import 'package:todo/features/tasks/presentation/widgets/create_category_dialog.dart';
 import 'package:todo/features/tasks/presentation/widgets/focus_tab_view.dart';
+import 'package:todo/features/tasks/presentation/widgets/profile_tab_view.dart';
 import 'package:todo/features/tasks/presentation/widgets/task_card.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -26,7 +28,8 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _searchController = TextEditingController();
-  int _selectedTabIndex = 0; // 0 = Задачи, 1 = Календарь, 2 = Фокус
+  int _selectedTabIndex =
+      0; // 0 = Задачи, 1 = Календарь, 2 = Фокус, 3 = Профиль
 
   @override
   void initState() {
@@ -34,7 +37,26 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<TaskController>().load();
       NotificationService.instance.requestPermissions();
+      NotificationService.instance.registerQuickActionHandler(
+        _handleQuickAction,
+      );
     });
+  }
+
+  void _handleQuickAction(String actionType) {
+    if (!mounted) return;
+    AppHaptics.medium();
+    switch (actionType) {
+      case 'add_task':
+        setState(() => _selectedTabIndex = 0);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _openTaskSheet();
+        });
+      case 'open_focus':
+        setState(() => _selectedTabIndex = 2);
+      case 'open_calendar':
+        setState(() => _selectedTabIndex = 1);
+    }
   }
 
   @override
@@ -128,7 +150,11 @@ class _HomeScreenState extends State<HomeScreen> {
         title: _selectedTabIndex == 0
             ? _ListodoHeaderTitle(name: displayName)
             : Text(
-                _selectedTabIndex == 1 ? 'Календарь задач' : 'Режим фокуса',
+                switch (_selectedTabIndex) {
+                  1 => 'Календарь задач',
+                  2 => 'Режим фокуса',
+                  _ => 'Мой профиль',
+                },
                 style: const TextStyle(
                   color: AppColors.maintext,
                   fontSize: 20,
@@ -139,8 +165,11 @@ class _HomeScreenState extends State<HomeScreen> {
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: IconButton(
-              tooltip: 'Профиль и настройки',
-              onPressed: () => context.pushNamed(AppRouterNames.settings),
+              tooltip: 'Настройки',
+              onPressed: () {
+                AppHaptics.selection();
+                context.pushNamed(AppRouterNames.settings);
+              },
               style: IconButton.styleFrom(
                 side: const BorderSide(color: Colors.white24),
                 shape: const CircleBorder(),
@@ -173,6 +202,10 @@ class _HomeScreenState extends State<HomeScreen> {
             return const FocusTabView();
           }
 
+          if (_selectedTabIndex == 3) {
+            return const ProfileTabView();
+          }
+
           return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Column(
@@ -187,7 +220,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 _CategoryFilterRow(
                   categories: controller.categories,
                   selectedCategory: controller.selectedCategory,
-                  onSelect: controller.selectCategory,
+                  onSelect: (category) {
+                    AppHaptics.selection();
+                    controller.selectCategory(category);
+                  },
                   onAddCategory: _promptAddCategory,
                 ),
                 const SizedBox(height: 18),
@@ -198,8 +234,12 @@ class _HomeScreenState extends State<HomeScreen> {
                           futureTasks: controller.futureTasks,
                           todayTasks: controller.todayTasks,
                           confirmDismiss: _confirmDeleteDialog,
-                          onDelete: (task) => controller.delete(task.id),
+                          onDelete: (task) {
+                            AppHaptics.heavy();
+                            controller.delete(task.id);
+                          },
                           onArchive: (task) {
+                            AppHaptics.heavy();
                             controller.archiveTask(task.id);
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
@@ -215,9 +255,14 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             );
                           },
-                          onToggleComplete: (task) =>
-                              controller.toggleCompleted(task.id),
-                          onEditTask: (task) => _openTaskSheet(task: task),
+                          onToggleComplete: (task) {
+                            AppHaptics.medium();
+                            controller.toggleCompleted(task.id);
+                          },
+                          onEditTask: (task) {
+                            AppHaptics.light();
+                            _openTaskSheet(task: task);
+                          },
                         ),
                 ),
               ],
@@ -227,9 +272,14 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       bottomNavigationBar: _ListodoBottomBar(
         selectedIndex: _selectedTabIndex,
-        onSelectTab: (idx) => setState(() => _selectedTabIndex = idx),
-        onAddTap: () => _openTaskSheet(),
-        onProfileTap: () => context.pushNamed(AppRouterNames.settings),
+        onSelectTab: (idx) {
+          AppHaptics.selection();
+          setState(() => _selectedTabIndex = idx);
+        },
+        onAddTap: () {
+          AppHaptics.medium();
+          _openTaskSheet();
+        },
       ),
     );
   }
@@ -240,13 +290,11 @@ class _ListodoBottomBar extends StatelessWidget {
     required this.selectedIndex,
     required this.onSelectTab,
     required this.onAddTap,
-    required this.onProfileTap,
   });
 
   final int selectedIndex;
   final ValueChanged<int> onSelectTab;
   final VoidCallback onAddTap;
-  final VoidCallback onProfileTap;
 
   @override
   Widget build(BuildContext context) {
@@ -294,8 +342,8 @@ class _ListodoBottomBar extends StatelessWidget {
               _BottomNavItem(
                 icon: Icons.person_outline_rounded,
                 label: 'Профиль',
-                isSelected: false,
-                onTap: onProfileTap,
+                isSelected: selectedIndex == 3,
+                onTap: () => onSelectTab(3),
               ),
             ],
           ),
