@@ -33,6 +33,9 @@ abstract interface class IAuthRepository {
   /// Updates the current user's display name.
   Future<Result<AppUser>> updateDisplayName(String newName);
 
+  /// Updates or clears the current user's profile photo (encoded as base64 JPEG).
+  Future<Result<AppUser>> updateAvatar(String? avatarBase64);
+
   /// Clears the active session.
   Future<Result<void>> signOut();
 

@@ -88,6 +88,12 @@ class AuthController extends ChangeNotifier {
     return _handleUserResult(result);
   }
 
+  Future<bool> updateAvatar(String? avatarBase64) async {
+    _startLoading();
+    final result = await _repository.updateAvatar(avatarBase64);
+    return _handleUserResult(result);
+  }
+
   Future<void> signOut() async {
     await _repository.signOut();
     _currentUser = null;

@@ -220,31 +220,47 @@ class AuthRepositoryImpl implements IAuthRepository {
         return const Error(AuthFailure('Имя не может быть пустым'));
       }
 
-      final updated = AppUser(
-        id: current.id,
-        name: cleanName,
-        email: current.email,
-        isLocal: current.isLocal,
-      );
-
-      if (current.isLocal && current.email != null) {
-        final accounts = _loadInternalAccounts();
-        final key = current.email!.toLowerCase();
-        if (accounts.containsKey(key)) {
-          final record = Map<String, dynamic>.from(
-            accounts[key] as Map<String, dynamic>,
-          );
-          record['user'] = updated.toMap();
-          accounts[key] = record;
-          await _prefs.setString(_internalAccountsKey, json.encode(accounts));
-        }
-      }
-
-      await _saveSession(updated);
+      final updated = current.copyWith(name: cleanName);
+      await _persistUpdatedUser(current, updated);
       return Success(updated);
     } catch (_) {
       return const Error(CacheFailure('Не удалось обновить имя профиля'));
     }
+  }
+
+  @override
+  Future<Result<AppUser>> updateAvatar(String? avatarBase64) async {
+    try {
+      final current = getCurrentUser();
+      if (current == null) {
+        return const Error(AuthFailure('Пользователь не авторизован'));
+      }
+
+      final updated = avatarBase64 == null || avatarBase64.isEmpty
+          ? current.copyWith(clearAvatar: true)
+          : current.copyWith(avatarBase64: avatarBase64);
+
+      await _persistUpdatedUser(current, updated);
+      return Success(updated);
+    } catch (_) {
+      return const Error(CacheFailure('Не удалось обновить фото профиля'));
+    }
+  }
+
+  Future<void> _persistUpdatedUser(AppUser current, AppUser updated) async {
+    if (current.isLocal && current.email != null) {
+      final accounts = _loadInternalAccounts();
+      final key = current.email!.toLowerCase();
+      if (accounts.containsKey(key)) {
+        final record = Map<String, dynamic>.from(
+          accounts[key] as Map<String, dynamic>,
+        );
+        record['user'] = updated.toMap();
+        accounts[key] = record;
+        await _prefs.setString(_internalAccountsKey, json.encode(accounts));
+      }
+    }
+    await _saveSession(updated);
   }
 
   @override
