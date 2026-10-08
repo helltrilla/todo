@@ -1,22 +1,19 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:todo/core/config/supabase_config.dart';
+import 'package:todo/core/config/app_config.dart';
+import 'package:todo/core/errors/failures.dart';
+import 'package:todo/core/errors/result.dart';
 import 'package:todo/features/auth/domain/models/app_user.dart';
 import 'package:todo/features/auth/domain/repositories/i_auth_repository.dart';
-
-class AuthException implements Exception {
-  final String message;
-  const AuthException(this.message);
-
-  @override
-  String toString() => message;
-}
 
 /// Implementation of [IAuthRepository] combining:
 /// 1. Local internal registration & login via [SharedPreferences].
 /// 2. Real Email OTP authentication via Supabase Auth REST API.
+///
+/// Wraps all results in [Result<T>] with strongly typed [Failure]s.
 class AuthRepositoryImpl implements IAuthRepository {
   AuthRepositoryImpl(this._prefs, {http.Client? httpClient})
     : _http = httpClient ?? http.Client();
@@ -39,132 +36,171 @@ class AuthRepositoryImpl implements IAuthRepository {
   }
 
   @override
-  Future<AppUser> registerInternal({
+  Future<Result<AppUser>> registerInternal({
     required String name,
     required String login,
     required String password,
   }) async {
-    final normalizedLogin = login.trim().toLowerCase();
-    final accounts = _loadInternalAccounts();
+    try {
+      final normalizedLogin = login.trim().toLowerCase();
+      final accounts = _loadInternalAccounts();
 
-    if (accounts.containsKey(normalizedLogin)) {
-      throw const AuthException('Такой логин уже зарегистрирован локально');
+      if (accounts.containsKey(normalizedLogin)) {
+        return const Error(
+          AuthFailure('Такой логин уже зарегистрирован локально'),
+        );
+      }
+
+      final user = AppUser(
+        id: 'local_${DateTime.now().millisecondsSinceEpoch}',
+        name: name.trim(),
+        email: normalizedLogin,
+        isLocal: true,
+      );
+
+      accounts[normalizedLogin] = <String, dynamic>{
+        'password': password,
+        'user': user.toMap(),
+      };
+
+      await _prefs.setString(_internalAccountsKey, json.encode(accounts));
+      await _saveSession(user);
+      return Success(user);
+    } catch (_) {
+      return const Error(CacheFailure('Ошибка сохранения локального профиля'));
     }
-
-    final user = AppUser(
-      id: 'local_${DateTime.now().millisecondsSinceEpoch}',
-      name: name.trim(),
-      email: normalizedLogin,
-      isLocal: true,
-    );
-
-    accounts[normalizedLogin] = <String, dynamic>{
-      'password': password,
-      'user': user.toMap(),
-    };
-
-    await _prefs.setString(_internalAccountsKey, json.encode(accounts));
-    await _saveSession(user);
-    return user;
   }
 
   @override
-  Future<AppUser> signInInternal({
+  Future<Result<AppUser>> signInInternal({
     required String login,
     required String password,
   }) async {
-    final normalizedLogin = login.trim().toLowerCase();
-    final accounts = _loadInternalAccounts();
-    final record = accounts[normalizedLogin];
+    try {
+      final normalizedLogin = login.trim().toLowerCase();
+      final accounts = _loadInternalAccounts();
+      final record = accounts[normalizedLogin];
 
-    if (record == null) {
-      throw const AuthException('Аккаунт не найден. Зарегистрируйтесь!');
-    }
+      if (record == null) {
+        return const Error(
+          AuthFailure('Аккаунт не найден. Зарегистрируйтесь!'),
+        );
+      }
 
-    if (record['password'] != password) {
-      throw const AuthException('Неверный пароль');
-    }
+      if (record['password'] != password) {
+        return const Error(AuthFailure('Неверный пароль'));
+      }
 
-    final user = AppUser.fromMap(record['user'] as Map<String, dynamic>);
-    await _saveSession(user);
-    return user;
-  }
-
-  @override
-  Future<void> sendEmailOtp({required String email, String? name}) async {
-    final uri = Uri.parse('${SupabaseConfig.url}/auth/v1/otp');
-    final body = <String, dynamic>{
-      'email': email.trim(),
-      'create_user': true,
-      if (name != null && name.trim().isNotEmpty)
-        'data': <String, dynamic>{'name': name.trim()},
-    };
-
-    final response = await _http
-        .post(uri, headers: _supabaseHeaders, body: json.encode(body))
-        .timeout(const Duration(seconds: 15));
-
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw AuthException(_extractSupabaseError(response.body));
+      final user = AppUser.fromMap(record['user'] as Map<String, dynamic>);
+      await _saveSession(user);
+      return Success(user);
+    } catch (_) {
+      return const Error(CacheFailure('Ошибка чтения локального профиля'));
     }
   }
 
   @override
-  Future<AppUser> verifyEmailOtp({
+  Future<Result<void>> sendEmailOtp({
+    required String email,
+    String? name,
+  }) async {
+    try {
+      final uri = Uri.parse('${AppConfig.supabaseUrl}/auth/v1/otp');
+      final body = <String, dynamic>{
+        'email': email.trim(),
+        'create_user': true,
+        if (name != null && name.trim().isNotEmpty)
+          'data': <String, dynamic>{'name': name.trim()},
+      };
+
+      final response = await _http
+          .post(uri, headers: _supabaseHeaders, body: json.encode(body))
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        return Error(ServerFailure(_extractSupabaseError(response.body)));
+      }
+      return const Success(null);
+    } on TimeoutException {
+      return const Error(
+        NetworkFailure('Превышено время ожидания ответа от сервера'),
+      );
+    } catch (_) {
+      return const Error(
+        NetworkFailure('Ошибка сети: проверьте подключение к интернету'),
+      );
+    }
+  }
+
+  @override
+  Future<Result<AppUser>> verifyEmailOtp({
     required String email,
     required String code,
     String? name,
   }) async {
-    final cleanEmail = email.trim();
-    final cleanCode = code.trim();
+    try {
+      final cleanEmail = email.trim();
+      final cleanCode = code.trim();
 
-    // Try 'email' OTP verification first; if the user is confirming a brand-new
-    // signup token, fallback to 'signup' type if needed.
-    var response = await _verifyWithType(
-      email: cleanEmail,
-      token: cleanCode,
-      type: 'email',
-    );
-
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      final fallbackResponse = await _verifyWithType(
+      var response = await _verifyWithType(
         email: cleanEmail,
         token: cleanCode,
-        type: 'signup',
+        type: 'email',
       );
-      if (fallbackResponse.statusCode >= 200 &&
-          fallbackResponse.statusCode < 300) {
-        response = fallbackResponse;
-      } else {
-        throw AuthException(_extractSupabaseError(response.body));
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final fallbackResponse = await _verifyWithType(
+          email: cleanEmail,
+          token: cleanCode,
+          type: 'signup',
+        );
+        if (fallbackResponse.statusCode >= 200 &&
+            fallbackResponse.statusCode < 300) {
+          response = fallbackResponse;
+        } else {
+          return Error(ServerFailure(_extractSupabaseError(response.body)));
+        }
       }
+
+      final decoded = json.decode(response.body) as Map<String, dynamic>;
+      final userMap =
+          (decoded['user'] as Map<String, dynamic>?) ?? <String, dynamic>{};
+      final metadata =
+          (userMap['user_metadata'] as Map<String, dynamic>?) ??
+          <String, dynamic>{};
+
+      final resolvedName = (name != null && name.trim().isNotEmpty)
+          ? name.trim()
+          : (metadata['name'] as String?) ?? cleanEmail.split('@').first;
+
+      final user = AppUser(
+        id: (userMap['id'] as String?) ?? 'sb_${cleanEmail.hashCode}',
+        name: resolvedName,
+        email: cleanEmail,
+        isLocal: false,
+      );
+
+      await _saveSession(user);
+      return Success(user);
+    } on TimeoutException {
+      return const Error(
+        NetworkFailure('Превышено время ожидания ответа от сервера'),
+      );
+    } catch (_) {
+      return const Error(
+        NetworkFailure('Ошибка сети при проверке кода подтверждения'),
+      );
     }
-
-    final decoded = json.decode(response.body) as Map<String, dynamic>;
-    final userMap =
-        (decoded['user'] as Map<String, dynamic>?) ?? <String, dynamic>{};
-    final metadata =
-        (userMap['user_metadata'] as Map<String, dynamic>?) ??
-        <String, dynamic>{};
-
-    final resolvedName = (name != null && name.trim().isNotEmpty)
-        ? name.trim()
-        : (metadata['name'] as String?) ?? cleanEmail.split('@').first;
-
-    final user = AppUser(
-      id: (userMap['id'] as String?) ?? 'sb_${cleanEmail.hashCode}',
-      name: resolvedName,
-      email: cleanEmail,
-      isLocal: false,
-    );
-
-    await _saveSession(user);
-    return user;
   }
 
   @override
-  Future<void> signOut() async {
-    await _prefs.remove(_currentUserKey);
+  Future<Result<void>> signOut() async {
+    try {
+      await _prefs.remove(_currentUserKey);
+      return const Success(null);
+    } catch (_) {
+      return const Error(CacheFailure('Не удалось выйти из профиля'));
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -176,7 +212,7 @@ class AuthRepositoryImpl implements IAuthRepository {
     required String token,
     required String type,
   }) {
-    final uri = Uri.parse('${SupabaseConfig.url}/auth/v1/verify');
+    final uri = Uri.parse('${AppConfig.supabaseUrl}/auth/v1/verify');
     return _http
         .post(
           uri,
@@ -191,8 +227,8 @@ class AuthRepositoryImpl implements IAuthRepository {
   }
 
   Map<String, String> get _supabaseHeaders => <String, String>{
-    'apikey': SupabaseConfig.anonKey,
-    'Authorization': 'Bearer ${SupabaseConfig.anonKey}',
+    'apikey': AppConfig.supabaseAnonKey,
+    'Authorization': 'Bearer ${AppConfig.supabaseAnonKey}',
     'Content-Type': 'application/json',
   };
 

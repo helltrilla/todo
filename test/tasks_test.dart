@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:todo/core/errors/failures.dart';
+import 'package:todo/core/errors/result.dart';
 import 'package:todo/features/auth/data/repositories/auth_repository_impl.dart';
 import 'package:todo/features/auth/domain/models/app_user.dart';
 import 'package:todo/features/tasks/data/repositories/task_local_repository.dart';
@@ -16,13 +18,27 @@ import 'package:todo/main.dart';
 
 class _FailingRepository implements ITaskRepository {
   @override
-  Future<List<Task>> getAll() async => throw Exception('Read failed');
+  Future<Result<List<Task>>> getAll() async =>
+      const Error(CacheFailure('Read failed'));
 
   @override
-  Future<void> save(Task task) async => throw Exception('Save failed');
+  Future<Result<void>> save(Task task) async =>
+      const Error(CacheFailure('Save failed'));
 
   @override
-  Future<void> delete(int id) async => throw Exception('Delete failed');
+  Future<Result<void>> update(Task task) async =>
+      const Error(CacheFailure('Update failed'));
+
+  @override
+  Future<Result<void>> delete(int id) async =>
+      const Error(CacheFailure('Delete failed'));
+
+  @override
+  List<String> getCategories() => const ['Work', 'Personal'];
+
+  @override
+  Future<Result<void>> saveCategories(List<String> categories) async =>
+      const Error(CacheFailure('Save categories failed'));
 }
 
 void main() {
@@ -37,6 +53,8 @@ void main() {
         createdAt: now,
         dueDate: due,
         priorityIndex: 0,
+        isCompleted: true,
+        category: 'Work',
       );
 
       final jsonStr = task.toJson();
@@ -49,6 +67,8 @@ void main() {
       expect(restored.dueDate, due);
       expect(restored.priority, PriorityLevel.p1);
       expect(restored.hasPriority, isTrue);
+      expect(restored.isCompleted, isTrue);
+      expect(restored.category, 'Work');
     });
 
     test('Task handles null dueDate and default priority', () {
@@ -65,6 +85,8 @@ void main() {
       expect(restored.dueDate, isNull);
       expect(restored.hasPriority, isFalse);
       expect(restored.priority, PriorityLevel.none);
+      expect(restored.isCompleted, isFalse);
+      expect(restored.category, 'Personal');
     });
 
     test('Task copyWith updates specified fields', () {
@@ -75,11 +97,18 @@ void main() {
         createdAt: DateTime(2026),
         priorityIndex: -1,
       );
-      final updated = task.copyWith(name: 'New', priorityIndex: 2);
+      final updated = task.copyWith(
+        name: 'New',
+        priorityIndex: 2,
+        isCompleted: true,
+        category: 'Work',
+      );
       expect(updated.id, 1);
       expect(updated.name, 'New');
       expect(updated.value, 'Desc');
       expect(updated.priority, PriorityLevel.p3);
+      expect(updated.isCompleted, isTrue);
+      expect(updated.category, 'Work');
     });
   });
 
@@ -95,11 +124,13 @@ void main() {
       final repo = AuthRepositoryImpl(prefs);
       expect(repo.getCurrentUser(), isNull);
 
-      final registered = await repo.registerInternal(
+      final regResult = await repo.registerInternal(
         name: 'Daniil',
         login: 'daniil_dev',
         password: 'secret',
       );
+      expect(regResult, isA<Success<AppUser>>());
+      final registered = (regResult as Success<AppUser>).data;
       expect(registered.name, 'Daniil');
       expect(registered.isLocal, isTrue);
       expect(repo.getCurrentUser(), equals(registered));
@@ -107,11 +138,12 @@ void main() {
       await repo.signOut();
       expect(repo.getCurrentUser(), isNull);
 
-      final signedIn = await repo.signInInternal(
+      final signResult = await repo.signInInternal(
         login: 'daniil_dev',
         password: 'secret',
       );
-      expect(signedIn.name, 'Daniil');
+      expect(signResult, isA<Success<AppUser>>());
+      expect((signResult as Success<AppUser>).data.name, 'Daniil');
     });
 
     test('sends and verifies Supabase Email OTP via REST API', () async {
@@ -135,11 +167,18 @@ void main() {
       });
 
       final repo = AuthRepositoryImpl(prefs, httpClient: mockClient);
-      await repo.sendEmailOtp(email: 'test@example.com', name: 'Supabase User');
-      final user = await repo.verifyEmailOtp(
+      final otpResult = await repo.sendEmailOtp(
+        email: 'test@example.com',
+        name: 'Supabase User',
+      );
+      expect(otpResult, isA<Success<void>>());
+
+      final verifyResult = await repo.verifyEmailOtp(
         email: 'test@example.com',
         code: '123456',
       );
+      expect(verifyResult, isA<Success<AppUser>>());
+      final user = (verifyResult as Success<AppUser>).data;
 
       expect(user.id, 'sb-user-1');
       expect(user.name, 'Supabase User');
@@ -158,7 +197,7 @@ void main() {
       repo = TaskLocalRepository(prefs);
     });
 
-    test('saves, loads, and deletes tasks', () async {
+    test('saves, updates, loads, and deletes tasks via Result monad', () async {
       final t1 = Task(
         id: 10,
         name: 'Task 1',
@@ -176,13 +215,17 @@ void main() {
 
       await repo.save(t1);
       await repo.save(t2);
+      await repo.update(t1.copyWith(isCompleted: true));
 
-      final all = await repo.getAll();
+      final allResult = await repo.getAll();
+      expect(allResult, isA<Success<List<Task>>>());
+      final all = (allResult as Success<List<Task>>).data;
       expect(all.length, 2);
-      expect(all.map((e) => e.id), [10, 20]);
+      expect(all.first.isCompleted, isTrue);
 
       await repo.delete(10);
-      final remaining = await repo.getAll();
+      final remainingResult = await repo.getAll();
+      final remaining = (remainingResult as Success<List<Task>>).data;
       expect(remaining.length, 1);
       expect(remaining.first.id, 20);
     });
@@ -198,18 +241,50 @@ void main() {
       controller = TaskController(TaskLocalRepository(prefs));
     });
 
-    test('adds and sorts tasks by priority then newest createdAt', () async {
-      await controller.add(name: 'Low priority', value: '', priorityIndex: 5);
-      await Future<void>.delayed(const Duration(milliseconds: 5));
-      await controller.add(name: 'High priority', value: '', priorityIndex: 0);
-      await Future<void>.delayed(const Duration(milliseconds: 5));
-      await controller.add(name: 'No priority', value: '', priorityIndex: -1);
+    test(
+      'adds, updates, sorts, filters by category/search, and groups sections',
+      () async {
+        final tomorrow = DateTime.now().add(const Duration(days: 2));
 
-      expect(controller.tasks.length, 3);
-      expect(controller.tasks[0].name, 'High priority');
-      expect(controller.tasks[1].name, 'Low priority');
-      expect(controller.tasks[2].name, 'No priority');
-    });
+        await controller.add(
+          name: 'Doing housework',
+          value: '',
+          priorityIndex: 5,
+          category: 'Personal',
+          dueDate: tomorrow,
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+        await controller.add(
+          name: 'Do groceries',
+          value: '',
+          priorityIndex: 0,
+          category: 'Work',
+        );
+
+        expect(controller.tasks.length, 2);
+        expect(controller.futureTasks.length, 1);
+        expect(controller.todayTasks.length, 1);
+
+        final firstTask = controller.tasks.first;
+        await controller.updateTask(
+          firstTask.copyWith(name: 'Buy fresh groceries'),
+        );
+        expect(controller.tasks.first.name, 'Buy fresh groceries');
+
+        controller.selectCategory('Work');
+        expect(controller.tasks.length, 1);
+        expect(controller.tasks.first.name, 'Buy fresh groceries');
+
+        controller.selectCategory(TaskController.allCategory);
+        controller.setSearchQuery('housework');
+        expect(controller.tasks.length, 1);
+        expect(controller.tasks.first.name, 'Doing housework');
+
+        controller.setSearchQuery('');
+        await controller.toggleCompleted(controller.tasks.first.id);
+        expect(controller.tasks.any((t) => t.isCompleted), isTrue);
+      },
+    );
 
     test(
       'rolls back optimistic add and delete on repository failure',
@@ -218,7 +293,7 @@ void main() {
 
         await failingController.add(name: 'Will fail', value: '');
         expect(failingController.tasks, isEmpty);
-        expect(failingController.error, isNotNull);
+        expect(failingController.error, 'Save failed');
 
         failingController.clearError();
         expect(failingController.error, isNull);
@@ -242,7 +317,7 @@ void main() {
     });
 
     testWidgets(
-      'authenticated user sees personalized HomeScreen and adds task',
+      'authenticated user adds task, opens custom calendar, edits task on card tap, and swipes to dismiss',
       (tester) async {
         const user = AppUser(
           id: 'local_1',
@@ -259,20 +334,54 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text('Vasudev Krishna'), findsOneWidget);
-        expect(find.text('to-do'), findsOneWidget);
 
         await tester.tap(find.byType(FloatingActionButton));
         await tester.pumpAndSettle();
 
-        expect(find.text('Add task'), findsOneWidget);
+        await tester.enterText(
+          find.widgetWithText(TextField, 'Task'),
+          'Initial task name',
+        );
 
-        await tester.enterText(find.byType(TextField).first, 'Write tests');
-        await tester.enterText(find.byType(TextField).last, 'Ensure 100% pass');
+        // Open custom ListodoCalendarDialog and select 'Завтра'
+        await tester.tap(find.byIcon(Icons.calendar_month));
+        await tester.pumpAndSettle();
+        expect(find.text('Время'), findsOneWidget);
+        await tester.tap(find.text('Завтра'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Выбрать'));
+        await tester.pumpAndSettle();
+
         await tester.tap(find.byIcon(Icons.send));
         await tester.pumpAndSettle();
 
-        expect(find.text('Write tests'), findsOneWidget);
-        expect(find.text('Ensure 100% pass'), findsOneWidget);
+        expect(find.text('Initial task name'), findsOneWidget);
+
+        // Tap the task card to open Edit task bottom sheet
+        await tester.tap(find.text('Initial task name'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Edit task'), findsOneWidget);
+        await tester.enterText(
+          find.widgetWithText(TextField, 'Task'),
+          'Updated task name',
+        );
+        await tester.tap(find.byIcon(Icons.check_circle));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Updated task name'), findsOneWidget);
+
+        // Swipe left -> triggers confirmDismiss dialog
+        await tester.drag(find.byType(Dismissible), const Offset(-500, 0));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Удалить задачу?'), findsOneWidget);
+
+        // Confirm deletion -> Dismissible is removed cleanly from the tree
+        await tester.tap(find.text('Удалить'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Updated task name'), findsNothing);
       },
     );
   });

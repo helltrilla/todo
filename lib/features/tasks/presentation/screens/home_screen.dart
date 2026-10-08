@@ -18,16 +18,22 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final _searchController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
-    // Load tasks after the first frame — widget tree is ready, Provider is live.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<TaskController>().load();
     });
   }
 
-  // Show errors as SnackBar so the UI stays usable (optimistic update already applied).
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   void _listenErrors(BuildContext context, TaskController controller) {
     if (controller.error != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -48,12 +54,18 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _confirmDelete(Task task) async {
-    final confirmed = await showDialog<bool>(
+  Future<bool?> _confirmDeleteDialog(Task task) {
+    return showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Удалить задачу?'),
-        content: Text('Удалить «${task.name}»?'),
+        title: const Text(
+          'Удалить задачу?',
+          style: TextStyle(color: AppColors.maintext),
+        ),
+        content: Text(
+          'Удалить «${task.name}»?',
+          style: const TextStyle(color: AppColors.labeltext),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -67,9 +79,41 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
     );
+  }
 
-    if (confirmed == true && mounted) {
-      await context.read<TaskController>().delete(task.id);
+  Future<void> _promptAddCategory() async {
+    final textController = TextEditingController();
+    final created = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text(
+          'Новая категория',
+          style: TextStyle(color: AppColors.maintext),
+        ),
+        content: TextField(
+          controller: textController,
+          autofocus: true,
+          style: const TextStyle(color: AppColors.maintext),
+          decoration: const InputDecoration(
+            hintText: 'Например, Study или Fitness',
+            hintStyle: TextStyle(color: AppColors.labeltext),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Отмена'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, textController.text.trim()),
+            child: const Text('Добавить'),
+          ),
+        ],
+      ),
+    );
+
+    if (created != null && created.isNotEmpty && mounted) {
+      await context.read<TaskController>().addCategory(created);
     }
   }
 
@@ -78,7 +122,10 @@ class _HomeScreenState extends State<HomeScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Профиль'),
+        title: const Text(
+          'Профиль',
+          style: TextStyle(color: AppColors.maintext),
+        ),
         content: Text(
           user != null
               ? 'Вы вошли как ${user.name}${user.email != null ? ' (${user.email})' : ''}.\nХотите выйти из аккаунта?'
@@ -104,12 +151,12 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _openAddSheet() {
+  void _openTaskSheet({Task? task}) {
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.bg,
       isScrollControlled: true,
-      builder: (_) => const AddTaskSheet(),
+      builder: (_) => AddTaskSheet(initialTask: task),
     );
   }
 
@@ -153,21 +200,46 @@ class _HomeScreenState extends State<HomeScreen> {
           }
 
           return Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Stack(
               alignment: Alignment.bottomCenter,
               children: [
-                controller.tasks.isEmpty
-                    ? const _EmptyState()
-                    : _TaskList(
-                        tasks: controller.tasks,
-                        onDelete: _confirmDelete,
-                      ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 8),
+                    _ListodoSearchBar(
+                      controller: _searchController,
+                      onChanged: controller.setSearchQuery,
+                    ),
+                    const SizedBox(height: 16),
+                    _CategoryFilterRow(
+                      categories: controller.categories,
+                      selectedCategory: controller.selectedCategory,
+                      onSelect: controller.selectCategory,
+                      onAddCategory: _promptAddCategory,
+                    ),
+                    const SizedBox(height: 18),
+                    Expanded(
+                      child: controller.tasks.isEmpty
+                          ? const _EmptyState()
+                          : _SectionedTaskList(
+                              futureTasks: controller.futureTasks,
+                              todayTasks: controller.todayTasks,
+                              confirmDismiss: _confirmDeleteDialog,
+                              onDelete: (task) => controller.delete(task.id),
+                              onToggleComplete: (task) =>
+                                  controller.toggleCompleted(task.id),
+                              onEditTask: (task) => _openTaskSheet(task: task),
+                            ),
+                    ),
+                  ],
+                ),
                 Positioned(
-                  bottom: 0,
+                  bottom: 20,
                   child: FloatingActionButton.large(
                     backgroundColor: AppColors.active,
-                    onPressed: _openAddSheet,
+                    onPressed: () => _openTaskSheet(),
                     child: const Icon(
                       CupertinoIcons.plus,
                       color: AppColors.white,
@@ -232,33 +304,231 @@ class _ListodoHeaderTitle extends StatelessWidget {
   }
 }
 
+class _ListodoSearchBar extends StatelessWidget {
+  const _ListodoSearchBar({required this.controller, required this.onChanged});
+
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 50,
+      padding: const EdgeInsets.only(left: 16, right: 6),
+      decoration: BoxDecoration(
+        color: AppColors.bgmain,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: Colors.white24),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.search, color: AppColors.white, size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              onChanged: onChanged,
+              style: const TextStyle(color: AppColors.maintext, fontSize: 14),
+              decoration: const InputDecoration(
+                hintText: 'Try to find task....',
+                hintStyle: TextStyle(color: AppColors.labeltext, fontSize: 14),
+                border: InputBorder.none,
+                isDense: true,
+              ),
+            ),
+          ),
+          GestureDetector(
+            onTap: () => onChanged(controller.text),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppColors.active,
+                borderRadius: BorderRadius.circular(22),
+              ),
+              child: const Text(
+                'Search',
+                style: TextStyle(
+                  color: AppColors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CategoryFilterRow extends StatelessWidget {
+  const _CategoryFilterRow({
+    required this.categories,
+    required this.selectedCategory,
+    required this.onSelect,
+    required this.onAddCategory,
+  });
+
+  final List<String> categories;
+  final String selectedCategory;
+  final ValueChanged<String> onSelect;
+  final VoidCallback onAddCategory;
+
+  @override
+  Widget build(BuildContext context) {
+    final allItems = [TaskController.allCategory, ...categories];
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: onAddCategory,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.transparent,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white24),
+              ),
+              child: const Icon(Icons.add, color: AppColors.white, size: 18),
+            ),
+          ),
+          const SizedBox(width: 8),
+          ...allItems.map((category) {
+            final isSelected = selectedCategory == category;
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: GestureDetector(
+                onTap: () => onSelect(category),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 160),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 9,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? AppColors.accentYellow
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isSelected
+                          ? AppColors.accentYellow
+                          : Colors.white24,
+                    ),
+                  ),
+                  child: Text(
+                    category,
+                    style: TextStyle(
+                      color: isSelected ? Colors.black : AppColors.labeltext,
+                      fontSize: 13,
+                      fontWeight: isSelected
+                          ? FontWeight.w700
+                          : FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionedTaskList extends StatelessWidget {
+  const _SectionedTaskList({
+    required this.futureTasks,
+    required this.todayTasks,
+    required this.confirmDismiss,
+    required this.onDelete,
+    required this.onToggleComplete,
+    required this.onEditTask,
+  });
+
+  final List<Task> futureTasks;
+  final List<Task> todayTasks;
+  final Future<bool?> Function(Task) confirmDismiss;
+  final void Function(Task) onDelete;
+  final void Function(Task) onToggleComplete;
+  final void Function(Task) onEditTask;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.only(bottom: 110),
+      children: [
+        if (futureTasks.isNotEmpty) ...[
+          const Text(
+            'Future',
+            style: TextStyle(
+              color: AppColors.maintext,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 12),
+          ...futureTasks.map(
+            (task) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: TaskCard(
+                task: task,
+                confirmDismiss: () => confirmDismiss(task),
+                onDelete: () => onDelete(task),
+                onToggleComplete: () => onToggleComplete(task),
+                onTap: () => onEditTask(task),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
+        if (todayTasks.isNotEmpty) ...[
+          const Text(
+            'Today task',
+            style: TextStyle(
+              color: AppColors.maintext,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 12),
+          ...todayTasks.map(
+            (task) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: TaskCard(
+                task: task,
+                confirmDismiss: () => confirmDismiss(task),
+                onDelete: () => onDelete(task),
+                onToggleComplete: () => onToggleComplete(task),
+                onTap: () => onEditTask(task),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
 class _EmptyState extends StatelessWidget {
   const _EmptyState();
 
   @override
   Widget build(BuildContext context) {
     return const Center(
-      child: Icon(Icons.check_circle_outline, size: 80, color: AppColors.icons),
-    );
-  }
-}
-
-class _TaskList extends StatelessWidget {
-  const _TaskList({required this.tasks, required this.onDelete});
-
-  final List<Task> tasks;
-  final void Function(Task) onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView.separated(
-      padding: const EdgeInsets.only(bottom: 100),
-      itemCount: tasks.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 12),
-      itemBuilder: (_, index) {
-        final task = tasks[index];
-        return TaskCard(task: task, onDelete: () => onDelete(task));
-      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.check_circle_outline, size: 72, color: Colors.white24),
+          SizedBox(height: 12),
+          Text(
+            'Нет задач по выбранному фильтру',
+            style: TextStyle(color: AppColors.labeltext, fontSize: 14),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -1,10 +1,12 @@
 import 'package:flutter/foundation.dart';
-import 'package:todo/features/auth/data/repositories/auth_repository_impl.dart';
+import 'package:todo/core/errors/result.dart';
 import 'package:todo/features/auth/domain/models/app_user.dart';
 import 'package:todo/features/auth/domain/repositories/i_auth_repository.dart';
 
 /// Application-layer controller for authentication state.
-/// Coordinates between Auth UI, GoRouter redirects, and [IAuthRepository].
+///
+/// Uses functional [Result<T>] pattern matching without generic try/catch
+/// in the presentation layer, strictly adhering to AGENTS.md & ARCHITECTURE.md.
 class AuthController extends ChangeNotifier {
   AuthController(this._repository) {
     _currentUser = _repository.getCurrentUser();
@@ -26,31 +28,41 @@ class AuthController extends ChangeNotifier {
     required String login,
     required String password,
   }) async {
-    return _runAuthAction(() async {
-      _currentUser = await _repository.registerInternal(
-        name: name,
-        login: login,
-        password: password,
-      );
-    });
+    _startLoading();
+    final result = await _repository.registerInternal(
+      name: name,
+      login: login,
+      password: password,
+    );
+    return _handleUserResult(result);
   }
 
   Future<bool> signInInternal({
     required String login,
     required String password,
   }) async {
-    return _runAuthAction(() async {
-      _currentUser = await _repository.signInInternal(
-        login: login,
-        password: password,
-      );
-    });
+    _startLoading();
+    final result = await _repository.signInInternal(
+      login: login,
+      password: password,
+    );
+    return _handleUserResult(result);
   }
 
   Future<bool> sendEmailOtp({required String email, String? name}) async {
-    return _runAuthAction(() async {
-      await _repository.sendEmailOtp(email: email, name: name);
-    });
+    _startLoading();
+    final result = await _repository.sendEmailOtp(email: email, name: name);
+    _isLoading = false;
+
+    switch (result) {
+      case Success():
+        notifyListeners();
+        return true;
+      case Error(:final failure):
+        _error = failure.message;
+        notifyListeners();
+        return false;
+    }
   }
 
   Future<bool> verifyEmailOtp({
@@ -58,13 +70,13 @@ class AuthController extends ChangeNotifier {
     required String code,
     String? name,
   }) async {
-    return _runAuthAction(() async {
-      _currentUser = await _repository.verifyEmailOtp(
-        email: email,
-        code: code,
-        name: name,
-      );
-    });
+    _startLoading();
+    final result = await _repository.verifyEmailOtp(
+      email: email,
+      code: code,
+      name: name,
+    );
+    return _handleUserResult(result);
   }
 
   Future<void> signOut() async {
@@ -81,24 +93,23 @@ class AuthController extends ChangeNotifier {
     }
   }
 
-  Future<bool> _runAuthAction(Future<void> Function() action) async {
+  void _startLoading() {
     _isLoading = true;
     _error = null;
     notifyListeners();
+  }
 
-    try {
-      await action();
-      return true;
-    } on AuthException catch (e) {
-      _error = e.message;
-      return false;
-    } catch (e) {
-      _error = 'Ошибка соединения: проверьте интернет или настройки';
-      debugPrint('AuthController error: $e');
-      return false;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
+  bool _handleUserResult(Result<AppUser> result) {
+    _isLoading = false;
+    switch (result) {
+      case Success(:final data):
+        _currentUser = data;
+        notifyListeners();
+        return true;
+      case Error(:final failure):
+        _error = failure.message;
+        notifyListeners();
+        return false;
     }
   }
 }
