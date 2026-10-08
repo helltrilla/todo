@@ -117,7 +117,7 @@ class _ListodoHeroBanner extends StatelessWidget {
                 ),
                 SizedBox(height: 12),
                 Text(
-                  'Listtodo',
+                  'TodoApp',
                   style: TextStyle(
                     color: AppColors.maintext,
                     fontSize: 34,

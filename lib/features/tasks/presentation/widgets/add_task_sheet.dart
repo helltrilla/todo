@@ -22,10 +22,12 @@ class AddTaskSheet extends StatefulWidget {
 class _AddTaskSheetState extends State<AddTaskSheet> {
   late final TextEditingController _nameController;
   late final TextEditingController _descController;
+  final TextEditingController _subtaskController = TextEditingController();
   DateTime? _selectedDate;
   int _priorityIndex = -1;
   String _selectedCategory = TaskController.globalCategory;
   bool _isCompleted = false;
+  late List<SubTask> _subtasks;
 
   bool get _isEditing => widget.initialTask != null;
 
@@ -40,9 +42,11 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
       _priorityIndex = existing.priorityIndex;
       _selectedCategory = existing.category;
       _isCompleted = existing.isCompleted;
+      _subtasks = List<SubTask>.from(existing.subtasks);
     } else {
       _nameController = TextEditingController();
       _descController = TextEditingController();
+      _subtasks = <SubTask>[];
       final controller = context.read<TaskController>();
       if (controller.selectedCategory != TaskController.allCategory) {
         _selectedCategory = controller.selectedCategory;
@@ -56,7 +60,35 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
   void dispose() {
     _nameController.dispose();
     _descController.dispose();
+    _subtaskController.dispose();
     super.dispose();
+  }
+
+  void _addSubtask() {
+    final text = _subtaskController.text.trim();
+    if (text.isEmpty) return;
+    setState(() {
+      _subtasks = [
+        ..._subtasks,
+        SubTask(id: DateTime.now().microsecondsSinceEpoch, title: text),
+      ];
+      _subtaskController.clear();
+    });
+  }
+
+  void _toggleSubtask(int id) {
+    setState(() {
+      _subtasks = _subtasks.map((s) {
+        if (s.id == id) return s.copyWith(isCompleted: !s.isCompleted);
+        return s;
+      }).toList();
+    });
+  }
+
+  void _removeSubtask(int id) {
+    setState(() {
+      _subtasks = _subtasks.where((s) => s.id != id).toList();
+    });
   }
 
   Future<void> _pickDate() async {
@@ -101,19 +133,23 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
       return;
     }
 
+    // Automatically append any unsubmitted text in the subtask input field
+    if (_subtaskController.text.trim().isNotEmpty) {
+      _addSubtask();
+    }
+
     final controller = context.read<TaskController>();
     final existing = widget.initialTask;
 
     if (existing != null) {
-      final updated = Task(
-        id: existing.id,
+      final updated = existing.copyWith(
         name: _nameController.text.trim(),
         value: _descController.text.trim(),
-        createdAt: existing.createdAt,
         dueDate: _selectedDate,
         priorityIndex: _priorityIndex,
         isCompleted: _isCompleted,
         category: _selectedCategory,
+        subtasks: _subtasks,
       );
       await controller.updateTask(updated);
     } else {
@@ -123,6 +159,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
         dueDate: _selectedDate,
         priorityIndex: _priorityIndex,
         category: _selectedCategory,
+        subtasks: _subtasks,
       );
     }
 
@@ -142,7 +179,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
         ? PriorityLevel.fromIndex(_priorityIndex)
         : null;
 
-    return Padding(
+    return SingleChildScrollView(
       padding: EdgeInsets.only(
         left: 20,
         right: 20,
@@ -244,6 +281,108 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
               labelStyle: TextStyle(color: AppColors.labeltext, fontSize: 12),
             ),
           ),
+          const SizedBox(height: 12),
+
+          // Subtasks Checklist Builder
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _subtaskController,
+                  onSubmitted: (_) => _addSubtask(),
+                  style: const TextStyle(
+                    color: AppColors.maintext,
+                    fontSize: 13,
+                  ),
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    border: OutlineInputBorder(),
+                    hintText: 'Добавить подзадачу (шаг чек-листа)...',
+                    hintStyle: TextStyle(
+                      color: AppColors.labeltext,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                tooltip: 'Добавить шаг',
+                onPressed: _addSubtask,
+                style: IconButton.styleFrom(
+                  backgroundColor: AppColors.cardBg,
+                  side: const BorderSide(color: Colors.white24),
+                ),
+                icon: const Icon(
+                  Icons.add_task_rounded,
+                  color: AppColors.accentYellow,
+                  size: 20,
+                ),
+              ),
+            ],
+          ),
+          if (_subtasks.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            ..._subtasks.map(
+              (sub) => Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.cardBg,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.white12),
+                  ),
+                  child: Row(
+                    children: [
+                      GestureDetector(
+                        onTap: () => _toggleSubtask(sub.id),
+                        child: Icon(
+                          sub.isCompleted
+                              ? Icons.check_box_rounded
+                              : Icons.check_box_outline_blank_rounded,
+                          size: 18,
+                          color: sub.isCompleted
+                              ? AppColors.accentYellow
+                              : AppColors.labeltext,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          sub.title,
+                          style: TextStyle(
+                            color: sub.isCompleted
+                                ? AppColors.labeltext
+                                : AppColors.maintext,
+                            fontSize: 13,
+                            decoration: sub.isCompleted
+                                ? TextDecoration.lineThrough
+                                : null,
+                          ),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => _removeSubtask(sub.id),
+                        child: const Icon(
+                          Icons.close,
+                          size: 16,
+                          color: AppColors.labeltext,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,

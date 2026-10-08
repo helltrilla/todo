@@ -69,6 +69,10 @@ void main() {
         priorityIndex: 0,
         isCompleted: true,
         category: 'Work',
+        subtasks: const [
+          SubTask(id: 101, title: 'Buy milk', isCompleted: true),
+          SubTask(id: 102, title: 'Buy eggs', isCompleted: false),
+        ],
       );
 
       final jsonStr = task.toJson();
@@ -83,6 +87,8 @@ void main() {
       expect(restored.hasPriority, isTrue);
       expect(restored.isCompleted, isTrue);
       expect(restored.category, 'Work');
+      expect(restored.subtasks.length, 2);
+      expect(restored.completedSubtasksCount, 1);
     });
 
     test('Task handles null dueDate and default priority', () {
@@ -357,7 +363,7 @@ void main() {
         await tester.pumpAndSettle();
 
         // Now on WelcomeScreen and onboarding is persisted
-        expect(find.text('Listtodo'), findsOneWidget);
+        expect(find.text('TodoApp'), findsOneWidget);
         expect(find.text('Вход по Почте (Код OTP)'), findsOneWidget);
         expect(find.text('Внутренняя регистрация / Вход'), findsOneWidget);
         expect(prefs.getBool('auth_seen_onboarding'), isTrue);

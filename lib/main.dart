@@ -57,6 +57,7 @@ class _MainAppState extends State<MainApp> {
         ChangeNotifierProvider<TaskController>.value(value: _taskController),
       ],
       child: MaterialApp.router(
+        title: 'TodoApp',
         theme: AppTheme.dark,
         debugShowCheckedModeBanner: false,
         routerConfig: _router,

@@ -215,6 +215,7 @@ class TaskController extends ChangeNotifier {
     DateTime? dueDate,
     int priorityIndex = -1,
     String? category,
+    List<SubTask> subtasks = const [],
   }) async {
     final effectiveCategory =
         category ??
@@ -228,6 +229,7 @@ class TaskController extends ChangeNotifier {
       dueDate: dueDate,
       priorityIndex: priorityIndex,
       category: effectiveCategory,
+      subtasks: subtasks,
     );
 
     _tasks = [..._tasks, task];
@@ -273,6 +275,32 @@ class TaskController extends ChangeNotifier {
 
     final current = _tasks[index];
     await updateTask(current.copyWith(isCompleted: !current.isCompleted));
+  }
+
+  /// Toggles a single [SubTask] inside a [Task].
+  /// If all subtasks become completed, automatically marks the parent task completed.
+  Future<void> toggleSubTask(int taskId, int subTaskId) async {
+    final index = _tasks.indexWhere((t) => t.id == taskId);
+    if (index == -1) return;
+
+    final current = _tasks[index];
+    final updatedSubtasks = current.subtasks.map((s) {
+      if (s.id == subTaskId) {
+        return s.copyWith(isCompleted: !s.isCompleted);
+      }
+      return s;
+    }).toList();
+
+    final allDone =
+        updatedSubtasks.isNotEmpty &&
+        updatedSubtasks.every((s) => s.isCompleted);
+
+    await updateTask(
+      current.copyWith(
+        subtasks: updatedSubtasks,
+        isCompleted: allDone ? true : current.isCompleted,
+      ),
+    );
   }
 
   /// Moves a completed task into the archive so it leaves the main board

@@ -131,7 +131,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   Row(
                     children: [
                       const Text(
-                        'Listodo',
+                        'TodoApp',
                         style: TextStyle(
                           color: AppColors.maintext,
                           fontSize: 18,

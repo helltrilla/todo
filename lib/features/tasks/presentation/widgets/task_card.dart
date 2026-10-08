@@ -203,6 +203,7 @@ class _TaskInfo extends StatelessWidget {
   Widget build(BuildContext context) {
     final displayDate = task.dueDate ?? task.createdAt;
     final showTime = task.dueDate != null;
+    final hasSubtasks = task.subtasks.isNotEmpty;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -228,6 +229,50 @@ class _TaskInfo extends StatelessWidget {
             ),
           ),
         ],
+        if (hasSubtasks) ...[
+          const SizedBox(height: 8),
+          ...task.subtasks.map(
+            (sub) => Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: GestureDetector(
+                onTap: () => context.read<TaskController>().toggleSubTask(
+                  task.id,
+                  sub.id,
+                ),
+                behavior: HitTestBehavior.opaque,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      sub.isCompleted
+                          ? Icons.check_box_rounded
+                          : Icons.check_box_outline_blank_rounded,
+                      size: 16,
+                      color: sub.isCompleted
+                          ? AppColors.accentYellow
+                          : AppColors.labeltext,
+                    ),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        sub.title,
+                        style: TextStyle(
+                          color: sub.isCompleted
+                              ? AppColors.labeltext
+                              : AppColors.maintext.withValues(alpha: 0.85),
+                          fontSize: 12,
+                          decoration: sub.isCompleted
+                              ? TextDecoration.lineThrough
+                              : null,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
         const SizedBox(height: 6),
         Wrap(
           spacing: 8,
@@ -239,6 +284,33 @@ class _TaskInfo extends StatelessWidget {
               style: const TextStyle(color: AppColors.labeltext, fontSize: 12),
             ),
             if (task.category.isNotEmpty) _CategoryTag(category: task.category),
+            if (hasSubtasks)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.07),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.checklist_rounded,
+                      size: 12,
+                      color: AppColors.accentYellow,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${task.completedSubtasksCount}/${task.subtasks.length}',
+                      style: const TextStyle(
+                        color: AppColors.maintext,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
       ],
