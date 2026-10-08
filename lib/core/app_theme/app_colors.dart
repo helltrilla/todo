@@ -14,5 +14,7 @@ class AppColors {
   static const Color unactive = Color(0xFF2C2C2C);
   static const Color transparent = Colors.transparent;
   static const Color surface = Color(0xFF1E1E1E);
+  static const Color border = Colors.white24;
+  static const Color divider = Colors.white12;
   static const Color legacyDarkGray = CupertinoColors.darkBackgroundGray;
 }

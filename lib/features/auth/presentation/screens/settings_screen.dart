@@ -3,12 +3,17 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:todo/core/app_theme/app_colors.dart';
+import 'package:todo/core/app_theme/app_theme_mode.dart';
+import 'package:todo/core/app_theme/theme_controller.dart';
 import 'package:todo/core/haptics/app_haptics.dart';
+import 'package:todo/core/localization/app_language.dart';
+import 'package:todo/core/localization/app_localizations.dart';
+import 'package:todo/core/localization/locale_controller.dart';
 import 'package:todo/core/notifications/notification_service.dart';
 import 'package:todo/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:todo/features/tasks/presentation/controllers/task_controller.dart';
 
-/// Dedicated Settings screen (notifications, haptics, data management, privacy, account).
+/// Dedicated Settings screen (appearance & theme, language, notifications, haptics, data management, privacy, account).
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -20,29 +25,173 @@ class _SettingsScreenState extends State<SettingsScreen> {
   static const String _privacyPolicyUrl =
       'https://github.com/helltrilla/todo/blob/main/PRIVACY_POLICY.md';
 
+  Future<void> _showLanguagePickerSheet() async {
+    AppHaptics.selection();
+    final localeCtrl = context.read<LocaleController>();
+    final currentLang = localeCtrl.currentLanguage;
+    final tr = context.tr;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.cardBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetCtx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.border,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.language_rounded,
+                      color: AppColors.active,
+                      size: 22,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        tr.selectLanguage,
+                        style: TextStyle(
+                          color: AppColors.maintext,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(sheetCtx),
+                      icon: Icon(Icons.close, color: AppColors.labeltext),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Divider(color: AppColors.divider),
+                const SizedBox(height: 8),
+                ...AppLanguage.values.map((lang) {
+                  final isSelected = lang == currentLang;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Material(
+                      color: isSelected
+                          ? AppColors.active.withValues(alpha: 0.16)
+                          : AppColors.bg,
+                      borderRadius: BorderRadius.circular(14),
+                      child: InkWell(
+                        onTap: () {
+                          AppHaptics.medium();
+                          localeCtrl.setLanguage(lang);
+                          Navigator.pop(sheetCtx);
+                        },
+                        borderRadius: BorderRadius.circular(14),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 14,
+                          ),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: isSelected
+                                  ? AppColors.active
+                                  : AppColors.border,
+                              width: isSelected ? 1.5 : 1.0,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Text(
+                                lang.flag,
+                                style: const TextStyle(fontSize: 24),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      lang.nativeName,
+                                      style: TextStyle(
+                                        color: isSelected
+                                            ? AppColors.active
+                                            : AppColors.maintext,
+                                        fontSize: 15,
+                                        fontWeight: isSelected
+                                            ? FontWeight.w700
+                                            : FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      lang.englishName,
+                                      style: TextStyle(
+                                        color: AppColors.labeltext,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (isSelected)
+                                const Icon(
+                                  Icons.check_circle_rounded,
+                                  color: AppColors.active,
+                                  size: 22,
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _confirmClearCompleted(int count) async {
     if (count == 0) return;
     AppHaptics.light();
+    final tr = context.tr;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text(
-          'Очистить выполненные?',
+        title: Text(
+          tr.clearCompletedConfirmTitle,
           style: TextStyle(color: AppColors.maintext),
         ),
         content: Text(
-          'Будет удалено выполненных задач: $count.',
-          style: const TextStyle(color: AppColors.labeltext),
+          tr.clearCompletedConfirmMsg(count),
+          style: TextStyle(color: AppColors.labeltext),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Отмена'),
+            child: Text(tr.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
-            child: const Text('Очистить'),
+            child: Text(tr.clear),
           ),
         ],
       ),
@@ -57,26 +206,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _confirmClearAllTasks(int totalCount) async {
     if (totalCount == 0) return;
     AppHaptics.light();
+    final tr = context.tr;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text(
-          'Сбросить все задачи?',
+        title: Text(
+          tr.resetAllTasksConfirmTitle,
           style: TextStyle(color: AppColors.maintext),
         ),
         content: Text(
-          'Все задачи ($totalCount) и архив будут очищены, но ваш профиль останется активным.',
-          style: const TextStyle(color: AppColors.labeltext),
+          tr.resetAllTasksConfirmMsg(totalCount),
+          style: TextStyle(color: AppColors.labeltext),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Отмена'),
+            child: Text(tr.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
-            child: const Text('Очистить всё'),
+            child: Text(tr.clearAll),
           ),
         ],
       ),
@@ -90,26 +240,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _confirmSignOut() async {
     AppHaptics.light();
+    final tr = context.tr;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text(
-          'Выход из аккаунта',
+        title: Text(
+          tr.signOutConfirmTitle,
           style: TextStyle(color: AppColors.maintext),
         ),
-        content: const Text(
-          'Вы уверены, что хотите выйти из текущего профиля?',
+        content: Text(
+          tr.signOutConfirmMsg,
           style: TextStyle(color: AppColors.labeltext),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Отмена'),
+            child: Text(tr.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
-            child: const Text('Выйти'),
+            style: TextButton.styleFrom(foregroundColor: Colors.orangeAccent),
+            child: Text(tr.exit),
           ),
         ],
       ),
@@ -123,26 +274,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _confirmDeleteAccount() async {
     AppHaptics.light();
+    final tr = context.tr;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text(
-          'Удалить аккаунт и данные?',
+        title: Text(
+          tr.deleteAccountConfirmTitle,
           style: TextStyle(color: AppColors.maintext),
         ),
-        content: const Text(
-          'Ваш профиль и все созданные задачи будут безвозвратно удалены с этого устройства. Это действие нельзя отменить.',
+        content: Text(
+          tr.deleteAccountConfirmMsg,
           style: TextStyle(color: AppColors.labeltext),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Отмена'),
+            child: Text(tr.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
-            child: const Text('Удалить навсегда'),
+            child: Text(tr.deleteForever),
           ),
         ],
       ),
@@ -159,6 +311,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _showPrivacyPolicySheet() async {
     AppHaptics.light();
+    final tr = context.tr;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -181,7 +334,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.white24,
+                    color: AppColors.border,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -194,9 +347,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     color: AppColors.active,
                   ),
                   const SizedBox(width: 10),
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Политика конфиденциальности',
+                      tr.privacyPolicy,
                       style: TextStyle(
                         color: AppColors.maintext,
                         fontSize: 17,
@@ -206,81 +359,45 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   IconButton(
                     onPressed: () => Navigator.pop(ctx),
-                    icon: const Icon(Icons.close, color: AppColors.labeltext),
+                    icon: Icon(Icons.close, color: AppColors.labeltext),
                   ),
                 ],
               ),
-              const Divider(color: Colors.white12),
+              Divider(color: AppColors.divider),
               Expanded(
                 child: ListView(
                   controller: scrollController,
-                  children: const [
-                    SizedBox(height: 8),
+                  children: [
+                    const SizedBox(height: 8),
                     Text(
-                      '1. Хранение задач и категорий',
+                      '1. Data Storage & Privacy',
                       style: TextStyle(
                         color: AppColors.maintext,
                         fontWeight: FontWeight.w700,
                         fontSize: 14,
                       ),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
-                      'Все ваши задачи, подзадачи, категории и настройки таймера хранятся локально на вашем устройстве и не передаются третьим лицам.',
+                      'All your tasks, subtasks, categories, and timer settings are stored securely on your device.',
                       style: TextStyle(
                         color: AppColors.labeltext,
                         fontSize: 13,
                         height: 1.45,
                       ),
                     ),
-                    SizedBox(height: 14),
+                    const SizedBox(height: 14),
                     Text(
-                      '2. Авторизация по Email (Supabase OTP)',
+                      '2. Email Authentication (Supabase OTP)',
                       style: TextStyle(
                         color: AppColors.maintext,
                         fontWeight: FontWeight.w700,
                         fontSize: 14,
                       ),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
-                      'При выборе входа по Email ваш адрес электронной почты используется исключительно для отправки одноразового 6-значного кода подтверждения (OTP) через Supabase Auth. Мы не рассылаем спам и не передаём ваш Email рекламным сервисам.',
-                      style: TextStyle(
-                        color: AppColors.labeltext,
-                        fontSize: 13,
-                        height: 1.45,
-                      ),
-                    ),
-                    SizedBox(height: 14),
-                    Text(
-                      '3. Удаление аккаунта и данных',
-                      style: TextStyle(
-                        color: AppColors.maintext,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Вы можете в любой момент полностью удалить свой профиль и все сохранённые задачи прямо в приложении в разделе «Настройки» → «Удалить аккаунт и данные».',
-                      style: TextStyle(
-                        color: AppColors.labeltext,
-                        fontSize: 13,
-                        height: 1.45,
-                      ),
-                    ),
-                    SizedBox(height: 14),
-                    Text(
-                      '4. Контакты разработчика',
-                      style: TextStyle(
-                        color: AppColors.maintext,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Email: helltrilla66@gmail.com\nTelegram: @helltrilla66',
+                      'Your email address is only used to send a one-time 6-digit confirmation code. We never send spam or share your email.',
                       style: TextStyle(
                         color: AppColors.labeltext,
                         fontSize: 13,
@@ -293,9 +410,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
-                height: 46,
                 child: OutlinedButton.icon(
                   onPressed: () async {
+                    AppHaptics.medium();
                     final messenger = ScaffoldMessenger.of(context);
                     await Clipboard.setData(
                       const ClipboardData(text: _privacyPolicyUrl),
@@ -304,15 +421,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       Navigator.pop(ctx);
                     }
                     messenger.showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Ссылка на политику конфиденциальности скопирована',
-                        ),
+                      SnackBar(
+                        content: Text(tr.privacyLinkCopied),
                       ),
                     );
                   },
                   icon: const Icon(Icons.copy_rounded, size: 17),
-                  label: const Text('Скопировать ссылку на документ'),
+                  label: Text(tr.copyPrivacyLink),
                 ),
               ),
             ],
@@ -324,14 +439,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final tr = context.tr;
     final taskController = context.watch<TaskController>();
+    final themeController = context.watch<ThemeController>();
+    final localeController = context.watch<LocaleController>();
+
     final completed = taskController.completedTasksCount;
     final total = taskController.totalTasksCount;
+    final currentTheme = themeController.mode;
+    final currentLang = localeController.currentLanguage;
 
     return Scaffold(
+      backgroundColor: AppColors.bgmain,
       appBar: AppBar(
         automaticallyImplyLeading: false,
         titleSpacing: 16,
+        backgroundColor: AppColors.bgmain,
+        elevation: 0,
         title: Row(
           children: [
             InkWell(
@@ -348,19 +472,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 decoration: BoxDecoration(
                   color: AppColors.cardBg,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white24),
+                  border: Border.all(color: AppColors.border),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.arrow_back_ios_new_rounded,
                       size: 14,
                       color: AppColors.accentYellow,
                     ),
-                    SizedBox(width: 6),
+                    const SizedBox(width: 6),
                     Text(
-                      'Назад',
+                      tr.back,
                       style: TextStyle(
                         color: AppColors.maintext,
                         fontSize: 13,
@@ -372,9 +496,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
             const SizedBox(width: 12),
-            const Expanded(
+            Expanded(
               child: Text(
-                'Настройки',
+                tr.settings,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: AppColors.maintext,
@@ -389,9 +513,201 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         children: [
-          // 1. Notifications & Tactile Haptics
-          const Text(
-            'Уведомления и отклик',
+          // 1. Appearance & Theme (Смена темы)
+          Text(
+            tr.appearanceAndTheme,
+            style: TextStyle(
+              color: AppColors.maintext,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.cardBg,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(9),
+                      decoration: BoxDecoration(
+                        color: AppColors.active.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.palette_outlined,
+                        color: AppColors.active,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            tr.theme,
+                            style: TextStyle(
+                              color: AppColors.maintext,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            tr.themeSubtitle,
+                            style: TextStyle(
+                              color: AppColors.labeltext,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                // Theme Mode Selector Grid (Light, Dark, Midnight, System)
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final itemWidth = (constraints.maxWidth - 10) / 2;
+                    return Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: AppThemeMode.values.map((mode) {
+                        final isSelected = currentTheme == mode;
+                        final label = switch (mode) {
+                          AppThemeMode.dark => tr.themeDark,
+                          AppThemeMode.light => tr.themeLight,
+                          AppThemeMode.midnight => tr.themeMidnight,
+                          AppThemeMode.system => tr.themeSystem,
+                        };
+
+                        return SizedBox(
+                          width: itemWidth,
+                          child: Material(
+                            color: isSelected
+                                ? AppColors.active.withValues(alpha: 0.16)
+                                : AppColors.bg,
+                            borderRadius: BorderRadius.circular(14),
+                            child: InkWell(
+                              onTap: () {
+                                AppHaptics.selection();
+                                themeController.setThemeMode(mode);
+                              },
+                              borderRadius: BorderRadius.circular(14),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 12,
+                                ),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? AppColors.active
+                                        : AppColors.border,
+                                    width: isSelected ? 1.5 : 1.0,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      mode.icon,
+                                      size: 18,
+                                      color: isSelected
+                                          ? AppColors.active
+                                          : AppColors.labeltext,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        label,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: isSelected
+                                              ? AppColors.active
+                                              : AppColors.maintext,
+                                          fontSize: 13,
+                                          fontWeight: isSelected
+                                              ? FontWeight.w700
+                                              : FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                    if (isSelected)
+                                      const Icon(
+                                        Icons.check_circle_rounded,
+                                        color: AppColors.active,
+                                        size: 16,
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // 2. Language Selector (Локализация языков)
+          Text(
+            tr.languageTitle,
+            style: TextStyle(
+              color: AppColors.maintext,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _ActionTile(
+            icon: Icons.language_rounded,
+            title: tr.languageTitle,
+            subtitle: '${currentLang.flag}  ${currentLang.nativeName}',
+            iconColor: const Color(0xFF29B6F6),
+            trailingWidget: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 5,
+              ),
+              decoration: BoxDecoration(
+                color: AppColors.active.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: AppColors.active.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Text(
+                '${currentLang.flag} ${currentLang.code.toUpperCase()}',
+                style: const TextStyle(
+                  color: AppColors.active,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            onTap: _showLanguagePickerSheet,
+          ),
+
+          const SizedBox(height: 24),
+
+          // 3. Notifications & Tactile Haptics
+          Text(
+            tr.notificationsAndHaptics,
             style: TextStyle(
               color: AppColors.maintext,
               fontSize: 16,
@@ -401,8 +717,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 12),
           _ActionTile(
             icon: Icons.notifications_active_outlined,
-            title: 'Проверить Push-уведомление',
-            subtitle: 'Отправить тестовое уведомление через 2 секунды',
+            title: tr.testNotification,
+            subtitle: tr.testNotificationSubtitle,
             iconColor: const Color(0xFF4CAF50),
             onTap: () async {
               AppHaptics.medium();
@@ -413,8 +729,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 SnackBar(
                   content: Text(
                     ok
-                        ? 'Тестовое уведомление отправлено! (придёт через 2 сек)'
-                        : 'Разрешите уведомления для TodoApp в настройках телефона',
+                        ? tr.testNotificationSent
+                        : tr.testNotificationPermissionError,
                   ),
                 ),
               );
@@ -426,7 +742,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             decoration: BoxDecoration(
               color: AppColors.cardBg,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white12),
+              border: Border.all(color: AppColors.border),
             ),
             child: Row(
               children: [
@@ -443,21 +759,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
                 const SizedBox(width: 14),
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Тактильная вибрация (Haptics)',
+                        tr.haptics,
                         style: TextStyle(
                           color: AppColors.maintext,
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      SizedBox(height: 2),
+                      const SizedBox(height: 2),
                       Text(
-                        'Отклик Taptic Engine при кликах и прокрутке времени',
+                        tr.hapticsSubtitle,
                         style: TextStyle(
                           color: AppColors.labeltext,
                           fontSize: 12,
@@ -480,9 +796,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           const SizedBox(height: 24),
 
-          // 2. Data & Tasks Management
-          const Text(
-            'Управление данными',
+          // 4. Data & Tasks Management
+          Text(
+            tr.dataManagement,
             style: TextStyle(
               color: AppColors.maintext,
               fontSize: 16,
@@ -492,10 +808,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 12),
           _ActionTile(
             icon: Icons.cleaning_services_outlined,
-            title: 'Очистить выполненные задачи',
-            subtitle: completed > 0
-                ? 'Удалить завершённые задачи ($completed)'
-                : 'Нет выполненных задач',
+            title: tr.clearCompleted,
+            subtitle: tr.clearCompletedSubtitle(completed),
             iconColor: AppColors.accentYellow,
             onTap: completed > 0
                 ? () => _confirmClearCompleted(completed)
@@ -504,19 +818,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 10),
           _ActionTile(
             icon: Icons.layers_clear_outlined,
-            title: 'Сбросить все задачи',
-            subtitle: total > 0
-                ? 'Удалить все задачи и архив ($total)'
-                : 'Список задач пуст',
+            title: tr.resetAllTasks,
+            subtitle: tr.resetAllTasksSubtitle(total),
             iconColor: Colors.orangeAccent,
             onTap: total > 0 ? () => _confirmClearAllTasks(total) : null,
           ),
 
           const SizedBox(height: 24),
 
-          // 3. Account & Security
-          const Text(
-            'Аккаунт и безопасность',
+          // 5. Account & Security
+          Text(
+            tr.accountAndSecurity,
             style: TextStyle(
               color: AppColors.maintext,
               fontSize: 16,
@@ -526,49 +838,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 12),
           _ActionTile(
             icon: Icons.privacy_tip_outlined,
-            title: 'Политика конфиденциальности',
-            subtitle: 'Условия хранения данных и конфиденциальность',
+            title: tr.privacyPolicy,
+            subtitle: tr.privacyPolicySubtitle,
             iconColor: const Color(0xFF00BCD4),
             onTap: _showPrivacyPolicySheet,
           ),
           const SizedBox(height: 10),
           _ActionTile(
             icon: Icons.logout_rounded,
-            title: 'Выйти из аккаунта',
-            subtitle: 'Вернуться на экран приветствия',
+            title: tr.signOut,
+            subtitle: tr.signOutSubtitle,
             iconColor: Colors.orangeAccent,
             onTap: _confirmSignOut,
           ),
           const SizedBox(height: 10),
           _ActionTile(
             icon: Icons.delete_forever_outlined,
-            title: 'Удалить аккаунт и данные',
-            subtitle: 'Безвозвратно удалить профиль и все задачи',
+            title: tr.deleteAccount,
+            subtitle: tr.deleteAccountSubtitle,
             iconColor: Colors.redAccent,
             onTap: _confirmDeleteAccount,
           ),
 
           const SizedBox(height: 24),
 
-          // 4. App Info Footer
+          // 6. App Info Footer
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               color: AppColors.cardBg.withValues(alpha: 0.6),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.white12),
+              border: Border.all(color: AppColors.border),
             ),
-            child: const Row(
+            child: Row(
               children: [
-                Icon(
+                const Icon(
                   Icons.touch_app_outlined,
                   color: AppColors.accentYellow,
                   size: 20,
                 ),
-                SizedBox(width: 12),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Совет: зажмите иконку TodoApp на домашнем экране телефона для быстрого создания задачи или запуска Фокуса.',
+                    tr.tipFooter,
                     style: TextStyle(color: AppColors.labeltext, fontSize: 12),
                   ),
                 ),
@@ -589,6 +901,7 @@ class _ActionTile extends StatelessWidget {
     required this.subtitle,
     required this.iconColor,
     required this.onTap,
+    this.trailingWidget,
   });
 
   final IconData icon;
@@ -596,6 +909,7 @@ class _ActionTile extends StatelessWidget {
   final String subtitle;
   final Color iconColor;
   final VoidCallback? onTap;
+  final Widget? trailingWidget;
 
   @override
   Widget build(BuildContext context) {
@@ -612,7 +926,7 @@ class _ActionTile extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white12),
+              border: Border.all(color: AppColors.border),
             ),
             child: Row(
               children: [
@@ -631,7 +945,7 @@ class _ActionTile extends StatelessWidget {
                     children: [
                       Text(
                         title,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.maintext,
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
@@ -640,7 +954,7 @@ class _ActionTile extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         subtitle,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.labeltext,
                           fontSize: 12,
                         ),
@@ -648,8 +962,13 @@ class _ActionTile extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (trailingWidget != null) ...[
+                  const SizedBox(width: 8),
+                  trailingWidget!,
+                  const SizedBox(width: 4),
+                ],
                 if (enabled)
-                  const Icon(
+                  Icon(
                     Icons.chevron_right_rounded,
                     color: AppColors.labeltext,
                   ),
