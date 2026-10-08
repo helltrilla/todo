@@ -223,6 +223,18 @@ class NotificationService {
     } catch (_) {}
   }
 
+  /// Returns `true` if media is currently playing on the device system shade
+  /// (Spotify, Yandex Music, Apple Music, etc.) or `false` if paused.
+  Future<bool> getMediaPlaybackState() async {
+    if (kIsWeb) return false;
+    try {
+      final playing = await _channel.invokeMethod<bool>('getMediaPlaybackState');
+      return playing ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Reads the current device hardware media volume (`0.0` to `1.0`).
   Future<double> getSystemVolume() async {
     if (kIsWeb) return 0.65;

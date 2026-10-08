@@ -85,7 +85,8 @@ class FocusTabView extends StatefulWidget {
   State<FocusTabView> createState() => _FocusTabViewState();
 }
 
-class _FocusTabViewState extends State<FocusTabView> {
+class _FocusTabViewState extends State<FocusTabView>
+    with WidgetsBindingObserver {
   static const _presetsMinutes = [15, 25, 45];
   static const _userPlaylistsKey = 'focus_user_playlists_v2';
   static const _legacyCustomPlaylistUrlKey = 'focus_custom_playlist_url';
@@ -108,13 +109,46 @@ class _FocusTabViewState extends State<FocusTabView> {
   String _ambientSound = 'off';
   double _ambientVolume = 0.45;
   double _systemVolume = 0.65;
+  bool _isSystemMusicPlaying = false;
+  Timer? _playbackPollTimer;
   List<_UserPlaylist> _userPlaylists = [];
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _remainingSeconds = _selectedMinutes * 60;
     _loadSavedPlaylists();
+    _checkPlaybackState();
+    _playbackPollTimer = Timer.periodic(
+      const Duration(milliseconds: 1400),
+      (_) => _checkPlaybackState(),
+    );
+  }
+
+  Future<void> _checkPlaybackState() async {
+    final isPlaying =
+        await NotificationService.instance.getMediaPlaybackState();
+    if (mounted && _isSystemMusicPlaying != isPlaying) {
+      setState(() => _isSystemMusicPlaying = isPlaying);
+    }
+  }
+
+  Future<void> _toggleSystemPlayPause() async {
+    AppHaptics.medium();
+    setState(() => _isSystemMusicPlaying = !_isSystemMusicPlaying);
+    await NotificationService.instance.sendMediaCommand('playPause');
+    Future.delayed(const Duration(milliseconds: 350), _checkPlaybackState);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkPlaybackState();
+      NotificationService.instance.getSystemVolume().then((vol) {
+        if (mounted) setState(() => _systemVolume = vol);
+      });
+    }
   }
 
   Future<void> _loadSavedPlaylists() async {
@@ -257,6 +291,8 @@ class _FocusTabViewState extends State<FocusTabView> {
   @override
   void dispose() {
     _timer?.cancel();
+    _playbackPollTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     NotificationService.instance.setAmbientSound(sound: 'off');
     super.dispose();
   }
@@ -1095,16 +1131,43 @@ class _FocusTabViewState extends State<FocusTabView> {
                       vertical: 3,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white10,
+                      color: _isSystemMusicPlaying
+                          ? const Color(0xFF1DB954).withValues(alpha: 0.18)
+                          : Colors.white10,
                       borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text(
-                      'Активный плеер на шторке',
-                      style: TextStyle(
-                        color: AppColors.labeltext,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
+                      border: Border.all(
+                        color: _isSystemMusicPlaying
+                            ? const Color(0xFF1DB954).withValues(alpha: 0.45)
+                            : Colors.transparent,
                       ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_isSystemMusicPlaying) ...[
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF1DB954),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                        ],
+                        Text(
+                          _isSystemMusicPlaying
+                              ? 'Играет на шторке'
+                              : 'Шторка на паузе',
+                          style: TextStyle(
+                            color: _isSystemMusicPlaying
+                                ? const Color(0xFF1DB954)
+                                : AppColors.labeltext,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -1118,10 +1181,14 @@ class _FocusTabViewState extends State<FocusTabView> {
                     child: _LargeMediaTransportBtn(
                       icon: Icons.skip_previous_rounded,
                       label: 'Назад',
-                      onTap: () {
+                      onTap: () async {
                         AppHaptics.light();
-                        NotificationService.instance.sendMediaCommand(
+                        await NotificationService.instance.sendMediaCommand(
                           'previous',
+                        );
+                        Future.delayed(
+                          const Duration(milliseconds: 350),
+                          _checkPlaybackState,
                         );
                       },
                     ),
@@ -1130,16 +1197,13 @@ class _FocusTabViewState extends State<FocusTabView> {
                   Expanded(
                     flex: 3,
                     child: _LargeMediaTransportBtn(
-                      icon: Icons.play_arrow_rounded,
-                      secondaryIcon: Icons.pause_rounded,
-                      label: 'Плей / Пауза',
+                      icon: _isSystemMusicPlaying
+                          ? Icons.pause_rounded
+                          : Icons.play_arrow_rounded,
+                      label: _isSystemMusicPlaying ? 'Пауза' : 'Играть',
                       isPrimary: true,
-                      onTap: () {
-                        AppHaptics.medium();
-                        NotificationService.instance.sendMediaCommand(
-                          'playPause',
-                        );
-                      },
+                      isActive: _isSystemMusicPlaying,
+                      onTap: _toggleSystemPlayPause,
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -1148,9 +1212,15 @@ class _FocusTabViewState extends State<FocusTabView> {
                     child: _LargeMediaTransportBtn(
                       icon: Icons.skip_next_rounded,
                       label: 'Вперёд',
-                      onTap: () {
+                      onTap: () async {
                         AppHaptics.light();
-                        NotificationService.instance.sendMediaCommand('next');
+                        await NotificationService.instance.sendMediaCommand(
+                          'next',
+                        );
+                        Future.delayed(
+                          const Duration(milliseconds: 350),
+                          _checkPlaybackState,
+                        );
                       },
                     ),
                   ),
@@ -1405,50 +1475,58 @@ class _LargeMediaTransportBtn extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.onTap,
-    this.secondaryIcon,
     this.isPrimary = false,
+    this.isActive = false,
   });
 
   final IconData icon;
-  final IconData? secondaryIcon;
   final String label;
   final VoidCallback onTap;
   final bool isPrimary;
+  final bool isActive;
 
   @override
   Widget build(BuildContext context) {
     final bgColor = isPrimary
-        ? const Color(0xFF1DB954).withValues(alpha: 0.18)
+        ? (isActive
+            ? const Color(0xFF1DB954).withValues(alpha: 0.24)
+            : AppColors.bgmain)
         : AppColors.bgmain;
     final borderColor = isPrimary
-        ? const Color(0xFF1DB954).withValues(alpha: 0.65)
+        ? (isActive
+            ? const Color(0xFF1DB954).withValues(alpha: 0.85)
+            : Colors.white24)
         : Colors.white12;
-    final fgColor = isPrimary ? const Color(0xFF1DB954) : AppColors.maintext;
+    final fgColor = isPrimary
+        ? (isActive ? const Color(0xFF1DB954) : AppColors.maintext)
+        : AppColors.maintext;
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
-        child: Container(
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
           height: 58,
           decoration: BoxDecoration(
             color: bgColor,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: borderColor, width: isPrimary ? 1.4 : 1),
+            boxShadow: (isPrimary && isActive)
+                ? [
+                    BoxShadow(
+                      color: const Color(0xFF1DB954).withValues(alpha: 0.22),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ]
+                : null,
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(icon, size: isPrimary ? 26 : 24, color: fgColor),
-                  if (secondaryIcon != null) ...[
-                    Icon(secondaryIcon, size: 22, color: fgColor),
-                  ],
-                ],
-              ),
+              Icon(icon, size: isPrimary ? 26 : 24, color: fgColor),
               const SizedBox(height: 2),
               Text(
                 label,

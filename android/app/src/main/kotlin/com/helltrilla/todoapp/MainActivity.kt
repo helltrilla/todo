@@ -180,6 +180,11 @@ class MainActivity : FlutterActivity() {
                     result.success(null)
                 }
 
+                "getMediaPlaybackState" -> {
+                    val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                    result.success(audioManager.isMusicActive)
+                }
+
                 "getSystemVolume" -> {
                     val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
                     val current = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)

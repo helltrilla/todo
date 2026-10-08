@@ -221,6 +221,11 @@ import UserNotifications
         result(nil)
       }
 
+    case "getMediaPlaybackState":
+      let session = AVAudioSession.sharedInstance()
+      let isPlaying = session.isOtherAudioPlaying && !self.isExternalAudioPaused
+      result(isPlaying)
+
     case "getSystemVolume":
       let vol = Double(AVAudioSession.sharedInstance().outputVolume)
       result(vol)
