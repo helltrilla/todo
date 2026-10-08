@@ -122,6 +122,10 @@ class TaskCard extends StatelessWidget {
         ),
         child: InkWell(
           onTap: onTap,
+          onLongPress: () {
+            AppHaptics.medium();
+            context.read<TaskController>().togglePin(task.id);
+          },
           borderRadius: BorderRadius.circular(16),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
@@ -209,15 +213,33 @@ class _TaskInfo extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          task.name,
-          style: TextStyle(
-            color: task.isCompleted ? AppColors.labeltext : AppColors.maintext,
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            decoration: task.isCompleted ? TextDecoration.lineThrough : null,
-            decorationColor: AppColors.labeltext,
-          ),
+        Row(
+          children: [
+            if (task.isPinned) ...[
+              const Icon(
+                Icons.push_pin_rounded,
+                size: 15,
+                color: AppColors.accentYellow,
+              ),
+              const SizedBox(width: 5),
+            ],
+            Expanded(
+              child: Text(
+                task.name,
+                style: TextStyle(
+                  color: task.isCompleted
+                      ? AppColors.labeltext
+                      : AppColors.maintext,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  decoration: task.isCompleted
+                      ? TextDecoration.lineThrough
+                      : null,
+                  decorationColor: AppColors.labeltext,
+                ),
+              ),
+            ),
+          ],
         ),
         if (task.value.isNotEmpty) ...[
           const SizedBox(height: 4),
@@ -367,6 +389,22 @@ class _TaskInfo extends StatelessWidget {
                       ),
                     ),
                   ],
+                ),
+              ),
+            if (task.pomodoroCount > 0)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF7043).withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '🍅 ${task.pomodoroCount}',
+                  style: const TextStyle(
+                    color: Color(0xFFFFAB91),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
           ],

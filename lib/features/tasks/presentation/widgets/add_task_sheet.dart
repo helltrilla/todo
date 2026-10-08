@@ -29,6 +29,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
   int _priorityIndex = -1;
   String _selectedCategory = TaskController.globalCategory;
   bool _isCompleted = false;
+  bool _isPinned = false;
   late List<SubTask> _subtasks;
   RecurrenceRule _recurrence = RecurrenceRule.none;
 
@@ -46,6 +47,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
       _priorityIndex = existing.priorityIndex;
       _selectedCategory = existing.category;
       _isCompleted = existing.isCompleted;
+      _isPinned = existing.isPinned;
       _subtasks = List<SubTask>.from(existing.subtasks);
       _recurrence = existing.recurrence;
     } else {
@@ -191,6 +193,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
         clearReminder: _selectedDate == null || _reminderOffsetMinutes == null,
         priorityIndex: _priorityIndex,
         isCompleted: _isCompleted,
+        isPinned: _isPinned,
         category: _selectedCategory,
         subtasks: _subtasks,
         recurrence: _recurrence,
@@ -205,6 +208,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
             ? _reminderOffsetMinutes
             : null,
         priorityIndex: _priorityIndex,
+        isPinned: _isPinned,
         category: _selectedCategory,
         subtasks: _subtasks,
         recurrence: _recurrence,
@@ -542,6 +546,17 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                       : AppColors.icons,
                 ),
                 onPressed: _pickRecurrence,
+              ),
+              IconButton(
+                tooltip: 'Закрепить наверху',
+                icon: Icon(
+                  _isPinned ? Icons.push_pin_rounded : Icons.push_pin_outlined,
+                  color: _isPinned ? AppColors.accentYellow : AppColors.icons,
+                ),
+                onPressed: () {
+                  AppHaptics.selection();
+                  setState(() => _isPinned = !_isPinned);
+                },
               ),
               IconButton(
                 icon: Icon(
