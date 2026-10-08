@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:todo/core/app_router/app_router_names.dart';
 import 'package:todo/core/app_theme/app_colors.dart';
+import 'package:todo/core/notifications/notification_service.dart';
 import 'package:todo/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:todo/features/tasks/domain/models/task.dart';
 import 'package:todo/features/tasks/domain/models/task_category_style.dart';
@@ -32,6 +33,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<TaskController>().load();
+      NotificationService.instance.requestPermissions();
     });
   }
 

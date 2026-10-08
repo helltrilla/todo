@@ -283,6 +283,33 @@ class _TaskInfo extends StatelessWidget {
               _formatDate(displayDate, includeTime: showTime),
               style: const TextStyle(color: AppColors.labeltext, fontSize: 12),
             ),
+            if (task.dueDate != null && !task.isCompleted)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.accentYellow.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.notifications_active_outlined,
+                      size: 11,
+                      color: AppColors.accentYellow,
+                    ),
+                    const SizedBox(width: 3),
+                    Text(
+                      task.reminderLabel ?? 'В момент',
+                      style: const TextStyle(
+                        color: AppColors.accentYellow,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             if (task.category.isNotEmpty) _CategoryTag(category: task.category),
             if (hasSubtasks)
               Container(

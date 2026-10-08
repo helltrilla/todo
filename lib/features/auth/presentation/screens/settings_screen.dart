@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:todo/core/app_theme/app_colors.dart';
+import 'package:todo/core/notifications/notification_service.dart';
 import 'package:todo/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:todo/features/tasks/domain/models/task.dart';
 import 'package:todo/features/tasks/domain/models/task_category_style.dart';
@@ -849,6 +850,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 12),
+          _ActionTile(
+            icon: Icons.notifications_active_outlined,
+            title: 'Проверить Push-уведомление',
+            subtitle: 'Отправить тестовое уведомление через 2 секунды',
+            iconColor: const Color(0xFF4CAF50),
+            onTap: () async {
+              final messenger = ScaffoldMessenger.of(context);
+              final ok = await NotificationService.instance
+                  .sendTestNotification();
+              messenger.showSnackBar(
+                SnackBar(
+                  content: Text(
+                    ok
+                        ? 'Тестовое уведомление отправлено! (придёт через 2 сек)'
+                        : 'Разрешите уведомления для TodoApp в настройках телефона',
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 10),
           _ActionTile(
             icon: Icons.cleaning_services_outlined,
             title: 'Очистить выполненные задачи',

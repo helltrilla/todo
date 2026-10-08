@@ -24,6 +24,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
   late final TextEditingController _descController;
   final TextEditingController _subtaskController = TextEditingController();
   DateTime? _selectedDate;
+  int? _reminderOffsetMinutes = 15;
   int _priorityIndex = -1;
   String _selectedCategory = TaskController.globalCategory;
   bool _isCompleted = false;
@@ -39,6 +40,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
       _nameController = TextEditingController(text: existing.name);
       _descController = TextEditingController(text: existing.value);
       _selectedDate = existing.dueDate;
+      _reminderOffsetMinutes = existing.reminderOffsetMinutes;
       _priorityIndex = existing.priorityIndex;
       _selectedCategory = existing.category;
       _isCompleted = existing.isCompleted;
@@ -92,12 +94,22 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
   }
 
   Future<void> _pickDate() async {
+    int? chosenReminder = _reminderOffsetMinutes;
     final picked = await showDialog<DateTime>(
       context: context,
-      builder: (_) => ListodoCalendarDialog(initialDate: _selectedDate),
+      builder: (_) => ListodoCalendarDialog(
+        initialDate: _selectedDate,
+        initialReminderMinutes: _reminderOffsetMinutes,
+        onReminderChanged: (minutes) {
+          chosenReminder = minutes;
+        },
+      ),
     );
     if (picked != null) {
-      setState(() => _selectedDate = picked);
+      setState(() {
+        _selectedDate = picked;
+        _reminderOffsetMinutes = chosenReminder;
+      });
     }
   }
 
@@ -146,6 +158,11 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
         name: _nameController.text.trim(),
         value: _descController.text.trim(),
         dueDate: _selectedDate,
+        clearDueDate: _selectedDate == null,
+        reminderOffsetMinutes: _selectedDate != null
+            ? _reminderOffsetMinutes
+            : null,
+        clearReminder: _selectedDate == null || _reminderOffsetMinutes == null,
         priorityIndex: _priorityIndex,
         isCompleted: _isCompleted,
         category: _selectedCategory,
@@ -157,6 +174,9 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
         name: _nameController.text.trim(),
         value: _descController.text.trim(),
         dueDate: _selectedDate,
+        reminderOffsetMinutes: _selectedDate != null
+            ? _reminderOffsetMinutes
+            : null,
         priorityIndex: _priorityIndex,
         category: _selectedCategory,
         subtasks: _subtasks,
@@ -462,11 +482,15 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                 onPressed: _pickDate,
               ),
               if (_selectedDate != null)
-                _DateChip(
-                  date: _selectedDate!,
-                  onClear: () => setState(() => _selectedDate = null),
+                Flexible(
+                  child: _DateChip(
+                    date: _selectedDate!,
+                    reminderOffsetMinutes: _reminderOffsetMinutes,
+                    onTap: _pickDate,
+                    onClear: () => setState(() => _selectedDate = null),
+                  ),
                 ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
               IconButton(
                 icon: Icon(
                   hasPriority ? priority!.icon : Icons.flag_outlined,
@@ -523,8 +547,15 @@ class _PriorityChip extends StatelessWidget {
 }
 
 class _DateChip extends StatelessWidget {
-  const _DateChip({required this.date, required this.onClear});
+  const _DateChip({
+    required this.date,
+    required this.reminderOffsetMinutes,
+    required this.onTap,
+    required this.onClear,
+  });
   final DateTime date;
+  final int? reminderOffsetMinutes;
+  final VoidCallback onTap;
   final VoidCallback onClear;
 
   @override
@@ -545,32 +576,57 @@ class _DateChip extends StatelessWidget {
     ];
     final hh = date.hour.toString().padLeft(2, '0');
     final mm = date.minute.toString().padLeft(2, '0');
+    final reminderText =
+        reminderOffsetMinutes != null && reminderOffsetMinutes! > 0
+        ? Task.formatReminderOffset(reminderOffsetMinutes!)
+        : 'В момент';
     final label = '${date.day} ${months[date.month - 1]} • $hh:$mm';
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: AppColors.bgmain,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.white24),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(color: AppColors.maintext, fontSize: 11),
-          ),
-          const SizedBox(width: 6),
-          GestureDetector(
-            onTap: onClear,
-            child: const Icon(
-              Icons.close,
-              size: 14,
-              color: AppColors.labeltext,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: AppColors.bgmain,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.white24),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Text(
+                label,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: AppColors.maintext, fontSize: 11),
+              ),
             ),
-          ),
-        ],
+            const SizedBox(width: 6),
+            const Icon(
+              Icons.notifications_active_outlined,
+              size: 12,
+              color: AppColors.accentYellow,
+            ),
+            const SizedBox(width: 3),
+            Text(
+              reminderText,
+              style: const TextStyle(
+                color: AppColors.accentYellow,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: 6),
+            GestureDetector(
+              onTap: onClear,
+              child: const Icon(
+                Icons.close,
+                size: 14,
+                color: AppColors.labeltext,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -44,6 +44,7 @@ class Task {
   final String value;
   final DateTime createdAt;
   final DateTime? dueDate;
+  final int? reminderOffsetMinutes;
   final int priorityIndex;
   final bool isCompleted;
   final bool isArchived;
@@ -57,6 +58,7 @@ class Task {
     required this.createdAt,
     required this.priorityIndex,
     this.dueDate,
+    this.reminderOffsetMinutes,
     this.isCompleted = false,
     this.isArchived = false,
     this.category = 'Personal',
@@ -67,12 +69,35 @@ class Task {
   bool get hasPriority => priorityIndex != -1;
   int get completedSubtasksCount => subtasks.where((s) => s.isCompleted).length;
 
+  /// Human-readable label for the configured reminder offset (e.g. "За 15 мин").
+  String? get reminderLabel {
+    if (dueDate == null) return null;
+    if (reminderOffsetMinutes == null || reminderOffsetMinutes! <= 0) {
+      return 'В момент';
+    }
+    return formatReminderOffset(reminderOffsetMinutes!);
+  }
+
+  /// Formats [minutes] into a Russian reminder label.
+  static String formatReminderOffset(int minutes) {
+    if (minutes <= 0) return 'В момент задачи';
+    if (minutes < 60) return 'За $minutes мин';
+    if (minutes == 60) return 'За 1 час';
+    if (minutes == 120) return 'За 2 часа';
+    if (minutes == 1440) return 'За 1 день';
+    if (minutes % 60 == 0) return 'За ${minutes ~/ 60} ч';
+    return 'За $minutes мин';
+  }
+
   Task copyWith({
     int? id,
     String? name,
     String? value,
     DateTime? createdAt,
     DateTime? dueDate,
+    bool clearDueDate = false,
+    int? reminderOffsetMinutes,
+    bool clearReminder = false,
     int? priorityIndex,
     bool? isCompleted,
     bool? isArchived,
@@ -84,7 +109,10 @@ class Task {
       name: name ?? this.name,
       value: value ?? this.value,
       createdAt: createdAt ?? this.createdAt,
-      dueDate: dueDate ?? this.dueDate,
+      dueDate: clearDueDate ? null : (dueDate ?? this.dueDate),
+      reminderOffsetMinutes: clearDueDate || clearReminder
+          ? null
+          : (reminderOffsetMinutes ?? this.reminderOffsetMinutes),
       priorityIndex: priorityIndex ?? this.priorityIndex,
       isCompleted: isCompleted ?? this.isCompleted,
       isArchived: isArchived ?? this.isArchived,
@@ -100,6 +128,7 @@ class Task {
       'value': value,
       'createdAt': createdAt.millisecondsSinceEpoch,
       'dueDate': dueDate?.millisecondsSinceEpoch,
+      'reminderOffsetMinutes': reminderOffsetMinutes,
       'priorityIndex': priorityIndex,
       'isCompleted': isCompleted,
       'isArchived': isArchived,
@@ -124,6 +153,7 @@ class Task {
       dueDate: map['dueDate'] != null
           ? DateTime.fromMillisecondsSinceEpoch(map['dueDate'] as int)
           : null,
+      reminderOffsetMinutes: map['reminderOffsetMinutes'] as int?,
       priorityIndex: (map['priorityIndex'] as int?) ?? -1,
       isCompleted: (map['isCompleted'] as bool?) ?? false,
       isArchived: (map['isArchived'] as bool?) ?? false,
@@ -141,6 +171,7 @@ class Task {
   String toString() =>
       'Task(id: $id, name: $name, value: $value, '
       'createdAt: $createdAt, dueDate: $dueDate, '
+      'reminderOffsetMinutes: $reminderOffsetMinutes, '
       'priorityIndex: $priorityIndex, isCompleted: $isCompleted, '
       'isArchived: $isArchived, category: $category, '
       'subtasks: ${subtasks.length})';

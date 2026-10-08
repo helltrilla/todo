@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:todo/core/errors/result.dart';
+import 'package:todo/core/notifications/notification_service.dart';
 import 'package:todo/features/tasks/domain/models/priority_level.dart';
 import 'package:todo/features/tasks/domain/models/task.dart';
 import 'package:todo/features/tasks/domain/models/task_category_style.dart';
@@ -213,6 +214,7 @@ class TaskController extends ChangeNotifier {
     required String name,
     required String value,
     DateTime? dueDate,
+    int? reminderOffsetMinutes,
     int priorityIndex = -1,
     String? category,
     List<SubTask> subtasks = const [],
@@ -227,6 +229,7 @@ class TaskController extends ChangeNotifier {
       value: value,
       createdAt: DateTime.now(),
       dueDate: dueDate,
+      reminderOffsetMinutes: dueDate != null ? reminderOffsetMinutes : null,
       priorityIndex: priorityIndex,
       category: effectiveCategory,
       subtasks: subtasks,
@@ -240,7 +243,10 @@ class TaskController extends ChangeNotifier {
       _tasks = _tasks.where((t) => t.id != task.id).toList();
       _error = failure.message;
       notifyListeners();
+      return;
     }
+
+    await NotificationService.instance.syncTaskNotifications(task);
   }
 
   /// Updates all fields of an existing [updatedTask] with optimistic UI and rollback.
@@ -266,7 +272,10 @@ class TaskController extends ChangeNotifier {
       }
       _error = failure.message;
       notifyListeners();
+      return;
     }
+
+    await NotificationService.instance.syncTaskNotifications(updatedTask);
   }
 
   Future<void> toggleCompleted(int id) async {
@@ -333,7 +342,10 @@ class TaskController extends ChangeNotifier {
       _tasks = snapshot;
       _error = failure.message;
       notifyListeners();
+      return;
     }
+
+    await NotificationService.instance.cancelTaskNotifications(id);
   }
 
   Future<void> clearCompleted() async {
@@ -357,6 +369,7 @@ class TaskController extends ChangeNotifier {
     for (final id in ids) {
       await _repository.delete(id);
     }
+    await NotificationService.instance.cancelAllNotifications();
   }
 
   void clearError() {

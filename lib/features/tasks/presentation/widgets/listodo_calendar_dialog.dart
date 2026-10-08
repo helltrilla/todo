@@ -2,12 +2,19 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:todo/core/app_theme/app_colors.dart';
 
-/// Custom dark calendar + iOS-style dual wheel time picker dialog.
+/// Custom dark calendar + iOS-style dual wheel time picker dialog + reminder picker.
 /// Returns the selected [DateTime] (with hour & minute) when the user taps Save.
 class ListodoCalendarDialog extends StatefulWidget {
-  const ListodoCalendarDialog({super.key, this.initialDate});
+  const ListodoCalendarDialog({
+    super.key,
+    this.initialDate,
+    this.initialReminderMinutes = 15,
+    this.onReminderChanged,
+  });
 
   final DateTime? initialDate;
+  final int? initialReminderMinutes;
+  final ValueChanged<int?>? onReminderChanged;
 
   @override
   State<ListodoCalendarDialog> createState() => _ListodoCalendarDialogState();
@@ -18,8 +25,18 @@ class _ListodoCalendarDialogState extends State<ListodoCalendarDialog> {
   late DateTime _selectedDate;
   late int _selectedHour;
   late int _selectedMinute;
+  int? _selectedReminderMinutes;
   late FixedExtentScrollController _hourController;
   late FixedExtentScrollController _minuteController;
+
+  static const List<(int?, String)> _reminderOptions = <(int?, String)>[
+    (null, 'Только в момент'),
+    (5, 'За 5 мин'),
+    (15, 'За 15 мин'),
+    (30, 'За 30 мин'),
+    (60, 'За 1 час'),
+    (1440, 'За 1 день'),
+  ];
 
   static const _monthNames = [
     'Январь',
@@ -46,6 +63,7 @@ class _ListodoCalendarDialogState extends State<ListodoCalendarDialog> {
     _displayedMonth = DateTime(base.year, base.month);
     _selectedHour = base.hour;
     _selectedMinute = base.minute;
+    _selectedReminderMinutes = widget.initialReminderMinutes;
     _hourController = FixedExtentScrollController(initialItem: _selectedHour);
     _minuteController = FixedExtentScrollController(
       initialItem: _selectedMinute,
@@ -381,6 +399,95 @@ class _ListodoCalendarDialogState extends State<ListodoCalendarDialog> {
               ),
               const SizedBox(height: 12),
 
+              // Push Notification Reminder Section
+              const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.notifications_active_outlined,
+                    color: AppColors.accentYellow,
+                    size: 16,
+                  ),
+                  SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      'Уведомление до задачи',
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: AppColors.labeltext,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                '⚡ В сам момент задачи уведомление придёт автоматически',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppColors.labeltext, fontSize: 11),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                alignment: WrapAlignment.center,
+                children: _reminderOptions.map((option) {
+                  final (minutes, label) = option;
+                  final isSelected = _selectedReminderMinutes == minutes;
+                  return GestureDetector(
+                    onTap: () {
+                      setState(() => _selectedReminderMinutes = minutes);
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 140),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? AppColors.active
+                            : AppColors.bgmain.withValues(alpha: 0.8),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isSelected ? AppColors.active : Colors.white12,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            minutes == null
+                                ? Icons.alarm_on_rounded
+                                : Icons.notifications_none_rounded,
+                            size: 13,
+                            color: isSelected
+                                ? AppColors.white
+                                : AppColors.accentYellow,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            label,
+                            style: TextStyle(
+                              color: isSelected
+                                  ? AppColors.white
+                                  : AppColors.maintext,
+                              fontSize: 11,
+                              fontWeight: isSelected
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 14),
+
               // Action buttons
               Row(
                 children: [
@@ -397,7 +504,12 @@ class _ListodoCalendarDialogState extends State<ListodoCalendarDialog> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () => Navigator.pop(context, _buildResult()),
+                      onPressed: () {
+                        widget.onReminderChanged?.call(
+                          _selectedReminderMinutes,
+                        );
+                        Navigator.pop(context, _buildResult());
+                      },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.active,
                         foregroundColor: AppColors.white,

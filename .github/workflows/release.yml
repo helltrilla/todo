@@ -117,26 +117,29 @@ jobs:
           body: |
             ## TodoApp ${{ github.event.inputs.tag_name || github.ref_name }}
 
-            ### Что входит в релиз (Русский)
-            - **Онбординг при первом запуске** (3 интерактивных слайда).
-            - **Двухрежимная авторизация**: вход по 6-значному коду через **Supabase Email OTP** + офлайн локальный профиль.
-            - **Задачи и подзадачи (чек-листы)** с прогрессом `X/Y` и автозавершением.
-            - **Кастомные категории** (12 иконок и 10 цветов) + глобальная категория «Общее».
-            - **4 уровня приоритета** (`Срочно 🔥`, `Высокий ⚡`, `Средний 📌`, `Низкий 🌿`).
-            - **Календарь по дням** + выбор времени с барабанами в стиле iOS (`CupertinoPicker`).
-            - **Режим фокуса (Pomodoro-таймер)** и **Архив выполненных задач** по свайпу вправо.
+            ### Новое в этом релизе / What's New (Русский)
+            - **🔔 Двойная система локальных Push-уведомлений (iOS & Android)**:
+              - **Автоматическое оповещение в момент задачи**: срабатывает ровно в назначенное время задачи (`⏰ Время задачи: ...`).
+              - **Настраиваемое предварительное напоминание**: при выборе даты и времени в календаре можно выбрать дополнительное оповещение заранее (`Только в момент`, `За 5 мин`, `За 15 мин`, `За 30 мин`, `За 1 час`, `За 1 день`).
+              - **Автоматическая отмена**: при выполнении, архивации или удалении задачи её запланированные уведомления автоматически снимаются.
+              - **Быстрый тест пушей**: в экране «Профиль и настройки» добавлена кнопка *«Проверить Push-уведомление»*.
+            - **Готовность к сторам и приватность**:
+              - Идентификатор приложения обновлён на `com.helltrilla.todoapp`.
+              - Добавлены «Политика конфиденциальности» (`PRIVACY_POLICY.md`), лицензия MIT (`LICENSE`) и функция полного удаления аккаунта и данных в профиле.
 
             #### Файлы для скачивания:
             - **Android (`.apk`)**: `TodoApp-*-android.apk` — готовый установочный файл для любого Android-устройства.
             - **Android (`.aab`)**: `TodoApp-*-android.aab` — пакет для публикации в Google Play.
-            - **iOS (`.ipa`)**: `TodoApp-*-ios-unsigned.ipa` — неподписанный IPA для установки через *AltStore / Sideloadly / TrollStore*.
+            - **iOS (`.ipa`)**: `TodoApp-*-ios-unsigned.ipa` — неподписанный IPA для установки на iPhone.
             - **iOS Simulator (`.zip`)**: `TodoApp-*-ios-simulator.zip` — сборка для запуска в симуляторе iOS на macOS.
 
             ---
 
             ### Release Highlights (English)
-            - **First-launch Onboarding** walkthrough.
-            - **Dual Authentication**: 6-digit **Supabase Email OTP** verification + offline local profile.
-            - **Smart Tasks & Subtasks** with live progress badge (`X/Y`) and auto-completion.
-            - **Custom Categories** (12 icons & 10 colors) + global "General" category.
-            - **4 Priority Levels**, **Daily Calendar View**, **iOS-style time wheels**, **Pomodoro Focus Timer**, and **Task Archive**.
+            - **🔔 Dual Local Push Notifications (iOS & Android)**:
+              - **Automatic Due-Time Alert**: Fires automatically at the exact scheduled minute of the task (`⏰ Task Time: ...`).
+              - **Configurable Advance Reminder**: Choose an advance reminder right inside the date & time picker (`At task time only`, `5 min before`, `15 min before`, `30 min before`, `1 hour before`, `1 day before`).
+              - **Smart Cancellation**: Completing, archiving, or deleting a task automatically cancels its pending notifications.
+              - **1-Tap Test Notification**: Added a *"Test Push Notification"* action in Profile & Settings.
+            - **Store Readiness & Privacy**:
+              - Updated bundle/application ID to `com.helltrilla.todoapp`, added `PRIVACY_POLICY.md`, MIT `LICENSE`, and in-app Account & Data Deletion.
