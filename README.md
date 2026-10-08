@@ -7,9 +7,9 @@
   </p>
 
   <p>
-    <a href="#-русский">🇷🇺 Русский</a> •
-    <a href="#-english">🇬🇧 English</a> •
-    <a href="#-скриншоты--screenshots">📸 Скриншоты / Screenshots</a>
+    <a href="#русский">Русский</a> •
+    <a href="#english">English</a> •
+    <a href="#скриншоты--screenshots">Скриншоты / Screenshots</a>
   </p>
 
   <p>
@@ -22,7 +22,7 @@
 
 ---
 
-## 📸 Скриншоты / Screenshots
+## Скриншоты / Screenshots
 
 > Все скриншоты сделаны на симуляторе iOS с синхронизированным системным временем **`09:41`**.  
 > *All screenshots were captured on the iOS Simulator with a synchronized **`09:41`** status bar clock.*
@@ -52,7 +52,7 @@
 
 ---
 
-## 🇷🇺 Русский
+## Русский
 
 ### О проекте
 
@@ -159,7 +159,7 @@ lib/
 
 ---
 
-## 🇬🇧 English
+## English
 
 ### Overview
 
