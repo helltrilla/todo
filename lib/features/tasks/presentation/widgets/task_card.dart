@@ -314,6 +314,33 @@ class _TaskInfo extends StatelessWidget {
                   ],
                 ),
               ),
+            if (task.isRecurring)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF42A5F5).withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.repeat_rounded,
+                      size: 11,
+                      color: Color(0xFF64B5F6),
+                    ),
+                    const SizedBox(width: 3),
+                    Text(
+                      task.recurrence.shortLabel,
+                      style: const TextStyle(
+                        color: Color(0xFF90CAF9),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             if (task.category.isNotEmpty) _CategoryTag(category: task.category),
             if (hasSubtasks)
               Container(

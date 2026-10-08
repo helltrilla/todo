@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:todo/core/app_theme/app_colors.dart';
+import 'package:todo/core/haptics/app_haptics.dart';
 import 'package:todo/features/tasks/domain/models/priority_level.dart';
 import 'package:todo/features/tasks/domain/models/task.dart';
 import 'package:todo/features/tasks/presentation/controllers/task_controller.dart';
@@ -29,6 +30,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
   String _selectedCategory = TaskController.globalCategory;
   bool _isCompleted = false;
   late List<SubTask> _subtasks;
+  RecurrenceRule _recurrence = RecurrenceRule.none;
 
   bool get _isEditing => widget.initialTask != null;
 
@@ -45,6 +47,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
       _selectedCategory = existing.category;
       _isCompleted = existing.isCompleted;
       _subtasks = List<SubTask>.from(existing.subtasks);
+      _recurrence = existing.recurrence;
     } else {
       _nameController = TextEditingController();
       _descController = TextEditingController();
@@ -130,6 +133,29 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
     }
   }
 
+  Future<void> _pickRecurrence() async {
+    AppHaptics.selection();
+    final picked = await showDialog<RecurrenceRule>(
+      context: context,
+      builder: (_) => _RecurrencePickerDialog(initialRule: _recurrence),
+    );
+    if (picked != null) {
+      setState(() {
+        _recurrence = picked;
+        if (picked.isRepeating && _selectedDate == null) {
+          final now = DateTime.now();
+          _selectedDate = DateTime(
+            now.year,
+            now.month,
+            now.day,
+            now.hour,
+            now.minute,
+          );
+        }
+      });
+    }
+  }
+
   Future<void> _deleteTask() async {
     final existing = widget.initialTask;
     if (existing == null) return;
@@ -167,6 +193,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
         isCompleted: _isCompleted,
         category: _selectedCategory,
         subtasks: _subtasks,
+        recurrence: _recurrence,
       );
       await controller.updateTask(updated);
     } else {
@@ -180,6 +207,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
         priorityIndex: _priorityIndex,
         category: _selectedCategory,
         subtasks: _subtasks,
+        recurrence: _recurrence,
       );
     }
 
@@ -464,11 +492,25 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
               }).toList(),
             ),
           ),
-          if (hasPriority && priority != null) ...[
+          if ((hasPriority && priority != null) || _recurrence.isRepeating) ...[
             const SizedBox(height: 10),
-            _PriorityChip(
-              priority: priority,
-              onClear: () => setState(() => _priorityIndex = -1),
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: [
+                if (hasPriority && priority != null)
+                  _PriorityChip(
+                    priority: priority,
+                    onClear: () => setState(() => _priorityIndex = -1),
+                  ),
+                if (_recurrence.isRepeating)
+                  _RecurrenceChip(
+                    recurrence: _recurrence,
+                    onTap: _pickRecurrence,
+                    onClear: () =>
+                        setState(() => _recurrence = RecurrenceRule.none),
+                  ),
+              ],
             ),
           ],
           const SizedBox(height: 10),
@@ -490,7 +532,17 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                     onClear: () => setState(() => _selectedDate = null),
                   ),
                 ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 4),
+              IconButton(
+                tooltip: 'Повторение задачи',
+                icon: Icon(
+                  Icons.repeat_rounded,
+                  color: _recurrence.isRepeating
+                      ? AppColors.accentYellow
+                      : AppColors.icons,
+                ),
+                onPressed: _pickRecurrence,
+              ),
               IconButton(
                 icon: Icon(
                   hasPriority ? priority!.icon : Icons.flag_outlined,
@@ -507,6 +559,169 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _RecurrenceChip extends StatelessWidget {
+  const _RecurrenceChip({
+    required this.recurrence,
+    required this.onTap,
+    required this.onClear,
+  });
+
+  final RecurrenceRule recurrence;
+  final VoidCallback onTap;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: AppColors.accentYellow.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: AppColors.accentYellow.withValues(alpha: 0.6),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.repeat_rounded,
+              color: AppColors.accentYellow,
+              size: 15,
+            ),
+            const SizedBox(width: 5),
+            Text(
+              recurrence.shortLabel,
+              style: const TextStyle(
+                color: AppColors.accentYellow,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: 6),
+            GestureDetector(
+              onTap: onClear,
+              child: const Icon(
+                Icons.close,
+                size: 14,
+                color: AppColors.accentYellow,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RecurrencePickerDialog extends StatelessWidget {
+  const _RecurrencePickerDialog({required this.initialRule});
+
+  final RecurrenceRule initialRule;
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: AppColors.cardBg,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 20, 18, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(
+                  Icons.repeat_rounded,
+                  color: AppColors.accentYellow,
+                  size: 20,
+                ),
+                SizedBox(width: 8),
+                Text(
+                  'Повторение задачи',
+                  style: TextStyle(
+                    color: AppColors.maintext,
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            ...RecurrenceRule.values.map((rule) {
+              final selected = rule == initialRule;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: InkWell(
+                  onTap: () {
+                    AppHaptics.selection();
+                    Navigator.of(context).pop(rule);
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? AppColors.active.withValues(alpha: 0.22)
+                          : AppColors.bgmain,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: selected
+                            ? AppColors.accentYellow
+                            : Colors.white12,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          rule == RecurrenceRule.none
+                              ? Icons.block_rounded
+                              : Icons.repeat_rounded,
+                          size: 18,
+                          color: selected
+                              ? AppColors.accentYellow
+                              : AppColors.labeltext,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            rule.label,
+                            style: TextStyle(
+                              color: selected
+                                  ? AppColors.white
+                                  : AppColors.maintext,
+                              fontSize: 14,
+                              fontWeight: selected
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                        if (selected)
+                          const Icon(
+                            Icons.check_circle_rounded,
+                            color: AppColors.accentYellow,
+                            size: 18,
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ],
+        ),
       ),
     );
   }
