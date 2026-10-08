@@ -223,6 +223,27 @@ class NotificationService {
     } catch (_) {}
   }
 
+  /// Reads the current device hardware media volume (`0.0` to `1.0`).
+  Future<double> getSystemVolume() async {
+    if (kIsWeb) return 0.65;
+    try {
+      final vol = await _channel.invokeMethod<double>('getSystemVolume');
+      return (vol ?? 0.65).clamp(0.0, 1.0);
+    } catch (_) {
+      return 0.65;
+    }
+  }
+
+  /// Sets the device hardware media volume (`0.0` to `1.0`) for external players.
+  Future<void> setSystemVolume(double volume) async {
+    if (kIsWeb) return;
+    try {
+      await _channel.invokeMethod<void>('setSystemVolume', <String, dynamic>{
+        'volume': volume.clamp(0.0, 1.0),
+      });
+    } catch (_) {}
+  }
+
   Future<void> _scheduleNative({
     required String notificationId,
     required String title,

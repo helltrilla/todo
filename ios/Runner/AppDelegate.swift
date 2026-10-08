@@ -203,12 +203,41 @@ import UserNotifications
         result(nil)
       }
 
+    case "getSystemVolume":
+      let vol = Double(AVAudioSession.sharedInstance().outputVolume)
+      result(vol)
+
+    case "setSystemVolume":
+      let args = call.arguments as? [String: Any]
+      let vol = (args?["volume"] as? NSNumber)?.floatValue ?? 0.65
+      DispatchQueue.main.async {
+        self.setHardwareVolume(max(0.0, min(1.0, vol)))
+        result(nil)
+      }
+
     default:
       result(FlutterMethodNotImplemented)
     }
   }
 
   private var isExternalAudioPaused = false
+  private var hiddenVolumeView: MPVolumeView?
+
+  private func setHardwareVolume(_ volume: Float) {
+    if hiddenVolumeView == nil {
+      let vv = MPVolumeView(frame: CGRect(x: -2000, y: -2000, width: 100, height: 40))
+      vv.alpha = 0.001
+      vv.isUserInteractionEnabled = false
+      if let rootView = topViewController()?.view {
+        rootView.addSubview(vv)
+      }
+      hiddenVolumeView = vv
+    }
+    if let slider = hiddenVolumeView?.subviews.first(where: { $0 is UISlider }) as? UISlider {
+      slider.setValue(volume, animated: false)
+      slider.sendActions(for: .valueChanged)
+    }
+  }
 
   private func sendSystemMediaRemoteCommand(_ command: UInt32) -> Bool {
     guard let handle = dlopen(

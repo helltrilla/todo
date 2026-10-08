@@ -180,6 +180,22 @@ class MainActivity : FlutterActivity() {
                     result.success(null)
                 }
 
+                "getSystemVolume" -> {
+                    val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                    val current = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+                    val max = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+                    result.success(current.toDouble() / max.toDouble())
+                }
+
+                "setSystemVolume" -> {
+                    val volume = (call.argument<Number>("volume")?.toDouble() ?: 0.65).coerceIn(0.0, 1.0)
+                    val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                    val max = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+                    val target = Math.round(volume * max).toInt().coerceIn(0, max)
+                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, target, 0)
+                    result.success(null)
+                }
+
                 else -> result.notImplemented()
             }
         }
