@@ -369,6 +369,10 @@ void main() {
         await controller.toggleCompleted(originalTask.id);
         await controller.toggleCompleted(originalTask.id);
         expect(controller.tasks.length, 2);
+        expect(controller.completedTodayCount, 1);
+        expect(controller.currentStreakDays, 1);
+        expect(controller.bestStreakDays, 1);
+        expect(controller.last7DaysStreakStrip.last.$2, isTrue);
       },
     );
   });

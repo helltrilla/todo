@@ -127,6 +127,7 @@ class Task {
   final String value;
   final DateTime createdAt;
   final DateTime? dueDate;
+  final DateTime? completedAt;
   final int? reminderOffsetMinutes;
   final int priorityIndex;
   final bool isCompleted;
@@ -143,6 +144,7 @@ class Task {
     required this.createdAt,
     required this.priorityIndex,
     this.dueDate,
+    this.completedAt,
     this.reminderOffsetMinutes,
     this.isCompleted = false,
     this.isArchived = false,
@@ -184,6 +186,8 @@ class Task {
     DateTime? createdAt,
     DateTime? dueDate,
     bool clearDueDate = false,
+    DateTime? completedAt,
+    bool clearCompletedAt = false,
     int? reminderOffsetMinutes,
     bool clearReminder = false,
     int? priorityIndex,
@@ -200,6 +204,7 @@ class Task {
       value: value ?? this.value,
       createdAt: createdAt ?? this.createdAt,
       dueDate: clearDueDate ? null : (dueDate ?? this.dueDate),
+      completedAt: clearCompletedAt ? null : (completedAt ?? this.completedAt),
       reminderOffsetMinutes: clearDueDate || clearReminder
           ? null
           : (reminderOffsetMinutes ?? this.reminderOffsetMinutes),
@@ -220,6 +225,7 @@ class Task {
       'value': value,
       'createdAt': createdAt.millisecondsSinceEpoch,
       'dueDate': dueDate?.millisecondsSinceEpoch,
+      'completedAt': completedAt?.millisecondsSinceEpoch,
       'reminderOffsetMinutes': reminderOffsetMinutes,
       'priorityIndex': priorityIndex,
       'isCompleted': isCompleted,
@@ -246,6 +252,9 @@ class Task {
       createdAt: DateTime.fromMillisecondsSinceEpoch(map['createdAt'] as int),
       dueDate: map['dueDate'] != null
           ? DateTime.fromMillisecondsSinceEpoch(map['dueDate'] as int)
+          : null,
+      completedAt: map['completedAt'] != null
+          ? DateTime.fromMillisecondsSinceEpoch(map['completedAt'] as int)
           : null,
       reminderOffsetMinutes: map['reminderOffsetMinutes'] as int?,
       priorityIndex: (map['priorityIndex'] as int?) ?? -1,

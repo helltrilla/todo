@@ -88,6 +88,88 @@ class TaskController extends ChangeNotifier {
   /// Count of archived tasks.
   int get archivedTasksCount => _tasks.where((t) => t.isArchived).length;
 
+  /// Count of tasks completed today.
+  int get completedTodayCount {
+    final now = DateTime.now();
+    return _tasks.where((t) {
+      if (!t.isCompleted) return false;
+      final stamp = t.completedAt ?? t.dueDate ?? t.createdAt;
+      return stamp.year == now.year &&
+          stamp.month == now.month &&
+          stamp.day == now.day;
+    }).length;
+  }
+
+  /// Set of normalized calendar dates (midnight) on which at least one task was completed.
+  Set<DateTime> get _completedCalendarDays {
+    final days = <DateTime>{};
+    for (final t in _tasks) {
+      if (!t.isCompleted) continue;
+      final stamp = t.completedAt ?? t.dueDate ?? t.createdAt;
+      days.add(DateTime(stamp.year, stamp.month, stamp.day));
+    }
+    return days;
+  }
+
+  /// Current consecutive daily streak of completing at least 1 task per day.
+  /// Remains active today if either today or yesterday has a completed task.
+  int get currentStreakDays {
+    final activeDays = _completedCalendarDays;
+    if (activeDays.isEmpty) return 0;
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = DateTime(now.year, now.month, now.day - 1);
+
+    DateTime cursor;
+    if (activeDays.contains(today)) {
+      cursor = today;
+    } else if (activeDays.contains(yesterday)) {
+      cursor = yesterday;
+    } else {
+      return 0;
+    }
+
+    var streak = 0;
+    while (activeDays.contains(cursor)) {
+      streak++;
+      cursor = DateTime(cursor.year, cursor.month, cursor.day - 1);
+    }
+    return streak;
+  }
+
+  /// Longest consecutive daily streak achieved across all completed tasks.
+  int get bestStreakDays {
+    final sorted = _completedCalendarDays.toList()..sort();
+    if (sorted.isEmpty) return 0;
+
+    var best = 1;
+    var current = 1;
+    for (var i = 1; i < sorted.length; i++) {
+      final prev = sorted[i - 1];
+      final expectedNext = DateTime(prev.year, prev.month, prev.day + 1);
+      if (sorted[i] == expectedNext) {
+        current++;
+        if (current > best) best = current;
+      } else {
+        current = 1;
+      }
+    }
+    return best;
+  }
+
+  /// Last 7 calendar days (ending today) paired with whether at least 1 task was completed.
+  List<(DateTime, bool)> get last7DaysStreakStrip {
+    final activeDays = _completedCalendarDays;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return List<(DateTime, bool)>.generate(7, (index) {
+      final offset = 6 - index;
+      final day = DateTime(today.year, today.month, today.day - offset);
+      return (day, activeDays.contains(day));
+    });
+  }
+
   /// Returns non-archived tasks scheduled for [date] (or created on [date] if dueDate is null),
   /// filtered by completion status [completed] and sorted by priority.
   List<Task> tasksForDate(DateTime date, {required bool completed}) {
@@ -274,15 +356,20 @@ class TaskController extends ChangeNotifier {
     if (index == -1) return;
 
     final original = _tasks[index];
+    final becomingCompleted = !original.isCompleted && updatedTask.isCompleted;
+    final becomingIncomplete = original.isCompleted && !updatedTask.isCompleted;
     final shouldSpawnNext =
-        !original.isCompleted &&
-        updatedTask.isCompleted &&
+        becomingCompleted &&
         updatedTask.isRecurring &&
         !updatedTask.hasSpawnedNext;
 
-    final effectiveUpdated = shouldSpawnNext
-        ? updatedTask.copyWith(hasSpawnedNext: true)
-        : updatedTask;
+    final effectiveUpdated = updatedTask.copyWith(
+      hasSpawnedNext: shouldSpawnNext ? true : updatedTask.hasSpawnedNext,
+      completedAt: becomingCompleted
+          ? (updatedTask.completedAt ?? DateTime.now())
+          : updatedTask.completedAt,
+      clearCompletedAt: becomingIncomplete,
+    );
 
     final nextList = List<Task>.from(_tasks);
     nextList[index] = effectiveUpdated;
