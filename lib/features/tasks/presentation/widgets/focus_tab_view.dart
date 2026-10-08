@@ -136,8 +136,13 @@ class _FocusTabViewState extends State<FocusTabView>
 
   Future<void> _toggleSystemPlayPause() async {
     AppHaptics.medium();
-    setState(() => _isSystemMusicPlaying = !_isSystemMusicPlaying);
-    await NotificationService.instance.sendMediaCommand('playPause');
+    final nextState = !_isSystemMusicPlaying;
+    setState(() => _isSystemMusicPlaying = nextState);
+    unawaited(
+      NotificationService.instance.sendMediaCommand(
+        nextState ? 'play' : 'pause',
+      ),
+    );
     Future.delayed(const Duration(milliseconds: 350), _checkPlaybackState);
   }
 
@@ -1181,10 +1186,12 @@ class _FocusTabViewState extends State<FocusTabView>
                     child: _LargeMediaTransportBtn(
                       icon: Icons.skip_previous_rounded,
                       label: 'Назад',
-                      onTap: () async {
+                      onTap: () {
                         AppHaptics.light();
-                        await NotificationService.instance.sendMediaCommand(
-                          'previous',
+                        unawaited(
+                          NotificationService.instance.sendMediaCommand(
+                            'previous',
+                          ),
                         );
                         Future.delayed(
                           const Duration(milliseconds: 350),
@@ -1212,10 +1219,12 @@ class _FocusTabViewState extends State<FocusTabView>
                     child: _LargeMediaTransportBtn(
                       icon: Icons.skip_next_rounded,
                       label: 'Вперёд',
-                      onTap: () async {
+                      onTap: () {
                         AppHaptics.light();
-                        await NotificationService.instance.sendMediaCommand(
-                          'next',
+                        unawaited(
+                          NotificationService.instance.sendMediaCommand(
+                            'next',
+                          ),
                         );
                         Future.delayed(
                           const Duration(milliseconds: 350),

@@ -188,8 +188,10 @@ import UserNotifications
       let args = call.arguments as? [String: Any]
       let sound = (args?["sound"] as? String) ?? "off"
       let volume = (args?["volume"] as? NSNumber)?.floatValue ?? 0.45
-      configureAmbientAudio(sound: sound, volume: volume)
       result(nil)
+      DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+        self?.configureAmbientAudio(sound: sound, volume: volume)
+      }
 
     case "openExternalUrl":
       let args = call.arguments as? [String: Any]
@@ -216,15 +218,14 @@ import UserNotifications
     case "sendMediaCommand":
       let args = call.arguments as? [String: Any]
       let command = (args?["command"] as? String) ?? "playPause"
-      DispatchQueue.main.async {
-        self.handleMediaCommand(command: command)
-        result(nil)
+      result(nil)
+      DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+        self?.handleMediaCommand(command: command)
       }
 
     case "getMediaPlaybackState":
       let session = AVAudioSession.sharedInstance()
-      let isPlaying = session.isOtherAudioPlaying && !self.isExternalAudioPaused
-      result(isPlaying)
+      result(session.isOtherAudioPlaying)
 
     case "getSystemVolume":
       let vol = Double(AVAudioSession.sharedInstance().outputVolume)
@@ -243,7 +244,6 @@ import UserNotifications
     }
   }
 
-  private var isExternalAudioPaused = false
   private var hiddenVolumeView: MPVolumeView?
 
   private func setHardwareVolume(_ volume: Float) {
@@ -262,25 +262,32 @@ import UserNotifications
     }
   }
 
-  private func sendSystemMediaRemoteCommand(_ command: UInt32) -> Bool {
+  private static let mediaRemoteFn: (@convention(c) (UInt32, UnsafeRawPointer?) -> Bool)? = {
     guard let handle = dlopen(
       "/System/Library/PrivateFrameworks/MediaRemote.framework/MediaRemote",
       RTLD_NOW
     ) else {
-      return false
+      return nil
     }
     guard let sym = dlsym(handle, "MRMediaRemoteSendCommand") else {
-      return false
+      return nil
     }
-    typealias MRMediaRemoteSendCommandFn = @convention(c) (UInt32, UnsafeRawPointer?) -> Bool
-    let sendCommand = unsafeBitCast(sym, to: MRMediaRemoteSendCommandFn.self)
-    return sendCommand(command, nil)
+    typealias Fn = @convention(c) (UInt32, UnsafeRawPointer?) -> Bool
+    return unsafeBitCast(sym, to: Fn.self)
+  }()
+
+  private func sendSystemMediaRemoteCommand(_ command: UInt32) -> Bool {
+    return AppDelegate.mediaRemoteFn?(command, nil) ?? false
   }
 
   private func handleMediaCommand(command: String) {
-    let session = AVAudioSession.sharedInstance()
-
     switch command {
+    case "play":
+      // kMRPlay = 0
+      _ = sendSystemMediaRemoteCommand(0)
+    case "pause":
+      // kMRPause = 1
+      _ = sendSystemMediaRemoteCommand(1)
     case "previous":
       // kMRPreviousTrack = 5
       _ = sendSystemMediaRemoteCommand(5)
@@ -288,49 +295,8 @@ import UserNotifications
       // kMRNextTrack = 4
       _ = sendSystemMediaRemoteCommand(4)
     default:
-      let wasOtherPlaying = session.isOtherAudioPlaying
       // kMRTogglePlayPause = 2
       _ = sendSystemMediaRemoteCommand(2)
-
-      DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { [weak self] in
-        guard let self = self else { return }
-        if session.isOtherAudioPlaying == wasOtherPlaying {
-          self.toggleExternalAudioSession()
-        }
-      }
-    }
-  }
-
-  private func toggleExternalAudioSession() {
-    let session = AVAudioSession.sharedInstance()
-    if session.isOtherAudioPlaying {
-      audioEngine?.stop()
-      try? session.setActive(false)
-      do {
-        try session.setCategory(.playback, mode: .default, options: [])
-        try session.setActive(true)
-        isExternalAudioPaused = true
-        if currentAmbientSound != "off" && ambientVolume > 0.001 {
-          try? audioEngine?.start()
-        }
-      } catch {}
-    } else {
-      audioEngine?.stop()
-      do {
-        if !isExternalAudioPaused {
-          try? session.setCategory(.playback, mode: .default, options: [])
-          try? session.setActive(true)
-        }
-        try session.setActive(false, options: [.notifyOthersOnDeactivation])
-      } catch {}
-      isExternalAudioPaused = false
-      if currentAmbientSound != "off" && ambientVolume > 0.001 {
-        let sound = currentAmbientSound
-        let vol = ambientVolume
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
-          self?.configureAmbientAudio(sound: sound, volume: vol)
-        }
-      }
     }
   }
 
@@ -343,12 +309,14 @@ import UserNotifications
       return
     }
 
-    do {
-      let session = AVAudioSession.sharedInstance()
-      try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
-      try session.setActive(true)
-    } catch {
-      // Ignore session errors and attempt engine playback
+    let session = AVAudioSession.sharedInstance()
+    if session.category != .playback || !session.categoryOptions.contains(.mixWithOthers) {
+      do {
+        try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+        try session.setActive(true)
+      } catch {
+        // Ignore session errors and attempt engine playback
+      }
     }
 
     if audioEngine == nil {
