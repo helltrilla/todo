@@ -162,6 +162,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
         actions: [
+          _StreakHeaderBadge(
+            onTap: () {
+              AppHaptics.selection();
+              setState(() => _selectedTabIndex = 3);
+            },
+          ),
+          const SizedBox(width: 8),
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: IconButton(
@@ -697,6 +704,60 @@ class _EmptyState extends StatelessWidget {
             style: TextStyle(color: AppColors.labeltext, fontSize: 14),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _StreakHeaderBadge extends StatelessWidget {
+  const _StreakHeaderBadge({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = context.watch<TaskController>();
+    final streak = controller.currentStreakDays;
+    final doneToday = controller.completedTodayCount > 0;
+    final activeColor = doneToday
+        ? const Color(0xFFFF8A00)
+        : (streak > 0 ? AppColors.accentYellow : AppColors.labeltext);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: doneToday
+              ? const Color(0xFFFF8A00).withValues(alpha: 0.16)
+              : AppColors.cardBg,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: doneToday
+                ? const Color(0xFFFF8A00).withValues(alpha: 0.65)
+                : Colors.white24,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.local_fire_department_rounded,
+              size: 16,
+              color: activeColor,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              '$streak дн.',
+              style: TextStyle(
+                color: doneToday ? AppColors.white : activeColor,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

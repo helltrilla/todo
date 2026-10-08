@@ -289,6 +289,8 @@ class _ProfileTabViewState extends State<ProfileTabView> {
             ],
           ),
         ),
+        const SizedBox(height: 12),
+        _ProductivityStreakCard(taskController: taskController),
 
         const SizedBox(height: 24),
 
@@ -1137,6 +1139,157 @@ class _StatMetricCard extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(color: AppColors.labeltext, fontSize: 11),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProductivityStreakCard extends StatelessWidget {
+  const _ProductivityStreakCard({required this.taskController});
+
+  final TaskController taskController;
+
+  static const List<String> _weekdayShort = [
+    'Пн',
+    'Вт',
+    'Ср',
+    'Чт',
+    'Пт',
+    'Сб',
+    'Вс',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final streak = taskController.currentStreakDays;
+    final best = taskController.bestStreakDays;
+    final doneToday = taskController.completedTodayCount;
+    final strip = taskController.last7DaysStreakStrip;
+    final isLitToday = doneToday > 0;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.cardBg,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: isLitToday
+              ? const Color(0xFFFF8A00).withValues(alpha: 0.45)
+              : Colors.white12,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: isLitToday
+                      ? const Color(0xFFFF8A00).withValues(alpha: 0.18)
+                      : Colors.white.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: Icon(
+                  Icons.local_fire_department_rounded,
+                  color: isLitToday
+                      ? const Color(0xFFFF8A00)
+                      : AppColors.labeltext,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Стрик: $streak дн. подряд',
+                      style: const TextStyle(
+                        color: AppColors.maintext,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      isLitToday
+                          ? 'Сегодня выполнено задач: $doneToday'
+                          : 'Выполни 1 задачу сегодня, чтобы продлить серию',
+                      style: const TextStyle(
+                        color: AppColors.labeltext,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.accentYellow.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  'Рекорд: $best',
+                  style: const TextStyle(
+                    color: AppColors.accentYellow,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: strip.map((entry) {
+              final day = entry.$1;
+              final active = entry.$2;
+              final label = _weekdayShort[day.weekday - 1];
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      color: AppColors.labeltext,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    width: 30,
+                    height: 30,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: active
+                          ? const Color(0xFFFF8A00).withValues(alpha: 0.2)
+                          : Colors.white.withValues(alpha: 0.05),
+                      border: Border.all(
+                        color: active
+                            ? const Color(0xFFFF8A00)
+                            : Colors.white12,
+                        width: active ? 1.5 : 1.0,
+                      ),
+                    ),
+                    child: Icon(
+                      active
+                          ? Icons.local_fire_department_rounded
+                          : Icons.circle,
+                      size: active ? 16 : 6,
+                      color: active ? const Color(0xFFFF8A00) : Colors.white24,
+                    ),
+                  ),
+                ],
+              );
+            }).toList(),
           ),
         ],
       ),
