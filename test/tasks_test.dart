@@ -440,6 +440,19 @@ void main() {
         await tester.tap(find.text('К задачам'));
         await tester.pumpAndSettle();
         expect(find.text('Daniil Updated'), findsOneWidget);
+
+        // Switch to 'Календарь' tab in bottom navigation bar
+        await tester.tap(find.text('Календарь'));
+        await tester.pumpAndSettle();
+        expect(find.text('Календарь задач'), findsOneWidget);
+        expect(find.text('На этот день'), findsOneWidget);
+        expect(find.text('Выполненные'), findsOneWidget);
+
+        // Switch to 'Фокус' tab in bottom navigation bar
+        await tester.tap(find.text('Фокус'));
+        await tester.pumpAndSettle();
+        expect(find.text('Режим фокуса'), findsOneWidget);
+        expect(find.text('25:00'), findsOneWidget);
       },
     );
   });

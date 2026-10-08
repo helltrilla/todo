@@ -10,6 +10,8 @@ import 'package:todo/features/auth/presentation/controllers/auth_controller.dart
 import 'package:todo/features/tasks/domain/models/task.dart';
 import 'package:todo/features/tasks/presentation/controllers/task_controller.dart';
 import 'package:todo/features/tasks/presentation/widgets/add_task_sheet.dart';
+import 'package:todo/features/tasks/presentation/widgets/calendar_tab_view.dart';
+import 'package:todo/features/tasks/presentation/widgets/focus_tab_view.dart';
 import 'package:todo/features/tasks/presentation/widgets/task_card.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -21,6 +23,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _searchController = TextEditingController();
+  int _selectedTabIndex = 0; // 0 = Задачи, 1 = Календарь, 2 = Фокус
 
   @override
   void initState() {
@@ -139,7 +142,16 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         automaticallyImplyLeading: false,
         titleSpacing: 20,
-        title: _ListodoHeaderTitle(name: displayName),
+        title: _selectedTabIndex == 0
+            ? _ListodoHeaderTitle(name: displayName)
+            : Text(
+                _selectedTabIndex == 1 ? 'Календарь задач' : 'Режим фокуса',
+                style: const TextStyle(
+                  color: AppColors.maintext,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16),
@@ -167,73 +179,185 @@ class _HomeScreenState extends State<HomeScreen> {
             return const Center(child: CircularProgressIndicator());
           }
 
+          if (_selectedTabIndex == 1) {
+            return CalendarTabView(
+              confirmDismiss: _confirmDeleteDialog,
+              onEditTask: (task) => _openTaskSheet(task: task),
+            );
+          }
+
+          if (_selectedTabIndex == 2) {
+            return const FocusTabView();
+          }
+
           return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Stack(
-              alignment: Alignment.bottomCenter,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 8),
-                    _ListodoSearchBar(
-                      controller: _searchController,
-                      onChanged: controller.setSearchQuery,
-                    ),
-                    const SizedBox(height: 16),
-                    _CategoryFilterRow(
-                      categories: controller.categories,
-                      selectedCategory: controller.selectedCategory,
-                      onSelect: controller.selectCategory,
-                      onAddCategory: _promptAddCategory,
-                    ),
-                    const SizedBox(height: 18),
-                    Expanded(
-                      child: controller.tasks.isEmpty
-                          ? const _EmptyState()
-                          : _SectionedTaskList(
-                              futureTasks: controller.futureTasks,
-                              todayTasks: controller.todayTasks,
-                              confirmDismiss: _confirmDeleteDialog,
-                              onDelete: (task) => controller.delete(task.id),
-                              onArchive: (task) {
-                                controller.archiveTask(task.id);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      '«${task.name}» перемещена в архив профиля',
-                                    ),
-                                    action: SnackBarAction(
-                                      label: 'Вернуть',
-                                      textColor: AppColors.accentYellow,
-                                      onPressed: () =>
-                                          controller.unarchiveTask(task.id),
-                                    ),
-                                  ),
-                                );
-                              },
-                              onToggleComplete: (task) =>
-                                  controller.toggleCompleted(task.id),
-                              onEditTask: (task) => _openTaskSheet(task: task),
-                            ),
-                    ),
-                  ],
+                const SizedBox(height: 8),
+                _ListodoSearchBar(
+                  controller: _searchController,
+                  onChanged: controller.setSearchQuery,
                 ),
-                Positioned(
-                  bottom: 20,
-                  child: FloatingActionButton.large(
-                    backgroundColor: AppColors.active,
-                    onPressed: () => _openTaskSheet(),
-                    child: const Icon(
-                      CupertinoIcons.plus,
-                      color: AppColors.white,
-                    ),
-                  ),
+                const SizedBox(height: 16),
+                _CategoryFilterRow(
+                  categories: controller.categories,
+                  selectedCategory: controller.selectedCategory,
+                  onSelect: controller.selectCategory,
+                  onAddCategory: _promptAddCategory,
+                ),
+                const SizedBox(height: 18),
+                Expanded(
+                  child: controller.tasks.isEmpty
+                      ? const _EmptyState()
+                      : _SectionedTaskList(
+                          futureTasks: controller.futureTasks,
+                          todayTasks: controller.todayTasks,
+                          confirmDismiss: _confirmDeleteDialog,
+                          onDelete: (task) => controller.delete(task.id),
+                          onArchive: (task) {
+                            controller.archiveTask(task.id);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  '«${task.name}» перемещена в архив профиля',
+                                ),
+                                action: SnackBarAction(
+                                  label: 'Вернуть',
+                                  textColor: AppColors.accentYellow,
+                                  onPressed: () =>
+                                      controller.unarchiveTask(task.id),
+                                ),
+                              ),
+                            );
+                          },
+                          onToggleComplete: (task) =>
+                              controller.toggleCompleted(task.id),
+                          onEditTask: (task) => _openTaskSheet(task: task),
+                        ),
                 ),
               ],
             ),
           );
         },
+      ),
+      bottomNavigationBar: _ListodoBottomBar(
+        selectedIndex: _selectedTabIndex,
+        onSelectTab: (idx) => setState(() => _selectedTabIndex = idx),
+        onAddTap: () => _openTaskSheet(),
+        onProfileTap: () => context.pushNamed(AppRouterNames.settings),
+      ),
+    );
+  }
+}
+
+class _ListodoBottomBar extends StatelessWidget {
+  const _ListodoBottomBar({
+    required this.selectedIndex,
+    required this.onSelectTab,
+    required this.onAddTap,
+    required this.onProfileTap,
+  });
+
+  final int selectedIndex;
+  final ValueChanged<int> onSelectTab;
+  final VoidCallback onAddTap;
+  final VoidCallback onProfileTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.cardBg,
+        border: Border(top: BorderSide(color: Colors.white12)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _BottomNavItem(
+                icon: Icons.home_filled,
+                label: 'Задачи',
+                isSelected: selectedIndex == 0,
+                onTap: () => onSelectTab(0),
+              ),
+              _BottomNavItem(
+                icon: Icons.calendar_month_rounded,
+                label: 'Календарь',
+                isSelected: selectedIndex == 1,
+                onTap: () => onSelectTab(1),
+              ),
+              FloatingActionButton(
+                heroTag: 'listodo_bottom_add_fab',
+                backgroundColor: AppColors.active,
+                elevation: 4,
+                onPressed: onAddTap,
+                child: const Icon(
+                  CupertinoIcons.plus,
+                  color: AppColors.white,
+                  size: 26,
+                ),
+              ),
+              _BottomNavItem(
+                icon: Icons.timer_outlined,
+                label: 'Фокус',
+                isSelected: selectedIndex == 2,
+                onTap: () => onSelectTab(2),
+              ),
+              _BottomNavItem(
+                icon: Icons.person_outline_rounded,
+                label: 'Профиль',
+                isSelected: false,
+                onTap: onProfileTap,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BottomNavItem extends StatelessWidget {
+  const _BottomNavItem({
+    required this.icon,
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isSelected ? AppColors.accentYellow : AppColors.labeltext;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: color, size: 22),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: 11,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

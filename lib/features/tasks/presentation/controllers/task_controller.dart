@@ -76,6 +76,40 @@ class TaskController extends ChangeNotifier {
   /// Count of archived tasks.
   int get archivedTasksCount => _tasks.where((t) => t.isArchived).length;
 
+  /// Returns non-archived tasks scheduled for [date] (or created on [date] if dueDate is null),
+  /// filtered by completion status [completed] and sorted by priority.
+  List<Task> tasksForDate(DateTime date, {required bool completed}) {
+    final list = _tasks.where((t) {
+      if (t.isArchived) return false;
+      if (t.isCompleted != completed) return false;
+      final target = t.dueDate ?? t.createdAt;
+      return target.year == date.year &&
+          target.month == date.month &&
+          target.day == date.day;
+    }).toList();
+
+    list.sort((a, b) {
+      final aPriority = a.priorityIndex == -1 ? 999 : a.priorityIndex;
+      final bPriority = b.priorityIndex == -1 ? 999 : b.priorityIndex;
+      if (aPriority != bPriority) return aPriority.compareTo(bPriority);
+      final aTime = a.dueDate ?? a.createdAt;
+      final bTime = b.dueDate ?? b.createdAt;
+      return aTime.compareTo(bTime);
+    });
+    return list;
+  }
+
+  /// Returns true if there is at least one non-archived task on [date].
+  bool hasTasksOnDate(DateTime date) {
+    return _tasks.any((t) {
+      if (t.isArchived) return false;
+      final target = t.dueDate ?? t.createdAt;
+      return target.year == date.year &&
+          target.month == date.month &&
+          target.day == date.day;
+    });
+  }
+
   // ---------------------------------------------------------------------------
   // Public API
   // ---------------------------------------------------------------------------
