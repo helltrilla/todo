@@ -118,13 +118,21 @@ jobs:
             ## TodoApp ${{ github.event.inputs.tag_name || github.ref_name }}
 
             ### Новое в этом релизе / What's New (Русский)
-            - **🔁 Повторяющиеся задачи (`RecurrenceRule`)**:
-              - Поддержка режимов `Каждый день`, `По будням (Пн–Пт)`, `Каждую неделю` и `Каждый месяц`.
-              - При завершении повторяющейся задачи автоматически создаётся следующее вхождение на новую дату со сброшенным чек-листом подзадач и пуш-напоминанием.
-            - **🔥 Продуктивный стрик (`Стрик дней подряд`)**:
-              - Счётчик дней подряд без пропусков в шапке главного экрана (`🔥 X дн.`) и карточка серии в профиле с рекордом и полоской огоньков за последние 7 дней недели (`Пн–Вс`).
-            - **👤 Отдельный «Профиль» с фото из галереи и компактный «Архив»**:
-              - Выделенная вкладка профиля с выбором фото из галереи, сменой никнейма и компактным архивом выполненных задач с живым поиском.
+            - **🌐 Мультиязычная локализация (5 языков)**:
+              - Добавлена полноценная локализация на 5 языков: **🇷🇺 Русский**, **🇬🇧 English**, **🇩🇪 Deutsch**, **🇫🇷 Français** и **🇷🇸 Српски**.
+              - Переключение языка на лету прямо в меню Настроек через удобную шторку с флагами государств.
+              - Честная поддержка контекстных грамматических форм числительных для каждого языка.
+              - Сохранение выбранного языка в памяти устройства (`SharedPreferences`).
+            - **🎨 4 темы оформления приложения**:
+              - **🌙 Тёмная (Dark)**: стильная фирменная палитра Listodo UI.
+              - **☀️ Светлая (Light)**: яркий, контрастный и чистый дневной интерфейс.
+              - **🖤 Midnight (AMOLED)**: ультраглубокий чёрный цвет (`#000000`) для экономии заряда аккумулятора на OLED/AMOLED дисплеях.
+              - **⚙️ Системная (System)**: динамическое следование за системной темой iOS/Android.
+            - **🎧 Студия концентрации и эмбиент-шумы (Focus Audio Studio)**:
+              - 4 встроенных аппаратных генератора атмосферных шумов: **🌧️ Дождь**, **🌊 Океанский прибой**, **☕ Уютное кафе**, **💿 Виниловый проигрыватель**.
+              - Двухканальный аудиомикшер с раздельными ползунками громкости для фоновой атмосферы и системного звука.
+              - Музыкальный хаб с кастомными плейлистами пользователя (Spotify, Apple Music, Яндекс Музыка, YouTube Music, VK Музыка) с автоподгрузкой обложек и выбором постеров из фотогалереи устройства.
+              - Плавная интеграция с Пунктом управления и экраном блокировки iOS (Now Playing / Control Center) без задержек и подвисаний.
 
             #### Файлы для скачивания:
             - **Android (`.apk`)**: `TodoApp-*-android.apk` — готовый установочный файл для любого Android-устройства.
@@ -135,10 +143,17 @@ jobs:
             ---
 
             ### Release Highlights (English)
-            - **🔁 Recurring Tasks (`RecurrenceRule`)**:
-              - Supports `Daily`, `Weekdays (Mon–Fri)`, `Weekly`, and `Monthly` schedules.
-              - Completing a recurring task automatically schedules the next occurrence with reset checklist steps and local push notifications.
-            - **🔥 Daily Productivity Streak**:
-              - Interactive streak badge in the main header (`🔥 X дн.`) and a 7-day flame tracker card with personal best record in the Profile tab.
-            - **👤 Dedicated Profile Tab, Avatar Photo Picker & Searchable Archive**:
-              - Separate Profile and Settings screens, native gallery photo picker with square crop, and a compact searchable sheet for archived tasks.
+            - **🌐 Multi-Language Localization (5 Locales)**:
+              - Native localization for **🇷🇺 Russian**, **🇬🇧 English**, **🇩🇪 German**, **🇫🇷 French**, and **🇷🇸 Serbian**.
+              - Instant runtime language switching from Settings without requiring an app restart.
+              - Context-aware pluralization rules for each locale.
+            - **🎨 4 Theme Modes**:
+              - **🌙 Dark**: Listodo signature dark interface.
+              - **☀️ Light**: High-contrast daylight theme.
+              - **🖤 Midnight (AMOLED)**: Deep pure black (`#000000`) optimized for OLED battery efficiency.
+              - **⚙️ System**: Automatically adapts to device system appearance.
+            - **🎧 Focus Ambient Studio & Music Hub**:
+              - 4 procedural ambient soundscapes: **🌧️ Rain**, **🌊 Ocean Waves**, **☕ Cozy Cafe**, **💿 Vinyl Player**.
+              - Dual-channel audio mixer with granular volume sliders.
+              - Custom playlist hub (Spotify, Apple Music, Yandex Music, YouTube Music, VK) with automated cover art retrieval and gallery photo uploads.
+              - Smooth, lag-free lock screen and Control Center media playback integration (Now Playing).
