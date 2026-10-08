@@ -118,12 +118,12 @@ jobs:
             ## TodoApp ${{ github.event.inputs.tag_name || github.ref_name }}
 
             ### Новое в этом релизе / What's New (Русский)
-            - **👤 Отдельная вкладка «Профиль» и экран «Настройки»**:
-              - Профиль вынесен в полноценную 4-ю вкладку нижней панели (статистика задач, категории и архив), а шестерёнка сверху справа открывает отдельный экран настроек приложения.
-            - **📷 Фото профиля из галереи и настройка никнейма**:
-              - В карточке профиля добавлено окно *«Настройка профиля»* с выбором фотографии из галереи телефона (с квадратной обрезкой) и сменой никнейма.
-            - **📦 Компактный «Архив выполненных» с живым поиском**:
-              - Архив выполненных задач оформлен компактной карточкой, открывающей отдельную шторку с поиском по названию, описанию и категории.
+            - **🔔 Двойная система локальных Push-уведомлений (iOS & Android)**:
+              - Автоматическое оповещение ровно в момент задачи + настраиваемое напоминание заранее (`За 5 мин`, `За 15 мин`, `За 30 мин`, `За 1 час`, `За 1 день`).
+            - **📳 Тактильный отклик (`Taptic Engine` / `AppHaptics`) и 3D Touch (`Quick Actions`)**:
+              - Механические щелчки при прокрутке времени, переключении вкладок и завершении задач + быстрые действия по зажатию иконки приложения на домашнем экране.
+            - **👤 Отдельный «Профиль» с фото из галереи и компактный «Архив»**:
+              - Выделенная вкладка профиля с выбором фото из галереи, сменой никнейма и компактным архивом выполненных задач с живым поиском.
 
             #### Файлы для скачивания:
             - **Android (`.apk`)**: `TodoApp-*-android.apk` — готовый установочный файл для любого Android-устройства.
@@ -134,9 +134,9 @@ jobs:
             ---
 
             ### Release Highlights (English)
-            - **👤 Dedicated Profile Tab & Separate Settings Screen**:
-              - Separated the user Profile tab (task analytics, categories, archive) from the system Settings screen.
-            - **📷 Profile Photo Picker & Nickname Customization**:
-              - Added a dedicated *Profile Settings* sheet allowing users to pick and crop a profile avatar from their photo library and update their display name.
-            - **📦 Compact Searchable Archive Sheet**:
-              - Replaced the inline archive list with a compact card that opens a searchable bottom sheet for archived tasks.
+            - **🔔 Dual Local Push Notifications (iOS & Android)**:
+              - Automatic due-time alert + configurable advance reminder (`5 min`, `15 min`, `30 min`, `1 hour`, `1 day` before).
+            - **📳 Tactile Haptics & Home Screen Quick Actions (`3D Touch`)**:
+              - Crisp haptic feedback across all interactions + launcher icon shortcuts for *New Task*, *Focus Mode*, and *Task Calendar*.
+            - **👤 Dedicated Profile Tab, Avatar Photo Picker & Searchable Archive**:
+              - Separate Profile and Settings screens, native gallery photo picker with square crop, and a compact searchable sheet for archived tasks.
