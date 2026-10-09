@@ -7,6 +7,7 @@ import 'package:todo/core/app_theme/app_colors.dart';
 import 'package:todo/core/haptics/app_haptics.dart';
 import 'package:todo/core/notifications/notification_service.dart';
 import 'package:todo/features/auth/presentation/controllers/auth_controller.dart';
+import 'package:todo/features/backup/presentation/widgets/export_backup_dialog.dart';
 import 'package:todo/features/productivity/presentation/controllers/productivity_controller.dart';
 import 'package:todo/features/productivity/presentation/widgets/category_donut_chart_card.dart';
 import 'package:todo/features/productivity/presentation/widgets/github_heatmap_card.dart';
@@ -543,6 +544,76 @@ class _ProfileTabViewState extends State<ProfileTabView> {
                         fontSize: 13,
                         fontWeight: FontWeight.w800,
                       ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppColors.labeltext,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 12),
+
+        // 5. Data Backup & Export
+        Material(
+          color: AppColors.cardBg,
+          borderRadius: BorderRadius.circular(18),
+          child: InkWell(
+            onTap: () {
+              ExportBackupDialog.show(
+                context,
+                tasks: taskController.tasks,
+                categories: taskController.categories,
+              );
+            },
+            borderRadius: BorderRadius.circular(18),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: Colors.white12),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(11),
+                    decoration: BoxDecoration(
+                      color: AppColors.accentYellow.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: const Icon(
+                      Icons.cloud_download_outlined,
+                      color: AppColors.accentYellow,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Экспорт и резервная копия',
+                          style: TextStyle(
+                            color: AppColors.maintext,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        SizedBox(height: 3),
+                        Text(
+                          'Выгрузка в JSON, CSV или Markdown (бэкап задач)',
+                          style: TextStyle(
+                            color: AppColors.labeltext,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(width: 6),

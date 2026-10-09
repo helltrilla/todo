@@ -17,6 +17,12 @@ import 'package:todo/features/ambient/domain/usecases/set_ambient_volume_use_cas
 import 'package:todo/features/ambient/domain/usecases/stop_ambient_sound_use_case.dart';
 import 'package:todo/features/ambient/presentation/controllers/ambient_audio_controller.dart';
 import 'package:todo/features/auth/data/repositories/auth_repository_impl.dart';
+import 'package:todo/features/backup/data/datasources/backup_native_data_source.dart';
+import 'package:todo/features/backup/data/repositories/backup_repository_impl.dart';
+import 'package:todo/features/backup/domain/usecases/export_tasks_use_case.dart';
+import 'package:todo/features/backup/domain/usecases/import_tasks_use_case.dart';
+import 'package:todo/features/backup/domain/usecases/share_backup_use_case.dart';
+import 'package:todo/features/backup/presentation/controllers/backup_controller.dart';
 import 'package:todo/features/productivity/data/repositories/productivity_repository_impl.dart';
 import 'package:todo/features/productivity/domain/usecases/calculate_productivity_dashboard_use_case.dart';
 import 'package:todo/features/productivity/presentation/controllers/productivity_controller.dart';
@@ -63,6 +69,7 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
   late final VoiceTaskController _voiceTaskController;
   late final AmbientAudioController _ambientAudioController;
   late final ProductivityController _productivityController;
+  late final BackupController _backupController;
   late final GoRouter _router;
 
   @override
@@ -117,6 +124,15 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
       ),
     );
 
+    // Backup & Export clean architecture wiring:
+    final backupDataSource = const BackupNativeDataSource();
+    final backupRepo = BackupRepositoryImpl(dataSource: backupDataSource);
+    _backupController = BackupController(
+      exportUseCase: ExportTasksUseCase(backupRepo),
+      importUseCase: ImportTasksUseCase(backupRepo),
+      shareUseCase: ShareBackupUseCase(backupRepo),
+    );
+
     _authController = AuthController(authRepo);
     _taskController = TaskController(taskRepo);
     _router = AppRouter.createRouter(_authController);
@@ -137,6 +153,7 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _router.dispose();
+    _backupController.dispose();
     _productivityController.dispose();
     _ambientAudioController.dispose();
     _voiceTaskController.dispose();
@@ -165,6 +182,9 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
         ),
         ChangeNotifierProvider<ProductivityController>.value(
           value: _productivityController,
+        ),
+        ChangeNotifierProvider<BackupController>.value(
+          value: _backupController,
         ),
         Provider<ISmartTaskParser>.value(value: _smartTaskParser),
       ],

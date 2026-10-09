@@ -277,6 +277,37 @@ import UserNotifications
         result(nil)
       }
 
+    case "shareFile":
+      guard let args = call.arguments as? [String: Any],
+            let fileName = args["fileName"] as? String,
+            let content = args["content"] as? String else {
+        result(FlutterError(code: "INVALID_ARGS", message: "Missing fileName or content", details: nil))
+        return
+      }
+
+      DispatchQueue.main.async { [weak self] in
+        guard let self = self, let presenter = self.topViewController() else {
+          result(nil)
+          return
+        }
+
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
+        do {
+          try content.write(to: tempURL, atomically: true, encoding: .utf8)
+          let activityVC = UIActivityViewController(activityItems: [tempURL], applicationActivities: nil)
+          if let popover = activityVC.popoverPresentationController {
+            popover.sourceView = presenter.view
+            popover.sourceRect = CGRect(x: presenter.view.bounds.midX, y: presenter.view.bounds.midY, width: 0, height: 0)
+            popover.permittedArrowDirections = []
+          }
+          presenter.present(activityVC, animated: true) {
+            result(true)
+          }
+        } catch {
+          result(FlutterError(code: "WRITE_ERROR", message: error.localizedDescription, details: nil))
+        }
+      }
+
     default:
       result(FlutterMethodNotImplemented)
     }

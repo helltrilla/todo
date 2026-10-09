@@ -201,6 +201,23 @@ class MainActivity : FlutterActivity() {
                     result.success(null)
                 }
 
+                "shareFile" -> {
+                    val fileName = call.argument<String>("fileName") ?: "todoapp_export.json"
+                    val content = call.argument<String>("content") ?: ""
+                    try {
+                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_SUBJECT, fileName)
+                            putExtra(Intent.EXTRA_TEXT, content)
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        startActivity(Intent.createChooser(shareIntent, "Поделиться экспортом"))
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("SHARE_ERROR", e.localizedMessage, null)
+                    }
+                }
+
                 else -> result.notImplemented()
             }
         }
