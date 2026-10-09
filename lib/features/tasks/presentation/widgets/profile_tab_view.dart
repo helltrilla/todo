@@ -7,6 +7,10 @@ import 'package:todo/core/app_theme/app_colors.dart';
 import 'package:todo/core/haptics/app_haptics.dart';
 import 'package:todo/core/notifications/notification_service.dart';
 import 'package:todo/features/auth/presentation/controllers/auth_controller.dart';
+import 'package:todo/features/productivity/presentation/controllers/productivity_controller.dart';
+import 'package:todo/features/productivity/presentation/widgets/category_donut_chart_card.dart';
+import 'package:todo/features/productivity/presentation/widgets/github_heatmap_card.dart';
+import 'package:todo/features/productivity/presentation/widgets/pomodoro_analytics_card.dart';
 import 'package:todo/features/tasks/domain/models/task.dart';
 import 'package:todo/features/tasks/domain/models/task_category_style.dart';
 import 'package:todo/features/tasks/presentation/controllers/task_controller.dart';
@@ -22,6 +26,17 @@ class ProfileTabView extends StatefulWidget {
 }
 
 class _ProfileTabViewState extends State<ProfileTabView> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        final tasks = context.read<TaskController>().tasks;
+        context.read<ProductivityController>().computeDashboard(tasks);
+      }
+    });
+  }
+
   Future<void> _openProfileSettingsSheet({
     required String currentName,
     required String? currentAvatarBase64,
@@ -75,6 +90,8 @@ class _ProfileTabViewState extends State<ProfileTabView> {
   Widget build(BuildContext context) {
     final authController = context.watch<AuthController>();
     final taskController = context.watch<TaskController>();
+    final prodController = context.watch<ProductivityController>();
+    final dashboard = prodController.dashboard;
     final user = authController.currentUser;
 
     final userName = (user != null && user.name.trim().isNotEmpty)
@@ -291,8 +308,44 @@ class _ProfileTabViewState extends State<ProfileTabView> {
         ),
         const SizedBox(height: 12),
         _ProductivityStreakCard(taskController: taskController),
+        const SizedBox(height: 14),
 
-        const SizedBox(height: 24),
+        // GitHub-Style Activity Heatmap
+        if (dashboard.heatmapDays.isNotEmpty) ...[
+          GithubHeatmapCard(
+            heatmapDays: dashboard.heatmapDays,
+            selectedDay: prodController.selectedDay,
+            onDaySelected: prodController.selectDay,
+            currentStreak: dashboard.currentStreak,
+            bestStreak: dashboard.bestStreak,
+          ),
+          const SizedBox(height: 14),
+        ],
+
+        // Pomodoro Infographic Analytics
+        if (dashboard.totalPomodoroSessions > 0 ||
+            dashboard.totalFocusMinutes > 0) ...[
+          PomodoroAnalyticsCard(
+            totalSessions: dashboard.totalPomodoroSessions,
+            totalFocusMinutes: dashboard.totalFocusMinutes,
+            todayFocusMinutes: dashboard.todayFocusMinutes,
+            weekFocusMinutes: dashboard.weekFocusMinutes,
+          ),
+          const SizedBox(height: 14),
+        ],
+
+        // Category & Priority Donut Chart
+        if (dashboard.categoryStats.isNotEmpty) ...[
+          CategoryDonutChartCard(
+            categoryStats: dashboard.categoryStats,
+            priorityStats: dashboard.priorityStats,
+            totalTasks: dashboard.totalTasks,
+            completionRate: dashboard.completionRate,
+          ),
+          const SizedBox(height: 14),
+        ],
+
+        const SizedBox(height: 10),
 
         // 3. Categories Management
         Row(

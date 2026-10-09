@@ -17,6 +17,9 @@ import 'package:todo/features/ambient/domain/usecases/set_ambient_volume_use_cas
 import 'package:todo/features/ambient/domain/usecases/stop_ambient_sound_use_case.dart';
 import 'package:todo/features/ambient/presentation/controllers/ambient_audio_controller.dart';
 import 'package:todo/features/auth/data/repositories/auth_repository_impl.dart';
+import 'package:todo/features/productivity/data/repositories/productivity_repository_impl.dart';
+import 'package:todo/features/productivity/domain/usecases/calculate_productivity_dashboard_use_case.dart';
+import 'package:todo/features/productivity/presentation/controllers/productivity_controller.dart';
 import 'package:todo/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:todo/features/tasks/data/datasources/task_remote_data_source.dart';
 import 'package:todo/features/tasks/data/repositories/task_local_repository.dart';
@@ -59,6 +62,7 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
   late final ISmartTaskParser _smartTaskParser;
   late final VoiceTaskController _voiceTaskController;
   late final AmbientAudioController _ambientAudioController;
+  late final ProductivityController _productivityController;
   late final GoRouter _router;
 
   @override
@@ -105,6 +109,14 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
       externalStateStream: ambientRepo.stateChanges,
     );
 
+    // Productivity analytics clean architecture wiring:
+    final productivityRepo = const ProductivityRepositoryImpl();
+    _productivityController = ProductivityController(
+      calculateDashboardUseCase: CalculateProductivityDashboardUseCase(
+        productivityRepo,
+      ),
+    );
+
     _authController = AuthController(authRepo);
     _taskController = TaskController(taskRepo);
     _router = AppRouter.createRouter(_authController);
@@ -125,6 +137,7 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _router.dispose();
+    _productivityController.dispose();
     _ambientAudioController.dispose();
     _voiceTaskController.dispose();
     _taskController.dispose();
@@ -149,6 +162,9 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
         ),
         ChangeNotifierProvider<AmbientAudioController>.value(
           value: _ambientAudioController,
+        ),
+        ChangeNotifierProvider<ProductivityController>.value(
+          value: _productivityController,
         ),
         Provider<ISmartTaskParser>.value(value: _smartTaskParser),
       ],
