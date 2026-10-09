@@ -1,7 +1,7 @@
 name: todo
-description: "TodoApp — modern task manager with custom categories, subtasks, focus timer, and Supabase OTP auth."
+description: "TodoApp — modern task manager with custom categories, subtasks, focus timer, Supabase OTP auth, and offline-first cloud sync."
 publish_to: "none"
-version: 1.4.0+7
+version: 1.5.0+8
 
 environment:
   sdk: ^3.10.7
