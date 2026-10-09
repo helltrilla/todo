@@ -111,8 +111,7 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
               GlobalCupertinoLocalizations.delegate,
             ],
             theme: AppTheme.light,
-            darkTheme:
-                themeCtrl.isMidnight ? AppTheme.midnight : AppTheme.dark,
+            darkTheme: themeCtrl.isMidnight ? AppTheme.midnight : AppTheme.dark,
             themeMode: themeCtrl.materialThemeMode,
             debugShowCheckedModeBanner: false,
             routerConfig: _router,

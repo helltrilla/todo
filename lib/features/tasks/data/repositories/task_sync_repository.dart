@@ -18,9 +18,9 @@ class TaskSyncRepository implements ITaskRepository {
     required ITaskRepository local,
     required ITaskRemoteDataSource remote,
     required IAuthRepository auth,
-  })  : _local = local,
-        _remote = remote,
-        _auth = auth;
+  }) : _local = local,
+       _remote = remote,
+       _auth = auth;
 
   final ITaskRepository _local;
   final ITaskRemoteDataSource _remote;
@@ -83,8 +83,7 @@ class TaskSyncRepository implements ITaskRepository {
   @override
   Future<Result<void>> saveCategoryStyles(
     Map<String, TaskCategoryStyle> styles,
-  ) =>
-      _local.saveCategoryStyles(styles);
+  ) => _local.saveCategoryStyles(styles);
 
   // ---------------------------------------------------------------------------
   // Cloud Synchronization (Bi-directional Merge)
@@ -144,8 +143,10 @@ class TaskSyncRepository implements ITaskRepository {
         tasksToUpload.add(local);
       } else {
         // Exists in both: compare updatedAt / createdAt
-        final localTime = (local.updatedAt ?? local.createdAt).millisecondsSinceEpoch;
-        final remoteTime = (remote.updatedAt ?? remote.createdAt).millisecondsSinceEpoch;
+        final localTime =
+            (local.updatedAt ?? local.createdAt).millisecondsSinceEpoch;
+        final remoteTime =
+            (remote.updatedAt ?? remote.createdAt).millisecondsSinceEpoch;
 
         if (localTime >= remoteTime) {
           mergedMap[local.id] = local;
@@ -201,11 +202,7 @@ class TaskSyncRepository implements ITaskRepository {
     final token = _auth.getAccessToken();
     if (token == null || token.isEmpty) return;
 
-    await _remote.upsertTask(
-      task: task,
-      userId: user.id,
-      accessToken: token,
-    );
+    await _remote.upsertTask(task: task, userId: user.id, accessToken: token);
   }
 
   Future<void> _deleteTaskFromCloud(int id) async {

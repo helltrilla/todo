@@ -495,9 +495,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       Navigator.pop(ctx);
                     }
                     messenger.showSnackBar(
-                      SnackBar(
-                        content: Text(tr.privacyLinkCopied),
-                      ),
+                      SnackBar(content: Text(tr.privacyLinkCopied)),
                     );
                   },
                   icon: const Icon(Icons.copy_rounded, size: 17),
@@ -756,10 +754,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: '${currentLang.flag}  ${currentLang.nativeName}',
             iconColor: const Color(0xFF29B6F6),
             trailingWidget: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 5,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
                 color: AppColors.active.withValues(alpha: 0.14),
                 borderRadius: BorderRadius.circular(10),
@@ -833,8 +828,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             currentUser?.isLocal == true
                                 ? tr.offlineModeDesc
                                 : (taskController.lastSyncedAt != null
-                                    ? '${tr.syncedJustNow}: ${taskController.lastSyncedAt!.hour.toString().padLeft(2, '0')}:${taskController.lastSyncedAt!.minute.toString().padLeft(2, '0')}'
-                                    : tr.cloudSyncSubtitle),
+                                      ? '${tr.syncedJustNow}: ${taskController.lastSyncedAt!.hour.toString().padLeft(2, '0')}:${taskController.lastSyncedAt!.minute.toString().padLeft(2, '0')}'
+                                      : tr.cloudSyncSubtitle),
                             style: TextStyle(
                               color: AppColors.labeltext,
                               fontSize: 12,
@@ -860,10 +855,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: (currentUser?.isLocal == true
-                                  ? Colors.grey
-                                  : const Color(0xFF3ECF8E))
-                              .withValues(alpha: 0.15),
+                          color:
+                              (currentUser?.isLocal == true
+                                      ? Colors.grey
+                                      : const Color(0xFF3ECF8E))
+                                  .withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -898,7 +894,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                       ok
                                           ? tr.syncSuccess
                                           : (taskController.syncError ??
-                                              'Ошибка синхронизации'),
+                                                'Ошибка синхронизации'),
                                     ),
                                   ),
                                 );
@@ -1342,10 +1338,7 @@ class _ActionTile extends StatelessWidget {
                   const SizedBox(width: 4),
                 ],
                 if (enabled)
-                  Icon(
-                    Icons.chevron_right_rounded,
-                    color: AppColors.labeltext,
-                  ),
+                  Icon(Icons.chevron_right_rounded, color: AppColors.labeltext),
               ],
             ),
           ),

@@ -48,7 +48,8 @@ class LocalNlpParser {
     final name = _cleanAndNormalizeTitle(textWithoutPriority, text);
 
     // Stage 7: Extract Category (prioritizing the normalized title, then full text)
-    final category = _extractCategory(name, availableCategories ?? const []) ??
+    final category =
+        _extractCategory(name, availableCategories ?? const []) ??
         _extractCategory(text, availableCategories ?? const []);
 
     return SmartTaskDraft(
@@ -65,7 +66,9 @@ class LocalNlpParser {
 
   static RegExp _wordRegExp(String innerPattern) {
     return RegExp(
-      r'(?<=^|[^a-zA-Z0-9а-яА-ЯёЁ_])(?:' + innerPattern + r')(?=[^a-zA-Z0-9а-яА-ЯёЁ_]|$)',
+      r'(?<=^|[^a-zA-Z0-9а-яА-ЯёЁ_])(?:' +
+          innerPattern +
+          r')(?=[^a-zA-Z0-9а-яА-ЯёЁ_]|$)',
       caseSensitive: false,
     );
   }
@@ -84,7 +87,9 @@ class LocalNlpParser {
 
     for (final line in lines) {
       final trimmed = line.trim();
-      final bulletMatch = RegExp(r'^(?:[-*•]|\d+[.)])\s+(.+)$').firstMatch(trimmed);
+      final bulletMatch = RegExp(
+        r'^(?:[-*•]|\d+[.)])\s+(.+)$',
+      ).firstMatch(trimmed);
       if (bulletMatch != null) {
         final item = bulletMatch.group(1)!.trim();
         if (item.isNotEmpty) {
@@ -119,7 +124,9 @@ class LocalNlpParser {
     if (offsetMatch != null) {
       final unit = (offsetMatch.group(2) ?? '').toLowerCase();
       final rawAmount = offsetMatch.group(1);
-      final amount = rawAmount != null ? (int.tryParse(rawAmount) ?? 1) : (unit == 'полчаса' ? 30 : 1);
+      final amount = rawAmount != null
+          ? (int.tryParse(rawAmount) ?? 1)
+          : (unit == 'полчаса' ? 30 : 1);
 
       if (unit == 'полчаса') {
         targetDate = now.add(const Duration(minutes: 30));
@@ -179,10 +186,18 @@ class LocalNlpParser {
     final vyhodnye = _wordRegExp(r'(?:на|в)\s+выходны[хе]');
 
     if (poslezavtra.hasMatch(working)) {
-      targetDate = DateTime(now.year, now.month, now.day).add(const Duration(days: 2));
+      targetDate = DateTime(
+        now.year,
+        now.month,
+        now.day,
+      ).add(const Duration(days: 2));
       working = working.replaceAll(poslezavtra, ' ');
     } else if (zavtra.hasMatch(working)) {
-      targetDate = DateTime(now.year, now.month, now.day).add(const Duration(days: 1));
+      targetDate = DateTime(
+        now.year,
+        now.month,
+        now.day,
+      ).add(const Duration(days: 1));
       working = working.replaceAll(zavtra, ' ');
     } else if (segodnya.hasMatch(working)) {
       targetDate = DateTime(now.year, now.month, now.day);
@@ -190,7 +205,11 @@ class LocalNlpParser {
     } else if (vyhodnye.hasMatch(working)) {
       var daysToSat = (DateTime.saturday - now.weekday) % 7;
       if (daysToSat <= 0) daysToSat += 7;
-      targetDate = DateTime(now.year, now.month, now.day).add(Duration(days: daysToSat));
+      targetDate = DateTime(
+        now.year,
+        now.month,
+        now.day,
+      ).add(Duration(days: daysToSat));
       working = working.replaceAll(vyhodnye, ' ');
     }
 
@@ -221,7 +240,11 @@ class LocalNlpParser {
         final targetWeekday = entry.value;
         var daysToAdd = (targetWeekday - now.weekday) % 7;
         if (daysToAdd <= 0) daysToAdd += 7;
-        targetDate = DateTime(now.year, now.month, now.day).add(Duration(days: daysToAdd));
+        targetDate = DateTime(
+          now.year,
+          now.month,
+          now.day,
+        ).add(Duration(days: daysToAdd));
         working = working.replaceAll(pattern, ' ');
         break;
       }
@@ -250,7 +273,12 @@ class LocalNlpParser {
     }
 
     // Clean remaining loose temporal prepositions
-    working = working.replaceAll(_wordRegExp(r'утром|вечером|днем|ночью|до\s+конца\s+недели|до\s+конца\s+месяца|на\s+следующей\s+неделе'), ' ');
+    working = working.replaceAll(
+      _wordRegExp(
+        r'утром|вечером|днем|ночью|до\s+конца\s+недели|до\s+конца\s+месяца|на\s+следующей\s+неделе',
+      ),
+      ' ',
+    );
 
     // Combine date and time
     if (targetDate != null || targetHour != null) {
@@ -258,7 +286,13 @@ class LocalNlpParser {
       final hour = targetHour ?? (targetDate != null ? 12 : now.hour);
       final minute = targetMinute ?? 0;
 
-      var result = DateTime(baseDate.year, baseDate.month, baseDate.day, hour, minute);
+      var result = DateTime(
+        baseDate.year,
+        baseDate.month,
+        baseDate.day,
+        hour,
+        minute,
+      );
       if (targetDate == null && result.isBefore(now)) {
         result = result.add(const Duration(days: 1));
       }
@@ -288,7 +322,10 @@ class LocalNlpParser {
 
       if (rawSplit.length >= 2) {
         final lastItem = rawSplit.last;
-        final locMatch = RegExp(r'^(.+?)\s+(в|на|из|у|возле|около)\s+(.+)$', caseSensitive: false).firstMatch(lastItem);
+        final locMatch = RegExp(
+          r'^(.+?)\s+(в|на|из|у|возле|около)\s+(.+)$',
+          caseSensitive: false,
+        ).firstMatch(lastItem);
         String? trailingLocation;
         if (locMatch != null) {
           rawSplit[rawSplit.length - 1] = locMatch.group(1)!.trim();
@@ -304,7 +341,10 @@ class LocalNlpParser {
 
         var baseText = working.substring(0, colonIndex).trim();
         // Remove trailing context phrases like "перед приходом гостей" if present before colon
-        final eventContext = RegExp(r'\s+(?:перед|до)\s+(?:приход[а-яА-ЯёЁ\w\s]+|гост[а-яА-ЯёЁ\w\s]+)$', caseSensitive: false).firstMatch(baseText);
+        final eventContext = RegExp(
+          r'\s+(?:перед|до)\s+(?:приход[а-яА-ЯёЁ\w\s]+|гост[а-яА-ЯёЁ\w\s]+)$',
+          caseSensitive: false,
+        ).firstMatch(baseText);
         if (eventContext != null) {
           baseText = baseText.substring(0, eventContext.start).trim();
         }
@@ -326,7 +366,12 @@ class LocalNlpParser {
     if (secondaryMatch != null) {
       final clauseText = secondaryMatch.group(1)!.trim();
       final splitItems = clauseText
-          .split(RegExp(r'[,;]|\s+и\s+|\s+а также\s+|\s+плюс\s+', caseSensitive: false))
+          .split(
+            RegExp(
+              r'[,;]|\s+и\s+|\s+а также\s+|\s+плюс\s+',
+              caseSensitive: false,
+            ),
+          )
           .map((s) => _cleanSubtaskItem(s))
           .where((s) => s.isNotEmpty && s.length >= 2)
           .toList();
@@ -400,7 +445,10 @@ class LocalNlpParser {
 
     // Strip leading modals
     item = item.replaceFirst(
-      RegExp(r'^(?:надо|нужно|необходимо|бы|было\s+бы\s+неплохо|успеть|не\s+забыть)\s+', caseSensitive: false),
+      RegExp(
+        r'^(?:надо|нужно|необходимо|бы|было\s+бы\s+неплохо|успеть|не\s+забыть)\s+',
+        caseSensitive: false,
+      ),
       '',
     );
 
@@ -462,21 +510,27 @@ class LocalNlpParser {
     var working = workingText;
 
     // P1 — Urgent (0)
-    final urgentRegex = _wordRegExp(r'очень\s+срочно|горит\s+дедлайн|дедлайн\s+горит|пиздец\s+болит|срочно|горит|неотложно|важно|критично|дедлайн|asap|urgent|critical|p1|п1');
+    final urgentRegex = _wordRegExp(
+      r'очень\s+срочно|горит\s+дедлайн|дедлайн\s+горит|пиздец\s+болит|срочно|горит|неотложно|важно|критично|дедлайн|asap|urgent|critical|p1|п1',
+    );
     if (urgentRegex.hasMatch(originalText)) {
       working = working.replaceAll(urgentRegex, ' ');
       return (0, _cleanSpaces(working));
     }
 
     // P2 — High (1)
-    final highRegex = _wordRegExp(r'высокий\s+приоритет|быстрее|поскорее|дедлайн|успеть|не\s+опоздать|скорее|high|p2|п2');
+    final highRegex = _wordRegExp(
+      r'высокий\s+приоритет|быстрее|поскорее|дедлайн|успеть|не\s+опоздать|скорее|high|p2|п2',
+    );
     if (highRegex.hasMatch(originalText)) {
       working = working.replaceAll(highRegex, ' ');
       return (1, _cleanSpaces(working));
     }
 
     // P4 — Low (3)
-    final lowRegex = _wordRegExp(r'низкий\s+приоритет|не\s+к\s+спеху|когда[- ]?нибудь|потом|несрочно|вообще\s+не\s+к\s+спеху|low|p4|п4');
+    final lowRegex = _wordRegExp(
+      r'низкий\s+приоритет|не\s+к\s+спеху|когда[- ]?нибудь|потом|несрочно|вообще\s+не\s+к\s+спеху|low|p4|п4',
+    );
     if (lowRegex.hasMatch(originalText)) {
       working = working.replaceAll(lowRegex, ' ');
       return (3, _cleanSpaces(working));
@@ -509,7 +563,10 @@ class LocalNlpParser {
 
     // 2. Strip modal particles: "мне бы", "надо бы", "хотелось бы", "бы"
     text = text.replaceFirst(
-      RegExp(r'^(?:мне\s+бы|надо\s+бы|нужно\s+бы|хотелось\s+бы|бы)\s+', caseSensitive: false),
+      RegExp(
+        r'^(?:мне\s+бы|надо\s+бы|нужно\s+бы|хотелось\s+бы|бы)\s+',
+        caseSensitive: false,
+      ),
       '',
     );
 
@@ -546,7 +603,10 @@ class LocalNlpParser {
     };
 
     for (final entry in firstPersonMap.entries) {
-      final verbRegex = RegExp('^${entry.key}(?=[^а-яА-ЯёЁa-zA-Z0-9_]|\$)', caseSensitive: false);
+      final verbRegex = RegExp(
+        '^${entry.key}(?=[^а-яА-ЯёЁa-zA-Z0-9_]|\$)',
+        caseSensitive: false,
+      );
       if (verbRegex.hasMatch(text)) {
         text = text.replaceFirst(verbRegex, entry.value);
         break;
@@ -590,7 +650,10 @@ class LocalNlpParser {
 
     // 6. Strip leading modals: "надо", "нужно", "хочу", "не забыть"
     text = text.replaceFirst(
-      RegExp(r'^(?:мне\s+)?(?:надо|нужно|необходимо|хочу|пора|планирую|задача:?)\s+', caseSensitive: false),
+      RegExp(
+        r'^(?:мне\s+)?(?:надо|нужно|необходимо|хочу|пора|планирую|задача:?)\s+',
+        caseSensitive: false,
+      ),
       '',
     );
     text = text.replaceFirst(
@@ -600,18 +663,24 @@ class LocalNlpParser {
 
     // 7. "сгонять в/на/к [X]" -> "Сходить в/на/к [X]"
     text = text.replaceFirstMapped(
-      RegExp(r'^(?:сгонять|сбегать|заскочить)\s+(в|на|к)\s+', caseSensitive: false),
+      RegExp(
+        r'^(?:сгонять|сбегать|заскочить)\s+(в|на|к)\s+',
+        caseSensitive: false,
+      ),
       (m) => 'Сходить ${m.group(1)} ',
     );
 
     // 8. "успеть [делать]" -> "[Делать]"
-    text = text.replaceFirst(
-      RegExp(r'^успеть\s+', caseSensitive: false),
-      '',
-    );
+    text = text.replaceFirst(RegExp(r'^успеть\s+', caseSensitive: false), '');
 
     // 9. Clean dangling prepositions or trailing conjunctions
-    text = text.replaceAll(RegExp(r'\s+(?:и|а|а\s+то|до|перед|к|в|на|с|со|по|насчет)\s*$', caseSensitive: false), '');
+    text = text.replaceAll(
+      RegExp(
+        r'\s+(?:и|а|а\s+то|до|перед|к|в|на|с|со|по|насчет)\s*$',
+        caseSensitive: false,
+      ),
+      '',
+    );
     text = text.replaceAll(RegExp(r'[,;:\s]+$'), '');
 
     var title = _capitalize(text.trim());
@@ -640,25 +709,39 @@ class LocalNlpParser {
     const ru = r'[а-яА-ЯёЁ]*';
 
     // Comprehensive category lexicon
-    if (_wordRegExp('универ$ru|шараг$ru|колледж$ru|техникум$ru|инстик$ru|институт$ru|пар[ыаеи]|парам$ru|лекци$ru|семинар$ru|лаб[ыаеи]$ru|лабораторн$ru|экзамен$ru|зачет$ru|сесси$ru|дз|домашк$ru|учеб$ru|книг$ru|стать$ru|курс$ru|урок$ru|курсач$ru|диплом$ru|препод$ru|школ$ru|матан$ru').hasMatch(lower)) {
+    if (_wordRegExp(
+      'универ$ru|шараг$ru|колледж$ru|техникум$ru|инстик$ru|институт$ru|пар[ыаеи]|парам$ru|лекци$ru|семинар$ru|лаб[ыаеи]$ru|лабораторн$ru|экзамен$ru|зачет$ru|сесси$ru|дз|домашк$ru|учеб$ru|книг$ru|стать$ru|курс$ru|урок$ru|курсач$ru|диплом$ru|препод$ru|школ$ru|матан$ru',
+    ).hasMatch(lower)) {
       return _findBestMatch(availableCategories, 'Учеба', 'Study');
     }
-    if (_wordRegExp('спорт$ru|тренировк$ru|треня$ru|трен[юе]$ru|зал$ru|качалк$ru|бег$ru|пробежк$ru|бассейн$ru|фитнес$ru|жим|разминк$ru|турник$ru|шейкер$ru|воркаут$ru|шиномонтаж$ru|переобуть$ru').hasMatch(lower)) {
+    if (_wordRegExp(
+      'спорт$ru|тренировк$ru|треня$ru|трен[юе]$ru|зал$ru|качалк$ru|бег$ru|пробежк$ru|бассейн$ru|фитнес$ru|жим|разминк$ru|турник$ru|шейкер$ru|воркаут$ru|шиномонтаж$ru|переобуть$ru',
+    ).hasMatch(lower)) {
       return _findBestMatch(availableCategories, 'Спорт', 'Sport');
     }
-    if (_wordRegExp('дискорд$ru|тусовк$ru|туса|вписк$ru|бар|паб|кафе$ru|рестик$ru|гулять|прогулк$ru|пацан$ru|друзь$ru|друг$ru|девушк$ru|парикмахер$ru|барбер$ru|стрижк$ru|кино|фильм|садик$ru|аэропорт$ru').hasMatch(lower)) {
+    if (_wordRegExp(
+      'дискорд$ru|тусовк$ru|туса|вписк$ru|бар|паб|кафе$ru|рестик$ru|гулять|прогулк$ru|пацан$ru|друзь$ru|друг$ru|девушк$ru|парикмахер$ru|барбер$ru|стрижк$ru|кино|фильм|садик$ru|аэропорт$ru',
+    ).hasMatch(lower)) {
       return _findBestMatch(availableCategories, 'Личное', 'Personal');
     }
-    if (_wordRegExp('купить|покупк$ru|магазин$ru|магаз$ru|продукт$ru|шоппинг|заказать|доставк$ru|рынок|супермаркет$ru|похавать|поесть|перекусить|еда|хавчик$ru|озон$ru|вб|сдэк$ru|заказ$ru|пицц$ru|мак[еа]?').hasMatch(lower)) {
+    if (_wordRegExp(
+      'купить|покупк$ru|магазин$ru|магаз$ru|продукт$ru|шоппинг|заказать|доставк$ru|рынок|супермаркет$ru|похавать|поесть|перекусить|еда|хавчик$ru|озон$ru|вб|сдэк$ru|заказ$ru|пицц$ru|мак[еа]?',
+    ).hasMatch(lower)) {
       return _findBestMatch(availableCategories, 'Покупки', 'Shopping');
     }
-    if (_wordRegExp('врач$ru|стоматолог$ru|доктор$ru|аптек$ru|таблетк$ru|анализ$ru|больниц$ru|клиник$ru|здоровь$ru|осмотр$ru|лекарств$ru|поликлиник$ru|зуб$ru|чистк$ru|обезбол$ru').hasMatch(lower)) {
+    if (_wordRegExp(
+      'врач$ru|стоматолог$ru|доктор$ru|аптек$ru|таблетк$ru|анализ$ru|больниц$ru|клиник$ru|здоровь$ru|осмотр$ru|лекарств$ru|поликлиник$ru|зуб$ru|чистк$ru|обезбол$ru',
+    ).hasMatch(lower)) {
       return _findBestMatch(availableCategories, 'Здоровье', 'Health');
     }
-    if (_wordRegExp('работ$ru|отчет$ru|митинг$ru|созвон$ru|клиент$ru|проект$ru|руководств$ru|начальник$ru|дедлайн$ru|договор$ru|офис$ru|смен[аеы]|таск$ru|слак$ru|резюме$ru|правк$ru').hasMatch(lower)) {
+    if (_wordRegExp(
+      'работ$ru|отчет$ru|митинг$ru|созвон$ru|клиент$ru|проект$ru|руководств$ru|начальник$ru|дедлайн$ru|договор$ru|офис$ru|смен[аеы]|таск$ru|слак$ru|резюме$ru|правк$ru',
+    ).hasMatch(lower)) {
       return _findBestMatch(availableCategories, 'Работа', 'Work');
     }
-    if (_wordRegExp('уборк$ru|убраться|постирать|помыть|ремонт$ru|дом$ru|квартир$ru|хат[аеы]$ru|сантехник$ru|посуд$ru|мусор$ru|кран$ru|дач[аеу]$ru|интернет$ru').hasMatch(lower)) {
+    if (_wordRegExp(
+      'уборк$ru|убраться|постирать|помыть|ремонт$ru|дом$ru|квартир$ru|хат[аеы]$ru|сантехник$ru|посуд$ru|мусор$ru|кран$ru|дач[аеу]$ru|интернет$ru',
+    ).hasMatch(lower)) {
       return _findBestMatch(availableCategories, 'Дом', 'Home');
     }
 

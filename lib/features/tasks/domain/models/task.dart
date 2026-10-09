@@ -339,7 +339,9 @@ class Task {
       createdAt: DateTime.fromMillisecondsSinceEpoch(createdMs),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(updatedMs),
       dueDate: map['due_date'] != null
-          ? DateTime.fromMillisecondsSinceEpoch((map['due_date'] as num).toInt())
+          ? DateTime.fromMillisecondsSinceEpoch(
+              (map['due_date'] as num).toInt(),
+            )
           : null,
       completedAt: map['completed_at'] != null
           ? DateTime.fromMillisecondsSinceEpoch(

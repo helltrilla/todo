@@ -13,9 +13,9 @@ class SmartTaskParserImpl implements ISmartTaskParser {
     required SharedPreferences prefs,
     http.Client? client,
     LocalNlpParser? localParser,
-  })  : _prefs = prefs,
-        _client = client ?? http.Client(),
-        _localParser = localParser ?? const LocalNlpParser();
+  }) : _prefs = prefs,
+       _client = client ?? http.Client(),
+       _localParser = localParser ?? const LocalNlpParser();
 
   final SharedPreferences _prefs;
   final http.Client _client;
@@ -109,7 +109,8 @@ class SmartTaskParserImpl implements ISmartTaskParser {
         ? categories.join(', ')
         : 'Работа, Личное, Спорт, Здоровье, Покупки, Учеба, Дом';
 
-    final systemInstruction = '''
+    final systemInstruction =
+        '''
 You are an intelligent task manager assistant.
 Analyze the user's free-form conversational input, thoughts, or slang and extract a structured, naturally formulated task.
 Current reference date & time: ${now.toIso8601String()} (Weekday: ${_weekdayName(now.weekday)}).

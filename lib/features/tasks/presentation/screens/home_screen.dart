@@ -641,58 +641,58 @@ class _SectionedTaskList extends StatelessWidget {
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.only(bottom: 110),
-      children: [
-        if (futureTasks.isNotEmpty) ...[
-          const Text(
-            'Future',
-            style: TextStyle(
-              color: AppColors.maintext,
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 12),
-          ...futureTasks.map(
-            (task) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: TaskCard(
-                task: task,
-                confirmDismiss: () => confirmDismiss(task),
-                onDelete: () => onDelete(task),
-                onArchive: () => onArchive(task),
-                onToggleComplete: () => onToggleComplete(task),
-                onTap: () => onEditTask(task),
+        children: [
+          if (futureTasks.isNotEmpty) ...[
+            const Text(
+              'Future',
+              style: TextStyle(
+                color: AppColors.maintext,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
               ),
             ),
-          ),
-          const SizedBox(height: 12),
-        ],
-        if (todayTasks.isNotEmpty) ...[
-          const Text(
-            'Today task',
-            style: TextStyle(
-              color: AppColors.maintext,
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 12),
-          ...todayTasks.map(
-            (task) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: TaskCard(
-                task: task,
-                confirmDismiss: () => confirmDismiss(task),
-                onDelete: () => onDelete(task),
-                onArchive: () => onArchive(task),
-                onToggleComplete: () => onToggleComplete(task),
-                onTap: () => onEditTask(task),
+            const SizedBox(height: 12),
+            ...futureTasks.map(
+              (task) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: TaskCard(
+                  task: task,
+                  confirmDismiss: () => confirmDismiss(task),
+                  onDelete: () => onDelete(task),
+                  onArchive: () => onArchive(task),
+                  onToggleComplete: () => onToggleComplete(task),
+                  onTap: () => onEditTask(task),
+                ),
               ),
             ),
-          ),
+            const SizedBox(height: 12),
+          ],
+          if (todayTasks.isNotEmpty) ...[
+            const Text(
+              'Today task',
+              style: TextStyle(
+                color: AppColors.maintext,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 12),
+            ...todayTasks.map(
+              (task) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: TaskCard(
+                  task: task,
+                  confirmDismiss: () => confirmDismiss(task),
+                  onDelete: () => onDelete(task),
+                  onArchive: () => onArchive(task),
+                  onToggleComplete: () => onToggleComplete(task),
+                  onTap: () => onEditTask(task),
+                ),
+              ),
+            ),
+          ],
         ],
-      ],
-    ),
+      ),
     );
   }
 }

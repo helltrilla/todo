@@ -76,11 +76,17 @@ class SupabaseTaskRemoteDataSource implements ITaskRemoteDataSource {
         return Success(list);
       }
 
-      return Error(ServerFailure(_parseError(response.body, response.statusCode)));
+      return Error(
+        ServerFailure(_parseError(response.body, response.statusCode)),
+      );
     } on TimeoutException {
-      return const Error(NetworkFailure('Время ожидания запроса к облаку истекло'));
+      return const Error(
+        NetworkFailure('Время ожидания запроса к облаку истекло'),
+      );
     } catch (e) {
-      return Error(NetworkFailure('Ошибка сети при загрузке задач из облака: $e'));
+      return Error(
+        NetworkFailure('Ошибка сети при загрузке задач из облака: $e'),
+      );
     }
   }
 
@@ -107,16 +113,24 @@ class SupabaseTaskRemoteDataSource implements ITaskRemoteDataSource {
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final decoded = json.decode(response.body);
         if (decoded is List && decoded.isNotEmpty) {
-          return Success(Task.fromSupabaseMap(decoded.first as Map<String, dynamic>));
+          return Success(
+            Task.fromSupabaseMap(decoded.first as Map<String, dynamic>),
+          );
         }
         return Success(task);
       }
 
-      return Error(ServerFailure(_parseError(response.body, response.statusCode)));
+      return Error(
+        ServerFailure(_parseError(response.body, response.statusCode)),
+      );
     } on TimeoutException {
-      return const Error(NetworkFailure('Таймаут синхронизации задачи с облаком'));
+      return const Error(
+        NetworkFailure('Таймаут синхронизации задачи с облаком'),
+      );
     } catch (e) {
-      return Error(NetworkFailure('Ошибка сети при сохранении задачи в облако: $e'));
+      return Error(
+        NetworkFailure('Ошибка сети при сохранении задачи в облако: $e'),
+      );
     }
   }
 
@@ -129,11 +143,16 @@ class SupabaseTaskRemoteDataSource implements ITaskRemoteDataSource {
     if (tasks.isEmpty) return const Success(null);
     try {
       final uri = Uri.parse('${AppConfig.supabaseUrl}/rest/v1/tasks');
-      final body = json.encode(tasks.map((t) => t.toSupabaseMap(userId)).toList());
+      final body = json.encode(
+        tasks.map((t) => t.toSupabaseMap(userId)).toList(),
+      );
       final response = await _http
           .post(
             uri,
-            headers: _buildHeaders(accessToken, prefer: 'resolution=merge-duplicates'),
+            headers: _buildHeaders(
+              accessToken,
+              prefer: 'resolution=merge-duplicates',
+            ),
             body: body,
           )
           .timeout(const Duration(seconds: 20));
@@ -142,11 +161,15 @@ class SupabaseTaskRemoteDataSource implements ITaskRemoteDataSource {
         return const Success(null);
       }
 
-      return Error(ServerFailure(_parseError(response.body, response.statusCode)));
+      return Error(
+        ServerFailure(_parseError(response.body, response.statusCode)),
+      );
     } on TimeoutException {
       return const Error(NetworkFailure('Таймаут выгрузки задач в облако'));
     } catch (e) {
-      return Error(NetworkFailure('Ошибка сети при пакетной выгрузке задач: $e'));
+      return Error(
+        NetworkFailure('Ошибка сети при пакетной выгрузке задач: $e'),
+      );
     }
   }
 
@@ -165,7 +188,9 @@ class SupabaseTaskRemoteDataSource implements ITaskRemoteDataSource {
         return const Success(null);
       }
 
-      return Error(ServerFailure(_parseError(response.body, response.statusCode)));
+      return Error(
+        ServerFailure(_parseError(response.body, response.statusCode)),
+      );
     } on TimeoutException {
       return const Error(NetworkFailure('Таймаут удаления задачи из облака'));
     } catch (e) {
@@ -190,11 +215,17 @@ class SupabaseTaskRemoteDataSource implements ITaskRemoteDataSource {
         return const Success(null);
       }
 
-      return Error(ServerFailure(_parseError(response.body, response.statusCode)));
+      return Error(
+        ServerFailure(_parseError(response.body, response.statusCode)),
+      );
     } on TimeoutException {
-      return const Error(NetworkFailure('Таймаут очистки выполненных задач в облаке'));
+      return const Error(
+        NetworkFailure('Таймаут очистки выполненных задач в облаке'),
+      );
     } catch (e) {
-      return Error(NetworkFailure('Ошибка сети при очистке выполненных задач: $e'));
+      return Error(
+        NetworkFailure('Ошибка сети при очистке выполненных задач: $e'),
+      );
     }
   }
 

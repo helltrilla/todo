@@ -127,8 +127,8 @@ class _FocusTabViewState extends State<FocusTabView>
   }
 
   Future<void> _checkPlaybackState() async {
-    final isPlaying =
-        await NotificationService.instance.getMediaPlaybackState();
+    final isPlaying = await NotificationService.instance
+        .getMediaPlaybackState();
     if (mounted && _isSystemMusicPlaying != isPlaying) {
       setState(() => _isSystemMusicPlaying = isPlaying);
     }
@@ -269,15 +269,18 @@ class _FocusTabViewState extends State<FocusTabView>
         final resp = await http
             .get(
               Uri.parse(webUrl),
-              headers: {'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0)'},
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0)',
+              },
             )
             .timeout(const Duration(seconds: 4));
         if (resp.statusCode == 200) {
           final html = resp.body;
-          final ogImageMatch = RegExp(
-            r'<meta[^>]+property=["\x27]og:image["\x27][^>]+content=["\x27]([^"\x27]+)["\x27]',
-            caseSensitive: false,
-          ).firstMatch(html) ??
+          final ogImageMatch =
+              RegExp(
+                r'<meta[^>]+property=["\x27]og:image["\x27][^>]+content=["\x27]([^"\x27]+)["\x27]',
+                caseSensitive: false,
+              ).firstMatch(html) ??
               RegExp(
                 r'<meta[^>]+content=["\x27]([^"\x27]+)["\x27][^>]+property=["\x27]og:image["\x27]',
                 caseSensitive: false,
@@ -1222,9 +1225,7 @@ class _FocusTabViewState extends State<FocusTabView>
                       onTap: () {
                         AppHaptics.light();
                         unawaited(
-                          NotificationService.instance.sendMediaCommand(
-                            'next',
-                          ),
+                          NotificationService.instance.sendMediaCommand('next'),
                         );
                         Future.delayed(
                           const Duration(milliseconds: 350),
@@ -1498,13 +1499,13 @@ class _LargeMediaTransportBtn extends StatelessWidget {
   Widget build(BuildContext context) {
     final bgColor = isPrimary
         ? (isActive
-            ? const Color(0xFF1DB954).withValues(alpha: 0.24)
-            : AppColors.bgmain)
+              ? const Color(0xFF1DB954).withValues(alpha: 0.24)
+              : AppColors.bgmain)
         : AppColors.bgmain;
     final borderColor = isPrimary
         ? (isActive
-            ? const Color(0xFF1DB954).withValues(alpha: 0.85)
-            : Colors.white24)
+              ? const Color(0xFF1DB954).withValues(alpha: 0.85)
+              : Colors.white24)
         : Colors.white12;
     final fgColor = isPrimary
         ? (isActive ? const Color(0xFF1DB954) : AppColors.maintext)
@@ -1647,7 +1648,9 @@ class _PlaylistCoverCard extends StatelessWidget {
                       hasCoverImage
                           ? Colors.black.withValues(alpha: 0.35)
                           : Colors.transparent,
-                      Colors.black.withValues(alpha: hasCoverImage ? 0.88 : 0.45),
+                      Colors.black.withValues(
+                        alpha: hasCoverImage ? 0.88 : 0.45,
+                      ),
                     ],
                   ),
                 ),
@@ -1742,9 +1745,7 @@ class _PlaylistCoverCard extends StatelessWidget {
                         color: Colors.white,
                         fontSize: 14,
                         fontWeight: FontWeight.w800,
-                        shadows: [
-                          Shadow(color: Colors.black87, blurRadius: 4),
-                        ],
+                        shadows: [Shadow(color: Colors.black87, blurRadius: 4)],
                       ),
                     ),
                     const SizedBox(height: 2),

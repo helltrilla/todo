@@ -352,11 +352,7 @@ class _ProfileTabViewState extends State<ProfileTabView> {
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      Icons.public,
-                      size: 14,
-                      color: AppColors.accentYellow,
-                    ),
+                    Icon(Icons.public, size: 14, color: AppColors.accentYellow),
                     SizedBox(width: 6),
                     Text(
                       TaskController.globalCategory,
@@ -770,10 +766,7 @@ class _UserAvatarCircle extends StatelessWidget {
                   )
                 : null,
             image: bytes != null
-                ? DecorationImage(
-                    image: MemoryImage(bytes),
-                    fit: BoxFit.cover,
-                  )
+                ? DecorationImage(image: MemoryImage(bytes), fit: BoxFit.cover)
                 : null,
             border: Border.all(color: AppColors.accentYellow, width: 2),
           ),

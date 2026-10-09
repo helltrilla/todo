@@ -14,7 +14,8 @@ class SmartTaskDraft {
   final String description;
   final DateTime? dueDate;
   final int? reminderOffsetMinutes;
-  final int priorityIndex; // -1 = default, 0 = P1 Urgent, 1 = P2 High, 2 = P3 Medium, 3 = P4 Low
+  final int
+  priorityIndex; // -1 = default, 0 = P1 Urgent, 1 = P2 High, 2 = P3 Medium, 3 = P4 Low
   final String? category;
   final List<String> subtasks;
   final String source; // 'gemini' or 'local_nlp'

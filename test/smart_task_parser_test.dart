@@ -75,149 +75,203 @@ void main() {
       expect(draft.priorityIndex, 3); // P4 Low
     });
 
-    test('converts conversational Russian slang into clean spoken task with subtask and category (шарага + похавать)', () {
-      final draft = parser.parse(
-        'мне в шарагу через 3 часа и успеть похавать до этого',
-        referenceTime: fixedTime,
-      );
+    test(
+      'converts conversational Russian slang into clean spoken task with subtask and category (шарага + похавать)',
+      () {
+        final draft = parser.parse(
+          'мне в шарагу через 3 часа и успеть похавать до этого',
+          referenceTime: fixedTime,
+        );
 
-      expect(draft.name, 'Пойти в шарагу');
-      expect(draft.category, 'Учеба');
-      expect(draft.subtasks, isNotEmpty);
-      expect(draft.subtasks.first.toLowerCase(), contains('похавать'));
-      expect(draft.dueDate, fixedTime.add(const Duration(hours: 3)));
-      expect(draft.priorityIndex, 1); // High priority because of "успеть"
-    });
+        expect(draft.name, 'Пойти в шарагу');
+        expect(draft.category, 'Учеба');
+        expect(draft.subtasks, isNotEmpty);
+        expect(draft.subtasks.first.toLowerCase(), contains('похавать'));
+        expect(draft.dueDate, fixedTime.add(const Duration(hours: 3)));
+        expect(draft.priorityIndex, 1); // High priority because of "успеть"
+      },
+    );
 
-    test('splits multiple chained subtasks and strips filler words (так мне ехать в шарагу еще надо похавать и помыться)', () {
-      final draft = parser.parse(
-        'так мне ехать в шарагу через 3 часа еще надо похавать и помыться',
-        referenceTime: fixedTime,
-      );
+    test(
+      'splits multiple chained subtasks and strips filler words (так мне ехать в шарагу еще надо похавать и помыться)',
+      () {
+        final draft = parser.parse(
+          'так мне ехать в шарагу через 3 часа еще надо похавать и помыться',
+          referenceTime: fixedTime,
+        );
 
-      expect(draft.name, 'Ехать в шарагу');
-      expect(draft.category, 'Учеба');
-      expect(draft.dueDate, fixedTime.add(const Duration(hours: 3)));
-      expect(draft.subtasks.length, 2);
-      expect(draft.subtasks, containsAll(['Похавать', 'Помыться']));
-    });
+        expect(draft.name, 'Ехать в шарагу');
+        expect(draft.category, 'Учеба');
+        expect(draft.dueDate, fixedTime.add(const Duration(hours: 3)));
+        expect(draft.subtasks.length, 2);
+        expect(draft.subtasks, containsAll(['Похавать', 'Помыться']));
+      },
+    );
 
-    test('normalizes colloquial prefixes (надо в зал, мне к стоматологу, сгонять в магазин)', () {
-      final d1 = parser.parse('надо в зал через час', referenceTime: fixedTime);
-      expect(d1.name, 'Пойти в зал');
-      expect(d1.category, 'Спорт');
+    test(
+      'normalizes colloquial prefixes (надо в зал, мне к стоматологу, сгонять в магазин)',
+      () {
+        final d1 = parser.parse(
+          'надо в зал через час',
+          referenceTime: fixedTime,
+        );
+        expect(d1.name, 'Пойти в зал');
+        expect(d1.category, 'Спорт');
 
-      final d2 = parser.parse('мне к стоматологу завтра в 15:00', referenceTime: fixedTime);
-      expect(d2.name, 'Пойти к стоматологу');
-      expect(d2.category, 'Здоровье');
+        final d2 = parser.parse(
+          'мне к стоматологу завтра в 15:00',
+          referenceTime: fixedTime,
+        );
+        expect(d2.name, 'Пойти к стоматологу');
+        expect(d2.category, 'Здоровье');
 
-      final d3 = parser.parse('сгонять в магазин за хлебом', referenceTime: fixedTime);
-      expect(d3.name, 'Сходить в магазин за хлебом');
-      expect(d3.category, 'Покупки');
-    });
+        final d3 = parser.parse(
+          'сгонять в магазин за хлебом',
+          referenceTime: fixedTime,
+        );
+        expect(d3.name, 'Сходить в магазин за хлебом');
+        expect(d3.category, 'Покупки');
+      },
+    );
 
-    test('normalizes 1st person future verbs to infinitive (позвоню риелтору, заберу заказ)', () {
-      final d1 = parser.parse('вечером позвоню риелтору насчет квартиры', referenceTime: fixedTime);
-      expect(d1.name, 'Позвонить риелтору');
-      expect(d1.description, 'Насчет квартиры');
-      expect(d1.category, 'Дом');
-      expect(d1.dueDate?.hour, 18);
+    test(
+      'normalizes 1st person future verbs to infinitive (позвоню риелтору, заберу заказ)',
+      () {
+        final d1 = parser.parse(
+          'вечером позвоню риелтору насчет квартиры',
+          referenceTime: fixedTime,
+        );
+        expect(d1.name, 'Позвонить риелтору');
+        expect(d1.description, 'Насчет квартиры');
+        expect(d1.category, 'Дом');
+        expect(d1.dueDate?.hour, 18);
 
-      final d2 = parser.parse('после работы заберу заказ с озона, код в приложении', referenceTime: fixedTime);
-      expect(d2.name, 'Забрать заказ с озона');
-      expect(d2.description, 'Код в приложении');
-      expect(d2.category, 'Покупки');
-    });
+        final d2 = parser.parse(
+          'после работы заберу заказ с озона, код в приложении',
+          referenceTime: fixedTime,
+        );
+        expect(d2.name, 'Забрать заказ с озона');
+        expect(d2.description, 'Код в приложении');
+        expect(d2.category, 'Покупки');
+      },
+    );
 
-    test('extracts reason into description and handles colloquial time (стоматолог + а то болит)', () {
-      final draft = parser.parse(
-        'завтра часиков в 5 вечера сгонять к стоматологу почистить зубы а то пиздец болит',
-        referenceTime: fixedTime,
-      );
+    test(
+      'extracts reason into description and handles colloquial time (стоматолог + а то болит)',
+      () {
+        final draft = parser.parse(
+          'завтра часиков в 5 вечера сгонять к стоматологу почистить зубы а то пиздец болит',
+          referenceTime: fixedTime,
+        );
 
-      expect(draft.name, 'Сходить к стоматологу почистить зубы');
-      expect(draft.description, 'А то пиздец болит');
-      expect(draft.dueDate, DateTime(2026, 10, 10, 17, 0));
-      expect(draft.priorityIndex, 0); // Urgent because "пиздец болит"
-      expect(draft.category, 'Здоровье');
-    });
+        expect(draft.name, 'Сходить к стоматологу почистить зубы');
+        expect(draft.description, 'А то пиздец болит');
+        expect(draft.dueDate, DateTime(2026, 10, 10, 17, 0));
+        expect(draft.priorityIndex, 0); // Urgent because "пиздец болит"
+        expect(draft.category, 'Здоровье');
+      },
+    );
 
-    test('handles compound multi-clause sentence with subtasks and colloquial time', () {
-      final draft = parser.parse(
-        'короче надо бы в зал часиков в 6 вечера, еще форму постирать и шейкер найти',
-        referenceTime: fixedTime,
-      );
+    test(
+      'handles compound multi-clause sentence with subtasks and colloquial time',
+      () {
+        final draft = parser.parse(
+          'короче надо бы в зал часиков в 6 вечера, еще форму постирать и шейкер найти',
+          referenceTime: fixedTime,
+        );
 
-      expect(draft.name, 'Пойти в зал');
-      expect(draft.dueDate, DateTime(2026, 10, 9, 18, 0));
-      expect(draft.category, 'Спорт');
-      expect(draft.subtasks.length, 2);
-      expect(draft.subtasks, containsAll(['Форму постирать', 'Шейкер найти']));
-    });
+        expect(draft.name, 'Пойти в зал');
+        expect(draft.dueDate, DateTime(2026, 10, 9, 18, 0));
+        expect(draft.category, 'Спорт');
+        expect(draft.subtasks.length, 2);
+        expect(
+          draft.subtasks,
+          containsAll(['Форму постирать', 'Шейкер найти']),
+        );
+      },
+    );
 
-    test('benchmark: handles cleaning task with subtasks (убраться в хате: вынести мусор, помыть полы)', () {
-      final draft = parser.parse(
-        'надо убраться в хате перед приходом гостей: вынести мусор, помыть полы и протереть пыль',
-        referenceTime: fixedTime,
-      );
+    test(
+      'benchmark: handles cleaning task with subtasks (убраться в хате: вынести мусор, помыть полы)',
+      () {
+        final draft = parser.parse(
+          'надо убраться в хате перед приходом гостей: вынести мусор, помыть полы и протереть пыль',
+          referenceTime: fixedTime,
+        );
 
-      expect(draft.name, 'Убраться в хате');
-      expect(draft.category, 'Дом');
-      expect(draft.subtasks.length, 3);
-      expect(draft.subtasks, containsAll(['Вынести мусор', 'Помыть полы', 'Протереть пыль']));
-    });
+        expect(draft.name, 'Убраться в хате');
+        expect(draft.category, 'Дом');
+        expect(draft.subtasks.length, 3);
+        expect(
+          draft.subtasks,
+          containsAll(['Вынести мусор', 'Помыть полы', 'Протереть пыль']),
+        );
+      },
+    );
 
-    test('benchmark: handles car service and tire change (сгонять на шиномонтаж в субботу к 11)', () {
-      final draft = parser.parse(
-        'сгонять на шиномонтаж в субботу к 11, переобуть резину',
-        referenceTime: fixedTime,
-      );
+    test(
+      'benchmark: handles car service and tire change (сгонять на шиномонтаж в субботу к 11)',
+      () {
+        final draft = parser.parse(
+          'сгонять на шиномонтаж в субботу к 11, переобуть резину',
+          referenceTime: fixedTime,
+        );
 
-      expect(draft.name, 'Сходить на шиномонтаж');
-      expect(draft.category, 'Спорт'); // шиномонтаж / авто
-      expect(draft.dueDate?.weekday, DateTime.saturday);
-      expect(draft.dueDate?.hour, 11);
-      expect(draft.subtasks, isNotEmpty);
-      expect(draft.subtasks.first, 'Переобуть резину');
-    });
+        expect(draft.name, 'Сходить на шиномонтаж');
+        expect(draft.category, 'Спорт'); // шиномонтаж / авто
+        expect(draft.dueDate?.weekday, DateTime.saturday);
+        expect(draft.dueDate?.hour, 11);
+        expect(draft.subtasks, isNotEmpty);
+        expect(draft.subtasks.first, 'Переобуть резину');
+      },
+    );
 
-    test('benchmark: handles urgent study deadline (завтра в 9 утра сдам курсач преподу, горит дедлайн)', () {
-      final draft = parser.parse(
-        'завтра в 9 утра сдам курсач преподу в универе, горит дедлайн',
-        referenceTime: fixedTime,
-      );
+    test(
+      'benchmark: handles urgent study deadline (завтра в 9 утра сдам курсач преподу, горит дедлайн)',
+      () {
+        final draft = parser.parse(
+          'завтра в 9 утра сдам курсач преподу в универе, горит дедлайн',
+          referenceTime: fixedTime,
+        );
 
-      expect(draft.name, 'Сдать курсач преподу в универе');
-      expect(draft.category, 'Учеба');
-      expect(draft.dueDate, DateTime(2026, 10, 10, 9, 0));
-      expect(draft.priorityIndex, 0); // Urgent because "горит дедлайн"
-    });
+        expect(draft.name, 'Сдать курсач преподу в универе');
+        expect(draft.category, 'Учеба');
+        expect(draft.dueDate, DateTime(2026, 10, 10, 9, 0));
+        expect(draft.priorityIndex, 0); // Urgent because "горит дедлайн"
+      },
+    );
 
-    test('benchmark: handles medical instructions note (мне к врачу завтра в 9:15 утра на голодный желудок)', () {
-      final draft = parser.parse(
-        'мне к врачу завтра в 9:15 утра на голодный желудок',
-        referenceTime: fixedTime,
-      );
+    test(
+      'benchmark: handles medical instructions note (мне к врачу завтра в 9:15 утра на голодный желудок)',
+      () {
+        final draft = parser.parse(
+          'мне к врачу завтра в 9:15 утра на голодный желудок',
+          referenceTime: fixedTime,
+        );
 
-      expect(draft.name, 'Пойти к врачу');
-      expect(draft.category, 'Здоровье');
-      expect(draft.description, 'На голодный желудок');
-      expect(draft.dueDate, DateTime(2026, 10, 10, 9, 15));
-    });
+        expect(draft.name, 'Пойти к врачу');
+        expect(draft.category, 'Здоровье');
+        expect(draft.description, 'На голодный желудок');
+        expect(draft.dueDate, DateTime(2026, 10, 10, 9, 15));
+      },
+    );
 
-    test('benchmark: handles leisure event with shopping subtasks (в пятницу в 19:00 созвон с пацанами в дискорде)', () {
-      final draft = parser.parse(
-        'в пятницу в 19:00 созвон с пацанами в дискорде, еще купить чипсы и пиво',
-        referenceTime: fixedTime,
-      );
+    test(
+      'benchmark: handles leisure event with shopping subtasks (в пятницу в 19:00 созвон с пацанами в дискорде)',
+      () {
+        final draft = parser.parse(
+          'в пятницу в 19:00 созвон с пацанами в дискорде, еще купить чипсы и пиво',
+          referenceTime: fixedTime,
+        );
 
-      expect(draft.name, 'Созвон с пацанами в дискорде');
-      expect(draft.category, 'Личное');
-      expect(draft.dueDate?.weekday, DateTime.friday);
-      expect(draft.dueDate?.hour, 19);
-      expect(draft.subtasks.length, 2);
-      expect(draft.subtasks, containsAll(['Купить чипсы', 'Пиво']));
-    });
+        expect(draft.name, 'Созвон с пацанами в дискорде');
+        expect(draft.category, 'Личное');
+        expect(draft.dueDate?.weekday, DateTime.friday);
+        expect(draft.dueDate?.hour, 19);
+        expect(draft.subtasks.length, 2);
+        expect(draft.subtasks, containsAll(['Купить чипсы', 'Пиво']));
+      },
+    );
   });
 
   group('SmartTaskParserImpl Service', () {

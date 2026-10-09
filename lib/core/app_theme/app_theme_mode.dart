@@ -7,12 +7,7 @@ enum AppThemeMode {
   midnight('midnight', 'Глубокий чёрный', 'Midnight', Icons.nightlight_round),
   system('system', 'Системная', 'System', Icons.settings_brightness_rounded);
 
-  const AppThemeMode(
-    this.key,
-    this.labelRu,
-    this.labelEn,
-    this.icon,
-  );
+  const AppThemeMode(this.key, this.labelRu, this.labelEn, this.icon);
 
   final String key;
   final String labelRu;

@@ -722,7 +722,10 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
               },
               borderRadius: BorderRadius.circular(16),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
                 child: Row(
                   children: [
                     Container(
@@ -847,10 +850,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                                 color: Colors.white,
                               ),
                             )
-                          : const Icon(
-                              Icons.auto_fix_high_rounded,
-                              size: 18,
-                            ),
+                          : const Icon(Icons.auto_fix_high_rounded, size: 18),
                       label: Text(
                         _isAiParsing ? tr.aiParsing : tr.aiParseButton,
                         style: const TextStyle(
@@ -887,10 +887,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
           sampleText,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: AppColors.labeltext,
-            fontSize: 11,
-          ),
+          style: const TextStyle(color: AppColors.labeltext, fontSize: 11),
         ),
       ),
     );

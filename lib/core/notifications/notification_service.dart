@@ -92,9 +92,12 @@ class NotificationService {
   Future<void> cancelTaskNotifications(int taskId) async {
     if (kIsWeb) return;
     try {
-      await _channel.invokeMethod<void>('cancelTaskNotifications', <String, dynamic>{
-        'ids': <String>['task_${taskId}_due', 'task_${taskId}_rem'],
-      });
+      await _channel.invokeMethod<void>(
+        'cancelTaskNotifications',
+        <String, dynamic>{
+          'ids': <String>['task_${taskId}_due', 'task_${taskId}_rem'],
+        },
+      );
     } catch (_) {}
   }
 
@@ -202,7 +205,8 @@ class NotificationService {
     String? fallbackUrl,
   }) async {
     if (kIsWeb) {
-      final target = Uri.tryParse(url) ??
+      final target =
+          Uri.tryParse(url) ??
           (fallbackUrl != null ? Uri.tryParse(fallbackUrl) : null);
       if (target != null) {
         try {
@@ -253,7 +257,9 @@ class NotificationService {
   Future<bool> getMediaPlaybackState() async {
     if (kIsWeb) return false;
     try {
-      final playing = await _channel.invokeMethod<bool>('getMediaPlaybackState');
+      final playing = await _channel.invokeMethod<bool>(
+        'getMediaPlaybackState',
+      );
       return playing ?? false;
     } catch (_) {
       return false;

@@ -560,9 +560,7 @@ void main() {
         priorityIndex: 1,
         isCompleted: true,
         category: 'Work',
-        subtasks: const [
-          SubTask(id: 1, title: 'Step 1', isCompleted: true),
-        ],
+        subtasks: const [SubTask(id: 1, title: 'Step 1', isCompleted: true)],
       );
 
       final map = task.toSupabaseMap('user-uuid-123');
@@ -602,7 +600,7 @@ void main() {
               'is_completed': false,
               'category': 'Personal',
               'subtasks': [],
-            }
+            },
           ]),
           200,
         );
@@ -624,7 +622,10 @@ void main() {
     test('upserts task and returns representation', () async {
       final mockClient = MockClient((request) async {
         expect(request.method, 'POST');
-        expect(request.headers['Prefer'], contains('resolution=merge-duplicates'));
+        expect(
+          request.headers['Prefer'],
+          contains('resolution=merge-duplicates'),
+        );
         return http.Response(
           json.encode([
             {
@@ -636,7 +637,7 @@ void main() {
               'is_completed': false,
               'category': 'Personal',
               'subtasks': [],
-            }
+            },
           ]),
           200,
         );
@@ -759,4 +760,3 @@ void main() {
     });
   });
 }
-

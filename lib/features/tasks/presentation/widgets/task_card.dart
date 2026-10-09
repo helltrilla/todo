@@ -260,10 +260,7 @@ class _TaskInfo extends StatelessWidget {
               child: GestureDetector(
                 onTap: () {
                   AppHaptics.light();
-                  context.read<TaskController>().toggleSubTask(
-                    task.id,
-                    sub.id,
-                  );
+                  context.read<TaskController>().toggleSubTask(task.id, sub.id);
                 },
                 behavior: HitTestBehavior.opaque,
                 child: Row(
