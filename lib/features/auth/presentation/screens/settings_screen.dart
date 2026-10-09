@@ -11,6 +11,7 @@ import 'package:todo/core/localization/app_localizations.dart';
 import 'package:todo/core/localization/locale_controller.dart';
 import 'package:todo/core/notifications/notification_service.dart';
 import 'package:todo/features/auth/presentation/controllers/auth_controller.dart';
+import 'package:todo/features/tasks/domain/services/i_smart_task_parser.dart';
 import 'package:todo/features/tasks/presentation/controllers/task_controller.dart';
 
 /// Dedicated Settings screen (appearance & theme, language, notifications, haptics, data management, privacy, account).
@@ -235,6 +236,79 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (confirmed == true && mounted) {
       AppHaptics.heavy();
       await context.read<TaskController>().clearAllTasks();
+    }
+  }
+
+  Future<void> _showAiApiKeyDialog() async {
+    AppHaptics.light();
+    final tr = context.tr;
+    final parser = context.read<ISmartTaskParser>();
+    final currentKey = parser.getGeminiApiKey() ?? '';
+    final controller = TextEditingController(text: currentKey);
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          tr.aiSettingsTitle,
+          style: const TextStyle(color: AppColors.maintext),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Для глубокого понимания задач используется Google Gemini Flash. Если ключ не указан — работает встроенный офлайн-парсер.',
+              style: TextStyle(color: AppColors.labeltext, fontSize: 13),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              style: const TextStyle(color: AppColors.maintext, fontSize: 13),
+              decoration: InputDecoration(
+                border: const OutlineInputBorder(),
+                labelText: tr.aiApiKeyLabel,
+                hintText: 'AIzaSy...',
+                labelStyle: const TextStyle(
+                  color: AppColors.labeltext,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          if (currentKey.isNotEmpty)
+            TextButton(
+              onPressed: () async {
+                await parser.setGeminiApiKey(null);
+                if (ctx.mounted) Navigator.pop(ctx, true);
+              },
+              style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+              child: const Text('Сбросить ключ'),
+            ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(tr.cancel),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              await parser.setGeminiApiKey(controller.text.trim());
+              if (ctx.mounted) Navigator.pop(ctx, true);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF8687E7),
+              foregroundColor: Colors.white,
+            ),
+            child: Text(tr.save),
+          ),
+        ],
+      ),
+    );
+
+    if (saved == true && mounted) {
+      AppHaptics.heavy();
+      setState(() {});
     }
   }
 
@@ -858,7 +932,154 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           const SizedBox(height: 24),
 
-          // 4. Notifications & Tactile Haptics
+          // 4. AI & Smart Task Creation
+          Text(
+            tr.aiSettingsTitle,
+            style: const TextStyle(
+              color: AppColors.maintext,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Builder(
+            builder: (context) {
+              final parser = context.watch<ISmartTaskParser>();
+              final hasKey = parser.hasGeminiApiKey;
+              return Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.cardBg,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(9),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF8687E7), Color(0xFFA855F7)],
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.auto_awesome_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                tr.aiSettingsTitle,
+                                style: const TextStyle(
+                                  color: AppColors.maintext,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                tr.aiSettingsSubtitle,
+                                style: const TextStyle(
+                                  color: AppColors.labeltext,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: hasKey
+                            ? const Color(0xFF3ECF8E).withValues(alpha: 0.12)
+                            : const Color(0xFF8687E7).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: hasKey
+                              ? const Color(0xFF3ECF8E).withValues(alpha: 0.3)
+                              : const Color(0xFF8687E7).withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            hasKey
+                                ? Icons.bolt_rounded
+                                : Icons.offline_bolt_rounded,
+                            size: 16,
+                            color: hasKey
+                                ? const Color(0xFF3ECF8E)
+                                : const Color(0xFF8687E7),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            hasKey
+                                ? 'Движок: Google Gemini 2.0 Flash'
+                                : 'Движок: Встроенный офлайн NLP',
+                            style: TextStyle(
+                              color: hasKey
+                                  ? const Color(0xFF3ECF8E)
+                                  : const Color(0xFF8687E7),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: _showAiApiKeyDialog,
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Color(0xFF8687E7)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 11),
+                        ),
+                        icon: const Icon(
+                          Icons.key_rounded,
+                          size: 18,
+                          color: Color(0xFF8687E7),
+                        ),
+                        label: Text(
+                          hasKey
+                              ? 'Изменить ключ Gemini API'
+                              : 'Настроить ключ Gemini API',
+                          style: const TextStyle(
+                            color: Color(0xFF8687E7),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+
+          const SizedBox(height: 24),
+
+          // 5. Notifications & Tactile Haptics
           Text(
             tr.notificationsAndHaptics,
             style: TextStyle(

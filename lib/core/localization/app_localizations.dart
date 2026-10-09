@@ -70,6 +70,14 @@ class AppLocalizations {
         AppLanguage.sr => 'Откажи',
       };
 
+  String get save => switch (language) {
+        AppLanguage.ru => 'Сохранить',
+        AppLanguage.en => 'Save',
+        AppLanguage.de => 'Speichern',
+        AppLanguage.fr => 'Enregistrer',
+        AppLanguage.sr => 'Сачувај',
+      };
+
   String get close => switch (language) {
         AppLanguage.ru => 'Закрыть',
         AppLanguage.en => 'Close',
@@ -688,6 +696,89 @@ class AppLocalizations {
         AppLanguage.de => 'Aufgaben synchronisiert',
         AppLanguage.fr => 'Tâches synchronisées',
         AppLanguage.sr => 'Задаци су синхронизовани',
+      };
+
+  // AI & Smart Task Creation
+  String get aiSmartCreate => switch (language) {
+        AppLanguage.ru => '✨ Смарт-ввод с ИИ',
+        AppLanguage.en => '✨ AI Smart Create',
+        AppLanguage.de => '✨ KI Smart-Erstellung',
+        AppLanguage.fr => '✨ Création IA intelligente',
+        AppLanguage.sr => '✨ AI Паметно креирање',
+      };
+
+  String get aiPromptPlaceholder => switch (language) {
+        AppLanguage.ru =>
+          'Опишите задачу своими словами (например: завтра в 15:00 сдать отчет руководству, прикрепить графики и таблицы, срочно)...',
+        AppLanguage.en =>
+          'Describe your task in free text (e.g. tomorrow at 3 PM submit report to manager, attach charts and sheets, urgent)...',
+        AppLanguage.de =>
+          'Beschreiben Sie Ihre Aufgabe (z. B. morgen um 15:00 Bericht abgeben, Grafiken beifügen, dringend)...',
+        AppLanguage.fr =>
+          'Décrivez votre tâche en texte libre (ex. demain à 15h soumettre le rapport, joindre graphiques, urgent)...',
+        AppLanguage.sr =>
+          'Опишите задатак својим речима (нпр. сутра у 15:00 предати извештај, приложити графике, хитно)...',
+      };
+
+  String get aiParseButton => switch (language) {
+        AppLanguage.ru => '🪄 Разобрать задачу',
+        AppLanguage.en => '🪄 Parse with AI',
+        AppLanguage.de => '🪄 Mit KI analysieren',
+        AppLanguage.fr => '🪄 Analyser avec l\'IA',
+        AppLanguage.sr => '🪄 Анализирај помоћу AI',
+      };
+
+  String get aiParsing => switch (language) {
+        AppLanguage.ru => 'ИИ структурирует задачу...',
+        AppLanguage.en => 'AI is structuring task...',
+        AppLanguage.de => 'KI strukturiert Aufgabe...',
+        AppLanguage.fr => 'L\'IA structure la tâche...',
+        AppLanguage.sr => 'AI структурише задатак...',
+      };
+
+  String get aiSuccess => switch (language) {
+        AppLanguage.ru => '✨ Задача разобрана! Проверьте поля и сохраните',
+        AppLanguage.en => '✨ Task structured! Review fields and save',
+        AppLanguage.de => '✨ Aufgabe analysiert! Felder prüfen und speichern',
+        AppLanguage.fr => '✨ Tâche structurée ! Vérifiez et enregistrez',
+        AppLanguage.sr => '✨ Задатак анализиран! Проверите поља и сачувајте',
+      };
+
+  String get aiSettingsTitle => switch (language) {
+        AppLanguage.ru => 'Нейросеть и ИИ-ассистент',
+        AppLanguage.en => 'AI Assistant & Gemini',
+        AppLanguage.de => 'KI-Assistent & Gemini',
+        AppLanguage.fr => 'Assistant IA & Gemini',
+        AppLanguage.sr => 'AI Асистент & Gemini',
+      };
+
+  String get aiSettingsSubtitle => switch (language) {
+        AppLanguage.ru =>
+          'Умный разбор задач из свободного текста через Google Gemini и офлайн-движок',
+        AppLanguage.en =>
+          'Smart free-form task parsing powered by Google Gemini & offline engine',
+        AppLanguage.de =>
+          'Intelligente Aufgabenerkennung via Google Gemini & Offline-Engine',
+        AppLanguage.fr =>
+          'Analyse intelligente de texte libre via Google Gemini & moteur hors-ligne',
+        AppLanguage.sr =>
+          'Паметно препознавање слободног текста преко Google Gemini и офлајн мотора',
+      };
+
+  String get aiApiKeyLabel => switch (language) {
+        AppLanguage.ru => 'Ключ Gemini API (необязательно)',
+        AppLanguage.en => 'Gemini API Key (optional)',
+        AppLanguage.de => 'Gemini API-Schlüssel (optional)',
+        AppLanguage.fr => 'Clé API Gemini (optionnelle)',
+        AppLanguage.sr => 'Gemini API Кључ (опционо)',
+      };
+
+  String get aiApiKeyHint => switch (language) {
+        AppLanguage.ru => 'Оставьте пустым для встроенного офлайн-ИИ',
+        AppLanguage.en => 'Leave empty for built-in offline smart AI',
+        AppLanguage.de => 'Leer lassen für integrierte Offline-KI',
+        AppLanguage.fr => 'Laisser vide pour l\'IA hors-ligne intégrée',
+        AppLanguage.sr => 'Оставите празно за уграђени офлајн AI',
       };
 }
 

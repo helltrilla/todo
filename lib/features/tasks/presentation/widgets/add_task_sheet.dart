@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:todo/core/app_theme/app_colors.dart';
+import 'package:todo/core/errors/result.dart';
 import 'package:todo/core/haptics/app_haptics.dart';
+import 'package:todo/core/localization/app_localizations.dart';
 import 'package:todo/features/tasks/domain/models/priority_level.dart';
+import 'package:todo/features/tasks/domain/models/smart_task_draft.dart';
 import 'package:todo/features/tasks/domain/models/task.dart';
+import 'package:todo/features/tasks/domain/services/i_smart_task_parser.dart';
 import 'package:todo/features/tasks/presentation/controllers/task_controller.dart';
 import 'package:todo/features/tasks/presentation/widgets/listodo_calendar_dialog.dart';
 import 'package:todo/features/tasks/presentation/widgets/priority_picker_dialog.dart';
@@ -32,6 +36,11 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
   bool _isPinned = false;
   late List<SubTask> _subtasks;
   RecurrenceRule _recurrence = RecurrenceRule.none;
+
+  bool _showAiInput = false;
+  bool _isAiParsing = false;
+  String? _aiFeedbackMessage;
+  final TextEditingController _aiPromptController = TextEditingController();
 
   bool get _isEditing => widget.initialTask != null;
 
@@ -65,10 +74,76 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
 
   @override
   void dispose() {
+    _aiPromptController.dispose();
     _nameController.dispose();
     _descController.dispose();
     _subtaskController.dispose();
     super.dispose();
+  }
+
+  Future<void> _parseWithAi() async {
+    final prompt = _aiPromptController.text.trim();
+    if (prompt.isEmpty) return;
+    AppHaptics.selection();
+    setState(() {
+      _isAiParsing = true;
+      _aiFeedbackMessage = null;
+    });
+
+    final taskController = context.read<TaskController>();
+    final parser = context.read<ISmartTaskParser>();
+
+    final result = await parser.parseTaskPrompt(
+      prompt,
+      referenceTime: DateTime.now(),
+      availableCategories: taskController.categories,
+    );
+
+    if (!mounted) return;
+
+    if (result is Success<SmartTaskDraft>) {
+      final draft = result.data;
+      AppHaptics.heavy();
+      setState(() {
+        _isAiParsing = false;
+        if (draft.name.isNotEmpty) {
+          _nameController.text = draft.name;
+        }
+        if (draft.description.isNotEmpty) {
+          _descController.text = draft.description;
+        }
+        if (draft.dueDate != null) {
+          _selectedDate = draft.dueDate;
+        }
+        if (draft.reminderOffsetMinutes != null) {
+          _reminderOffsetMinutes = draft.reminderOffsetMinutes;
+        }
+        if (draft.priorityIndex >= 0 && draft.priorityIndex <= 3) {
+          _priorityIndex = draft.priorityIndex;
+        }
+        if (draft.category != null && draft.category!.isNotEmpty) {
+          _selectedCategory = draft.category!;
+        }
+        if (draft.subtasks.isNotEmpty) {
+          final nowMicro = DateTime.now().microsecondsSinceEpoch;
+          _subtasks = draft.subtasks.asMap().entries.map((entry) {
+            return SubTask(
+              id: nowMicro + entry.key,
+              title: entry.value,
+              isCompleted: false,
+            );
+          }).toList();
+        }
+        _showAiInput = false;
+        _aiFeedbackMessage = context.tr.aiSuccess;
+      });
+    } else if (result is Error<SmartTaskDraft>) {
+      AppHaptics.light();
+      setState(() {
+        _isAiParsing = false;
+        _aiFeedbackMessage = result.failure.message;
+      });
+    }
   }
 
   void _addSubtask() {
@@ -313,6 +388,51 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                 ),
             ],
           ),
+          if (!_isEditing) ...[
+            const SizedBox(height: 8),
+            _buildAiSection(context),
+          ],
+          if (_aiFeedbackMessage != null) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF3ECF8E).withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: const Color(0xFF3ECF8E).withValues(alpha: 0.35),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.check_circle_rounded,
+                    color: Color(0xFF3ECF8E),
+                    size: 18,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      _aiFeedbackMessage!,
+                      style: const TextStyle(
+                        color: AppColors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => setState(() => _aiFeedbackMessage = null),
+                    child: const Icon(
+                      Icons.close,
+                      color: AppColors.labeltext,
+                      size: 16,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 14),
           TextField(
             controller: _nameController,
@@ -574,6 +694,204 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildAiSection(BuildContext context) {
+    final tr = context.tr;
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: _showAiInput
+              ? const Color(0xFF8687E7).withValues(alpha: 0.5)
+              : const Color(0xFF8687E7).withValues(alpha: 0.25),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                AppHaptics.selection();
+                setState(() => _showAiInput = !_showAiInput);
+              },
+              borderRadius: BorderRadius.circular(16),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(7),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF8687E7), Color(0xFFA855F7)],
+                        ),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.auto_awesome_rounded,
+                        color: Colors.white,
+                        size: 16,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            tr.aiSmartCreate,
+                            style: const TextStyle(
+                              color: AppColors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          const Text(
+                            'Напишите всё подряд — ИИ разложит по полочкам',
+                            style: TextStyle(
+                              color: AppColors.labeltext,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      _showAiInput
+                          ? Icons.keyboard_arrow_up_rounded
+                          : Icons.keyboard_arrow_down_rounded,
+                      color: AppColors.labeltext,
+                      size: 20,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          if (_showAiInput) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Divider(color: Colors.white12, height: 1),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _aiPromptController,
+                    maxLines: 3,
+                    minLines: 2,
+                    style: const TextStyle(
+                      color: AppColors.maintext,
+                      fontSize: 13,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: tr.aiPromptPlaceholder,
+                      hintStyle: const TextStyle(
+                        color: AppColors.labeltext,
+                        fontSize: 12,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.15),
+                        ),
+                      ),
+                      filled: true,
+                      fillColor: AppColors.bgmain,
+                      contentPadding: const EdgeInsets.all(12),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      _aiSampleChip(
+                        '🦷 Стоматолог завтра в 15:00, снимок и полис, срочно',
+                      ),
+                      _aiSampleChip(
+                        '🏋️ Тренировка завтра в 19:00: форма, вода, шейкер',
+                      ),
+                      _aiSampleChip(
+                        '🛒 Купить: молоко, яйца, сыр и кофе, высокий приоритет',
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 44,
+                    child: ElevatedButton.icon(
+                      onPressed: _isAiParsing ? null : _parseWithAi,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF8687E7),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
+                      icon: _isAiParsing
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(
+                              Icons.auto_fix_high_rounded,
+                              size: 18,
+                            ),
+                      label: Text(
+                        _isAiParsing ? tr.aiParsing : tr.aiParseButton,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _aiSampleChip(String sampleText) {
+    return InkWell(
+      onTap: () {
+        AppHaptics.light();
+        _aiPromptController.text = sampleText;
+      },
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white10),
+        ),
+        child: Text(
+          sampleText,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: AppColors.labeltext,
+            fontSize: 11,
+          ),
+        ),
       ),
     );
   }

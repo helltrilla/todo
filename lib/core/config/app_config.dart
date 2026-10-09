@@ -11,4 +11,9 @@ class AppConfig {
     'SUPABASE_ANON_KEY',
     defaultValue: 'sb_publishable_JRfKYxK4Kje8Uqvk51qvfw_ibXK91SF',
   );
+
+  static const String geminiApiKey = String.fromEnvironment(
+    'GEMINI_API_KEY',
+    defaultValue: '',
+  );
 }

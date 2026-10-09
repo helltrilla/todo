@@ -13,6 +13,8 @@ import 'package:todo/features/auth/presentation/controllers/auth_controller.dart
 import 'package:todo/features/tasks/data/datasources/task_remote_data_source.dart';
 import 'package:todo/features/tasks/data/repositories/task_local_repository.dart';
 import 'package:todo/features/tasks/data/repositories/task_sync_repository.dart';
+import 'package:todo/features/tasks/data/services/smart_task_parser_impl.dart';
+import 'package:todo/features/tasks/domain/services/i_smart_task_parser.dart';
 import 'package:todo/features/tasks/presentation/controllers/task_controller.dart';
 
 Future<void> main() async {
@@ -39,6 +41,7 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
   late final TaskController _taskController;
   late final ThemeController _themeController;
   late final LocaleController _localeController;
+  late final ISmartTaskParser _smartTaskParser;
   late final GoRouter _router;
 
   @override
@@ -47,6 +50,7 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _themeController = ThemeController(widget.prefs);
     _localeController = LocaleController(widget.prefs);
+    _smartTaskParser = SmartTaskParserImpl(prefs: widget.prefs);
     final authRepo = AuthRepositoryImpl(widget.prefs);
     final localRepo = TaskLocalRepository(widget.prefs);
     final remoteDataSource = SupabaseTaskRemoteDataSource();
@@ -93,6 +97,7 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
         ChangeNotifierProvider<LocaleController>.value(
           value: _localeController,
         ),
+        Provider<ISmartTaskParser>.value(value: _smartTaskParser),
       ],
       child: Consumer2<ThemeController, LocaleController>(
         builder: (context, themeCtrl, localeCtrl, _) {
