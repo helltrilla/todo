@@ -111,18 +111,18 @@ class SmartTaskParserImpl implements ISmartTaskParser {
 
     final systemInstruction = '''
 You are an intelligent task manager assistant.
-Analyze the user's free-form task input and extract a structured task.
+Analyze the user's free-form conversational input, thoughts, or slang and extract a structured, naturally formulated task.
 Current reference date & time: ${now.toIso8601String()} (Weekday: ${_weekdayName(now.weekday)}).
 User's existing task categories: $categoriesContext.
 
 Rules:
-1. "name": Concise, clean task title without time or priority fluff (e.g. "Визит к стоматологу", "Купить продукты").
-2. "description": Any additional context or remarks that were in the text.
-3. "dueDateIso": Exact ISO-8601 timestamp string if date/time is mentioned (e.g. "2026-10-10T15:00:00"). If no time or date mentioned, return null.
+1. "name": Convert raw thoughts, colloquial speech, or slang into a natural, spoken task title (e.g. "мне в шарагу через 3 часа и успеть похавать" -> "Пойти в шарагу", "надо сгонять в зал" -> "Сходить в зал", "надо сдать курсовую" -> "Сдать курсовую"). Do not leave raw streams of thought as the title.
+2. "description": Any additional context or remarks that were in the text (or empty string).
+3. "dueDateIso": Exact ISO-8601 timestamp string if date/time is mentioned (e.g. "2026-10-10T15:00:00"). If relative like "через 3 часа", calculate it from reference date & time. If no time or date mentioned, return null.
 4. "reminderOffsetMinutes": 15, 30, or null.
-5. "priorityIndex": 0 for Urgent (P1 / 🔥), 1 for High (P2 / ⚡), 2 for Medium (P3 / 📌), 3 for Low (P4 / 🌿), or -1 if no priority specified.
-6. "category": Pick the best matching category name from the user's categories or an intuitive short one.
-7. "subtasks": An array of checklist action items / subtasks broken down from the prompt (strings).
+5. "priorityIndex": 0 for Urgent (P1 / 🔥), 1 for High (P2 / ⚡), 2 for Medium (P3 / 📌), 3 for Low (P4 / 🌿), or -1 if no priority specified. If user says "успеть", "до этого", "срочно", "не опоздать", set priority to 1 (High) or 0 (Urgent).
+6. "category": Pick the best matching category (e.g. "Учеба" for "шарага/пары/универ/колледж", "Спорт" for "качалка/зал/треня", "Покупки" for "похавать/магазин/продукты", "Здоровье", "Работа", "Дом", "Личное").
+7. "subtasks": An array of checklist items or sub-actions broken down from the prompt (e.g. "успеть похавать до этого" -> ["Похавать до этого"]).
 
 Return ONLY a valid JSON object matching this schema.
 ''';

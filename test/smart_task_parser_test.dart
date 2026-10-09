@@ -74,6 +74,34 @@ void main() {
 
       expect(draft.priorityIndex, 3); // P4 Low
     });
+
+    test('converts conversational Russian slang into clean spoken task with subtask and category (шарага + похавать)', () {
+      final draft = parser.parse(
+        'мне в шарагу через 3 часа и успеть похавать до этого',
+        referenceTime: fixedTime,
+      );
+
+      expect(draft.name, 'Пойти в шарагу');
+      expect(draft.category, 'Учеба');
+      expect(draft.subtasks, isNotEmpty);
+      expect(draft.subtasks.first.toLowerCase(), contains('похавать'));
+      expect(draft.dueDate, fixedTime.add(const Duration(hours: 3)));
+      expect(draft.priorityIndex, 1); // High priority because of "успеть"
+    });
+
+    test('normalizes colloquial prefixes (надо в зал, мне к стоматологу, сгонять в магазин)', () {
+      final d1 = parser.parse('надо в зал через час', referenceTime: fixedTime);
+      expect(d1.name, 'Пойти в зал');
+      expect(d1.category, 'Спорт');
+
+      final d2 = parser.parse('мне к стоматологу завтра в 15:00', referenceTime: fixedTime);
+      expect(d2.name, 'Пойти к стоматологу');
+      expect(d2.category, 'Здоровье');
+
+      final d3 = parser.parse('сгонять в магазин за хлебом', referenceTime: fixedTime);
+      expect(d3.name, 'Сходить в магазин за хлебом');
+      expect(d3.category, 'Покупки');
+    });
   });
 
   group('SmartTaskParserImpl Service', () {
