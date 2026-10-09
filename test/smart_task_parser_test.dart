@@ -89,6 +89,19 @@ void main() {
       expect(draft.priorityIndex, 1); // High priority because of "успеть"
     });
 
+    test('splits multiple chained subtasks and strips filler words (так мне ехать в шарагу еще надо похавать и помыться)', () {
+      final draft = parser.parse(
+        'так мне ехать в шарагу через 3 часа еще надо похавать и помыться',
+        referenceTime: fixedTime,
+      );
+
+      expect(draft.name, 'Ехать в шарагу');
+      expect(draft.category, 'Учеба');
+      expect(draft.dueDate, fixedTime.add(const Duration(hours: 3)));
+      expect(draft.subtasks.length, 2);
+      expect(draft.subtasks, containsAll(['Похавать', 'Помыться']));
+    });
+
     test('normalizes colloquial prefixes (надо в зал, мне к стоматологу, сгонять в магазин)', () {
       final d1 = parser.parse('надо в зал через час', referenceTime: fixedTime);
       expect(d1.name, 'Пойти в зал');

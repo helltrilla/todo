@@ -83,7 +83,7 @@ class LocalNlpParser {
       if (bulletMatch != null) {
         final item = bulletMatch.group(1)!.trim();
         if (item.isNotEmpty) {
-          subtasks.add(_capitalize(item));
+          subtasks.add(_cleanSubtaskItem(item));
         }
       } else {
         preservedLines.add(line);
@@ -299,7 +299,7 @@ class LocalNlpParser {
         }
 
         for (final item in splitItems) {
-          final cleanItem = _capitalize(item.replaceAll(RegExp(r'^[•\-\d.\s]+'), '').trim());
+          final cleanItem = _cleanSubtaskItem(item.replaceAll(RegExp(r'^[•\-\d.\s]+'), ''));
           if (cleanItem.isNotEmpty) {
             subtasks.add(cleanItem);
           }
@@ -313,23 +313,35 @@ class LocalNlpParser {
       }
     }
 
-    // 2. Chained secondary action:
-    // e.g. "мне в шарагу и успеть похавать до этого", "тренировка в зале и не забыть шейкер"
-    final chainedActionPattern = RegExp(
-      r'[,;]?\s+(?:и\s+)?(?:успеть\s+|перед\s+этим\s+|до\s+этого\s+|не\s+забыть\s+(?:бы\s+)?|заодно\s+|по\s+дороге\s+)(.+)$',
+    // 2. Secondary subtask clauses:
+    // e.g.:
+    // "еще надо похавать и помыться"
+    // "еще похавать надо и помыться"
+    // "а еще зайти в магаз и купить воды"
+    // "плюс сделать уроки и помыть посуду"
+    // "и успеть похавать до этого"
+    // "и не забыть взять паспорт и ключи"
+    final secondaryClausePattern = RegExp(
+      r'[,;]?\s+(?:а\s+|и\s+)?(?:еще|ещё|также|плюс|заодно|потом|успеть|перед\s+этим|до\s+этого|не\s+забыть\s+(?:бы\s+)?|по\s+дороге)\s+(.+)$',
       caseSensitive: false,
     );
-    final chainedMatch = chainedActionPattern.firstMatch(working);
-    if (chainedMatch != null) {
-      final actionText = chainedMatch.group(1)!.trim();
-      if (actionText.isNotEmpty) {
-        subtasks.add(_capitalize(actionText));
-        final base = working.substring(0, chainedMatch.start).trim();
+    final secondaryMatch = secondaryClausePattern.firstMatch(working);
+    if (secondaryMatch != null) {
+      final clauseText = secondaryMatch.group(1)!.trim();
+      final splitItems = clauseText
+          .split(RegExp(r'[,;]|\s+и\s+|\s+а также\s+|\s+плюс\s+', caseSensitive: false))
+          .map((s) => _cleanSubtaskItem(s))
+          .where((s) => s.isNotEmpty && s.length >= 2)
+          .toList();
+
+      if (splitItems.isNotEmpty) {
+        subtasks.addAll(splitItems);
+        final base = working.substring(0, secondaryMatch.start).trim();
         return (subtasks, _cleanSpaces(base));
       }
     }
 
-    // Also check patterns ending in "до этого" or "перед этим":
+    // 3. Patterns ending in "до этого" or "перед этим":
     // e.g. "и похавать до этого"
     final endingActionPattern = RegExp(
       r'[,;]?\s+(?:и\s+)(.+?)\s+(?:до\s+этого|перед\s+этим)$',
@@ -338,14 +350,15 @@ class LocalNlpParser {
     final endingMatch = endingActionPattern.firstMatch(working);
     if (endingMatch != null) {
       final actionText = endingMatch.group(1)!.trim();
-      if (actionText.isNotEmpty) {
-        subtasks.add('${_capitalize(actionText)} до этого');
+      final clean = _cleanSubtaskItem(actionText);
+      if (clean.isNotEmpty) {
+        subtasks.add(clean);
         final base = working.substring(0, endingMatch.start).trim();
         return (subtasks, _cleanSpaces(base));
       }
     }
 
-    // 3. Inline triggers without colon: e.g. "взять форму и шейкер"
+    // 4. Inline triggers without colon: e.g. "взять форму и шейкер"
     final inlineTrigger = RegExp(
       r'(?:(?<=^|[^a-zA-Z0-9а-яА-ЯёЁ_]))(взять|не\s+забыть|купить)\s+([a-zA-Zа-яА-ЯёЁ0-9\s,;]+(?:,|(?:\s+и\s+))[a-zA-Zа-яА-ЯёЁ0-9\s,;]+)',
       caseSensitive: false,
@@ -355,20 +368,42 @@ class LocalNlpParser {
       final itemsStr = inlineTrigger.group(2)!.trim();
       final splitItems = itemsStr
           .split(RegExp(r'[,;]|\s+и\s+|\s+а также\s+', caseSensitive: false))
-          .map((s) => s.trim())
+          .map((s) => _cleanSubtaskItem(s))
           .where((s) => s.isNotEmpty && s.length >= 2)
           .toList();
 
       if (splitItems.length >= 2) {
-        for (final item in splitItems) {
-          subtasks.add(_capitalize(item));
-        }
+        subtasks.addAll(splitItems);
         working = working.replaceFirst(inlineTrigger.group(0)!, ' ');
         return (subtasks, _cleanSpaces(working));
       }
     }
 
     return (subtasks, _cleanSpaces(working));
+  }
+
+  String _cleanSubtaskItem(String raw) {
+    var item = raw.trim();
+
+    // Strip leading modal words: "надо", "нужно", "бы", "успеть", "не забыть"
+    item = item.replaceFirst(
+      RegExp(r'^(?:надо|нужно|необходимо|бы|было\s+бы\s+неплохо|успеть|не\s+забыть)\s+', caseSensitive: false),
+      '',
+    );
+
+    // Strip trailing modal words: "похавать надо" -> "похавать"
+    item = item.replaceAll(
+      RegExp(r'\s+(?:надо|нужно|бы|было\s+бы)$', caseSensitive: false),
+      '',
+    );
+
+    // Strip trailing temporal markers: "до этого", "перед этим"
+    item = item.replaceFirst(
+      RegExp(r'\s+(?:до\s+этого|перед\s+этим)$', caseSensitive: false),
+      '',
+    );
+
+    return _capitalize(item.trim());
   }
 
   String? _extractCategory(String text, List<String> availableCategories) {
@@ -451,7 +486,28 @@ class LocalNlpParser {
   String _normalizeConversationalTaskName(String raw) {
     var text = _cleanSpaces(raw);
 
-    // 1. "мне в/на/к [X]" or "надо в/на/к [X]" or "нужно в/на/к [X]" or "пора в/на/к [X]" -> "Пойти в/на/к [X]"
+    // 0. Strip conversational filler starters: "так", "короче", "в общем", "ну", etc.
+    text = text.replaceFirst(
+      RegExp(
+        r'^(?:так|так-с|так\s+вот|короче|короче\s+говоря|кароче|короч|крч|в\s+общем|вобщем|слушай|значит|ну|ну-ка|типа)\s*[,:;-]?\s*',
+        caseSensitive: false,
+      ),
+      '',
+    );
+
+    // 1. "мне [инфинитив]" -> "[Инфинитив]" (e.g. "мне ехать в шарагу" -> "Ехать в шарагу", "мне позвонить маме" -> "Позвонить маме")
+    final infinitivePattern = RegExp(
+      r'^(?:мне\s+)?([а-яА-ЯёЁa-zA-Z]+(?:ть|ти|ться|тись|чь))(?=[^а-яА-ЯёЁa-zA-Z0-9_]|$)\s*(.*)$',
+      caseSensitive: false,
+    );
+    final infMatch = infinitivePattern.firstMatch(text);
+    if (infMatch != null && text.toLowerCase().startsWith('мне ')) {
+      final verb = infMatch.group(1)!;
+      final rest = infMatch.group(2)!.trim();
+      text = rest.isNotEmpty ? '$verb $rest' : verb;
+    }
+
+    // 2. "мне в/на/к [X]" or "надо в/на/к [X]" or "нужно в/на/к [X]" or "пора в/на/к [X]" -> "Пойти в/на/к [X]"
     final goToPattern = RegExp(
       r'^(?:мне|надо|нужно|пора|собираюсь|планирую|хочу)\s+(в|на|к)\s+(.+)$',
       caseSensitive: false,
@@ -475,25 +531,25 @@ class LocalNlpParser {
       }
     }
 
-    // 2. "мне надо/нужно [делать]" -> "[Делать]"
+    // 3. "мне надо/нужно [делать]" -> "[Делать]"
     text = text.replaceFirst(
       RegExp(r'^(?:мне\s+)?(?:надо|нужно|необходимо|хочу|пора|планирую|задача:?)\s+', caseSensitive: false),
       '',
     );
 
-    // 3. "не забыть [делать]" -> "[Делать]"
+    // 4. "не забыть [делать]" -> "[Делать]"
     text = text.replaceFirst(
       RegExp(r'^не\s+забыть\s+(?:бы\s+)?', caseSensitive: false),
       '',
     );
 
-    // 4. "сгонять в/на/к [X]" -> "Сходить в/на/к [X]"
+    // 5. "сгонять в/на/к [X]" -> "Сходить в/на/к [X]"
     text = text.replaceFirstMapped(
       RegExp(r'^(?:сгонять|сбегать|заскочить)\s+(в|на|к)\s+', caseSensitive: false),
       (m) => 'Сходить ${m.group(1)} ',
     );
 
-    // 5. "успеть [делать]" -> "[Делать]"
+    // 6. "успеть [делать]" -> "[Делать]"
     text = text.replaceFirst(
       RegExp(r'^успеть\s+', caseSensitive: false),
       '',
