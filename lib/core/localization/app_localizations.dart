@@ -728,11 +728,11 @@ class AppLocalizations {
   };
 
   String get aiParseButton => switch (language) {
-    AppLanguage.ru => '🪄 Разобрать задачу',
-    AppLanguage.en => '🪄 Parse with AI',
-    AppLanguage.de => '🪄 Mit KI analysieren',
-    AppLanguage.fr => '🪄 Analyser avec l\'IA',
-    AppLanguage.sr => '🪄 Анализирај помоћу AI',
+    AppLanguage.ru => 'Разобрать задачу',
+    AppLanguage.en => 'Parse with AI',
+    AppLanguage.de => 'Mit KI analysieren',
+    AppLanguage.fr => 'Analyser avec l\'IA',
+    AppLanguage.sr => 'Анализирај помоћу AI',
   };
 
   String get aiParsing => switch (language) {

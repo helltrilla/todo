@@ -616,12 +616,22 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
               }).toList(),
             ),
           ),
-          if ((hasPriority && priority != null) || _recurrence.isRepeating) ...[
+          if (_selectedDate != null ||
+              (hasPriority && priority != null) ||
+              _recurrence.isRepeating) ...[
             const SizedBox(height: 10),
             Wrap(
               spacing: 8,
               runSpacing: 6,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
+                if (_selectedDate != null)
+                  _DateChip(
+                    date: _selectedDate!,
+                    reminderOffsetMinutes: _reminderOffsetMinutes,
+                    onTap: _pickDate,
+                    onClear: () => setState(() => _selectedDate = null),
+                  ),
                 if (hasPriority && priority != null)
                   _PriorityChip(
                     priority: priority,
@@ -641,22 +651,13 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
           Row(
             children: [
               IconButton(
+                tooltip: 'Дата и время',
                 icon: const Icon(Icons.calendar_month),
                 color: _selectedDate != null
                     ? AppColors.accentYellow
                     : AppColors.icons,
                 onPressed: _pickDate,
               ),
-              if (_selectedDate != null)
-                Flexible(
-                  child: _DateChip(
-                    date: _selectedDate!,
-                    reminderOffsetMinutes: _reminderOffsetMinutes,
-                    onTap: _pickDate,
-                    onClear: () => setState(() => _selectedDate = null),
-                  ),
-                ),
-              const SizedBox(width: 4),
               IconButton(
                 tooltip: 'Повторение задачи',
                 icon: Icon(
@@ -679,6 +680,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                 },
               ),
               IconButton(
+                tooltip: 'Приоритет',
                 icon: Icon(
                   hasPriority ? priority!.icon : Icons.flag_outlined,
                   color: hasPriority ? priority!.color : AppColors.icons,
@@ -687,6 +689,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
               ),
               const Spacer(),
               IconButton(
+                tooltip: _isEditing ? 'Сохранить' : 'Создать задачу',
                 icon: Icon(_isEditing ? Icons.check_circle : Icons.send),
                 color: AppColors.active,
                 onPressed: _submit,
@@ -830,12 +833,13 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                   const SizedBox(height: 12),
                   SizedBox(
                     width: double.infinity,
-                    height: 44,
+                    height: 46,
                     child: ElevatedButton.icon(
                       onPressed: _isAiParsing ? null : _parseWithAi,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF8687E7),
                         foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -1139,12 +1143,9 @@ class _DateChip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Flexible(
-              child: Text(
-                label,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: AppColors.maintext, fontSize: 11),
-              ),
+            Text(
+              label,
+              style: const TextStyle(color: AppColors.maintext, fontSize: 11),
             ),
             const SizedBox(width: 6),
             const Icon(
