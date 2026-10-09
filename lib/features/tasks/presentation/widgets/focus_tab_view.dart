@@ -12,6 +12,8 @@ import 'package:todo/core/haptics/app_haptics.dart';
 import 'package:todo/core/notifications/notification_service.dart';
 import 'package:todo/features/ambient/presentation/controllers/ambient_audio_controller.dart';
 import 'package:todo/features/tasks/presentation/controllers/task_controller.dart';
+import 'package:todo/features/widgets/domain/entities/widget_pomodoro_state.dart';
+import 'package:todo/features/widgets/presentation/controllers/widget_sync_controller.dart';
 
 class _UserPlaylist {
   const _UserPlaylist({
@@ -88,7 +90,8 @@ class FocusTabView extends StatefulWidget {
 
 class _FocusTabViewState extends State<FocusTabView>
     with WidgetsBindingObserver {
-  static const _presetsMinutes = [15, 25, 45];
+  static const _presetsMinutes = [15, 25, 45, 60];
+  static const _focusSelectedMinutesKey = 'focus_selected_minutes';
   static const _userPlaylistsKey = 'focus_user_playlists_v2';
   static const _legacyCustomPlaylistUrlKey = 'focus_custom_playlist_url';
   static const _legacyCustomPlaylistTitleKey = 'focus_custom_playlist_title';
@@ -190,10 +193,16 @@ class _FocusTabViewState extends State<FocusTabView>
       }
     }
 
+    final savedMins = prefs.getInt(_focusSelectedMinutesKey);
+
     if (!mounted) return;
     setState(() {
       _userPlaylists = loaded;
       _systemVolume = sysVol;
+      if (savedMins != null && savedMins > 0 && !_isRunning) {
+        _selectedMinutes = savedMins;
+        _remainingSeconds = savedMins * 60;
+      }
     });
 
     // Auto-fetch missing cover artwork in the background for migrated playlists
@@ -316,6 +325,262 @@ class _FocusTabViewState extends State<FocusTabView>
       _remainingSeconds = minutes * 60;
       _isRunning = false;
     });
+    _saveSelectedMinutes(minutes);
+    _syncWidgetState();
+  }
+
+  Future<void> _saveSelectedMinutes(int minutes) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_focusSelectedMinutesKey, minutes);
+  }
+
+  void _syncWidgetState() {
+    try {
+      final taskCtrl = context.read<TaskController>();
+      final widgetCtrl = context.read<WidgetSyncController>();
+      widgetCtrl.syncFromTasks(
+        tasks: taskCtrl.tasks,
+        pomodoro: WidgetPomodoroState(
+          isRunning: _isRunning,
+          remainingSeconds: _remainingSeconds,
+          totalSeconds: _selectedMinutes * 60,
+          mode: 'focus',
+          completedPomodoros: taskCtrl.tasks.fold<int>(
+            0,
+            (acc, t) => acc + t.pomodoroCount,
+          ),
+        ),
+      );
+    } catch (_) {}
+  }
+
+  Future<void> _openCustomDurationPicker() async {
+    AppHaptics.light();
+    int tempMinutes = _selectedMinutes;
+
+    final selected = await showModalBottomSheet<int>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.cardBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          return Padding(
+            padding: EdgeInsets.fromLTRB(
+              24,
+              14,
+              24,
+              MediaQuery.of(ctx).viewInsets.bottom + 28,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      '⏱ Время фокуса',
+                      style: TextStyle(
+                        color: AppColors.maintext,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(
+                        Icons.close_rounded,
+                        color: AppColors.labeltext,
+                      ),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+
+                // Large numeric display with plus / minus buttons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      icon: const Icon(
+                        Icons.remove_circle_outline_rounded,
+                        size: 36,
+                      ),
+                      color: tempMinutes > 1
+                          ? AppColors.accentYellow
+                          : Colors.white24,
+                      onPressed: tempMinutes > 1
+                          ? () {
+                              AppHaptics.selection();
+                              setSheetState(
+                                () => tempMinutes = (tempMinutes - 5).clamp(
+                                  1,
+                                  180,
+                                ),
+                              );
+                            }
+                          : null,
+                    ),
+                    const SizedBox(width: 16),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.bgmain,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: AppColors.accentYellow.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          Text(
+                            '$tempMinutes',
+                            style: const TextStyle(
+                              color: AppColors.maintext,
+                              fontSize: 44,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          const Text(
+                            'мин',
+                            style: TextStyle(
+                              color: AppColors.labeltext,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    IconButton(
+                      icon: const Icon(
+                        Icons.add_circle_outline_rounded,
+                        size: 36,
+                      ),
+                      color: tempMinutes < 180
+                          ? AppColors.accentYellow
+                          : Colors.white24,
+                      onPressed: tempMinutes < 180
+                          ? () {
+                              AppHaptics.selection();
+                              setSheetState(
+                                () => tempMinutes = (tempMinutes + 5).clamp(
+                                  1,
+                                  180,
+                                ),
+                              );
+                            }
+                          : null,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+
+                // Slider
+                SliderTheme(
+                  data: SliderTheme.of(ctx).copyWith(
+                    activeTrackColor: AppColors.accentYellow,
+                    inactiveTrackColor: Colors.white12,
+                    thumbColor: AppColors.accentYellow,
+                    overlayColor: AppColors.accentYellow.withValues(alpha: 0.2),
+                    trackHeight: 6,
+                  ),
+                  child: Slider(
+                    value: tempMinutes.toDouble(),
+                    min: 1,
+                    max: 120,
+                    divisions: 119,
+                    onChanged: (val) {
+                      setSheetState(() => tempMinutes = val.round());
+                    },
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Popular preset chips
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.center,
+                  children: [5, 10, 15, 20, 25, 30, 45, 50, 60, 90].map((mins) {
+                    final isCurrent = tempMinutes == mins;
+                    return ChoiceChip(
+                      label: Text('$mins мин'),
+                      selected: isCurrent,
+                      selectedColor: AppColors.accentYellow,
+                      backgroundColor: AppColors.bgmain,
+                      labelStyle: TextStyle(
+                        color: isCurrent ? Colors.black : AppColors.maintext,
+                        fontWeight: isCurrent
+                            ? FontWeight.bold
+                            : FontWeight.w500,
+                        fontSize: 12,
+                      ),
+                      onSelected: (_) {
+                        AppHaptics.selection();
+                        setSheetState(() => tempMinutes = mins);
+                      },
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 22),
+
+                // Apply button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      AppHaptics.medium();
+                      Navigator.pop(ctx, tempMinutes);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.accentYellow,
+                      foregroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: const Text(
+                      'Применить время фокуса',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+
+    if (selected != null && selected > 0) {
+      _selectPreset(selected);
+    }
   }
 
   void _selectAmbientSound(String soundKey) {
@@ -644,10 +909,12 @@ class _FocusTabViewState extends State<FocusTabView>
     if (_isRunning) {
       _timer?.cancel();
       setState(() => _isRunning = false);
+      _syncWidgetState();
       return;
     }
 
     setState(() => _isRunning = true);
+    _syncWidgetState();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) {
         timer.cancel();
@@ -678,6 +945,7 @@ class _FocusTabViewState extends State<FocusTabView>
           _remainingSeconds = 0;
           _isRunning = false;
         });
+        _syncWidgetState();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -700,6 +968,7 @@ class _FocusTabViewState extends State<FocusTabView>
       _remainingSeconds = _selectedMinutes * 60;
       _isRunning = false;
     });
+    _syncWidgetState();
   }
 
   String _formatTime(int totalSeconds) {
@@ -721,47 +990,102 @@ class _FocusTabViewState extends State<FocusTabView>
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       children: [
         // Preset duration selector
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: _presetsMinutes.map((mins) {
-            final isSelected = _selectedMinutes == mins;
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              child: GestureDetector(
-                onTap: () => _selectPreset(mins),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 160),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? AppColors.accentYellow
-                        : AppColors.cardBg,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: isSelected
-                          ? AppColors.accentYellow
-                          : Colors.white24,
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ..._presetsMinutes.map((mins) {
+                final isSelected = _selectedMinutes == mins;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: GestureDetector(
+                    onTap: () => _selectPreset(mins),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 160),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? AppColors.accentYellow
+                            : AppColors.cardBg,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isSelected
+                              ? AppColors.accentYellow
+                              : Colors.white24,
+                        ),
+                      ),
+                      child: Text(
+                        '$mins мин',
+                        style: TextStyle(
+                          color: isSelected ? Colors.black : AppColors.maintext,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
                   ),
-                  child: Text(
-                    '$mins мин',
-                    style: TextStyle(
-                      color: isSelected ? Colors.black : AppColors.maintext,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
+                );
+              }),
+              // Custom duration button
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: GestureDetector(
+                  onTap: _openCustomDurationPicker,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 160),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: !_presetsMinutes.contains(_selectedMinutes)
+                          ? AppColors.accentYellow
+                          : AppColors.cardBg,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: !_presetsMinutes.contains(_selectedMinutes)
+                            ? AppColors.accentYellow
+                            : Colors.white24,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.tune_rounded,
+                          size: 15,
+                          color: !_presetsMinutes.contains(_selectedMinutes)
+                              ? Colors.black
+                              : AppColors.accentYellow,
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          !_presetsMinutes.contains(_selectedMinutes)
+                              ? '$_selectedMinutes мин'
+                              : 'Своё',
+                          style: TextStyle(
+                            color: !_presetsMinutes.contains(_selectedMinutes)
+                                ? Colors.black
+                                : AppColors.maintext,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ),
-            );
-          }).toList(),
+            ],
+          ),
         ),
         const SizedBox(height: 24),
 
-        // Circular Countdown Ring
+        // Circular Countdown Ring (tap to adjust duration when paused)
         Center(
           child: SizedBox(
             width: 210,
@@ -769,27 +1093,44 @@ class _FocusTabViewState extends State<FocusTabView>
             child: CustomPaint(
               painter: _FocusRingPainter(progress: progress),
               child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      _formatTime(_remainingSeconds),
-                      style: const TextStyle(
-                        color: AppColors.maintext,
-                        fontSize: 42,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.5,
+                child: GestureDetector(
+                  onTap: _isRunning ? null : _openCustomDurationPicker,
+                  behavior: HitTestBehavior.opaque,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _formatTime(_remainingSeconds),
+                        style: const TextStyle(
+                          color: AppColors.maintext,
+                          fontSize: 42,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.5,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _isRunning ? 'В фокусе...' : 'Готов к старту',
-                      style: const TextStyle(
-                        color: AppColors.labeltext,
-                        fontSize: 13,
+                      const SizedBox(height: 4),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _isRunning ? 'В фокусе...' : 'Готов к старту',
+                            style: const TextStyle(
+                              color: AppColors.labeltext,
+                              fontSize: 13,
+                            ),
+                          ),
+                          if (!_isRunning) ...[
+                            const SizedBox(width: 4),
+                            const Icon(
+                              Icons.edit_outlined,
+                              size: 13,
+                              color: AppColors.labeltext,
+                            ),
+                          ],
+                        ],
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
