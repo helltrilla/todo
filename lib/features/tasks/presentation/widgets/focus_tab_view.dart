@@ -82,7 +82,8 @@ class _UserPlaylist {
 
 /// Listodo Focus Mode (Pomodoro Timer + Ambient Mixer + Spotify/Music Hub) tab view.
 class FocusTabView extends StatefulWidget {
-  const FocusTabView({super.key});
+  final double initialScrollOffset;
+  const FocusTabView({super.key, this.initialScrollOffset = 0.0});
 
   @override
   State<FocusTabView> createState() => _FocusTabViewState();
@@ -111,6 +112,7 @@ class _FocusTabViewState extends State<FocusTabView>
   bool _isRunning = false;
   Timer? _timer;
   int? _focusedTaskId;
+  late final ScrollController _scrollController;
 
   String _ambientSound = 'off';
   double _ambientVolume = 0.45;
@@ -122,6 +124,9 @@ class _FocusTabViewState extends State<FocusTabView>
   @override
   void initState() {
     super.initState();
+    _scrollController = ScrollController(
+      initialScrollOffset: widget.initialScrollOffset,
+    );
     WidgetsBinding.instance.addObserver(this);
     _remainingSeconds = _selectedMinutes * 60;
     _loadSavedPlaylists();
@@ -191,6 +196,32 @@ class _FocusTabViewState extends State<FocusTabView>
           ),
         );
       }
+    }
+
+    if (loaded.isEmpty) {
+      loaded.addAll([
+        const _UserPlaylist(
+          id: 'preset_lofi',
+          title: 'Lo-Fi Beats',
+          url: 'https://open.spotify.com/playlist/0vvXsWCC9xrXsKd4FyS8kM',
+        ),
+        const _UserPlaylist(
+          id: 'preset_deep_focus',
+          title: 'Deep Focus',
+          url: 'https://open.spotify.com/playlist/37i9dQZF1DWZeKCadgRdKQ',
+        ),
+        const _UserPlaylist(
+          id: 'preset_synthwave',
+          title: 'Synthwave Chill',
+          url: 'https://open.spotify.com/playlist/37i9dQZF1DXdLEN7aqioXM',
+        ),
+        const _UserPlaylist(
+          id: 'preset_apple_piano',
+          title: 'Peaceful Piano',
+          url:
+              'https://music.apple.com/playlist/peaceful-piano/pl.784d5da438a04b76a08ec2284920fe14',
+        ),
+      ]);
     }
 
     final savedMins = prefs.getInt(_focusSelectedMinutesKey);
@@ -312,6 +343,7 @@ class _FocusTabViewState extends State<FocusTabView>
   void dispose() {
     _timer?.cancel();
     _playbackPollTimer?.cancel();
+    _scrollController.dispose();
     WidgetsBinding.instance.removeObserver(this);
     NotificationService.instance.setAmbientSound(sound: 'off');
     super.dispose();
@@ -987,6 +1019,7 @@ class _FocusTabViewState extends State<FocusTabView>
         : 0.0;
 
     return ListView(
+      controller: _scrollController,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       children: [
         // Preset duration selector

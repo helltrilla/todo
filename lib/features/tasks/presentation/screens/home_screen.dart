@@ -36,7 +36,6 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<TaskController>().load();
-      NotificationService.instance.requestPermissions();
       NotificationService.instance.registerQuickActionHandler(
         _handleQuickAction,
       );

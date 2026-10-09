@@ -20,22 +20,37 @@ import 'package:todo/features/tasks/presentation/widgets/create_category_dialog.
 /// Dedicated Profile tab view showing user card, profile settings sheet
 /// (photo + nickname), task statistics, categories, and archive.
 class ProfileTabView extends StatefulWidget {
-  const ProfileTabView({super.key});
+  final double initialScrollOffset;
+  const ProfileTabView({super.key, this.initialScrollOffset = 0.0});
 
   @override
   State<ProfileTabView> createState() => _ProfileTabViewState();
 }
 
 class _ProfileTabViewState extends State<ProfileTabView> {
+  late final ScrollController _scrollController;
+  TaskController? _taskController;
+
   @override
   void initState() {
     super.initState();
+    _scrollController = ScrollController(
+      initialScrollOffset: widget.initialScrollOffset,
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        final tasks = context.read<TaskController>().tasks;
-        context.read<ProductivityController>().computeDashboard(tasks);
+        _taskController = context.read<TaskController>();
+        _taskController?.addListener(_onTasksChanged);
+        _onTasksChanged();
       }
     });
+  }
+
+  void _onTasksChanged() {
+    if (!mounted || _taskController == null) return;
+    context
+        .read<ProductivityController>()
+        .computeDashboard(_taskController!.tasks);
   }
 
   Future<void> _openProfileSettingsSheet({
@@ -88,6 +103,13 @@ class _ProfileTabViewState extends State<ProfileTabView> {
   }
 
   @override
+  void dispose() {
+    _taskController?.removeListener(_onTasksChanged);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final authController = context.watch<AuthController>();
     final taskController = context.watch<TaskController>();
@@ -108,6 +130,7 @@ class _ProfileTabViewState extends State<ProfileTabView> {
     final progress = total > 0 ? completed / total : 0.0;
 
     return ListView(
+      controller: _scrollController,
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 110),
       children: [
         // 1. User Profile Card
