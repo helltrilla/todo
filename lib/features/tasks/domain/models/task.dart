@@ -139,6 +139,7 @@ class Task {
   final bool hasSpawnedNext;
   final int pomodoroCount;
   final int focusMinutes;
+  final DateTime? updatedAt;
 
   const Task({
     required this.id,
@@ -158,6 +159,7 @@ class Task {
     this.hasSpawnedNext = false,
     this.pomodoroCount = 0,
     this.focusMinutes = 0,
+    this.updatedAt,
   });
 
   PriorityLevel get priority => PriorityLevel.fromIndex(priorityIndex);
@@ -206,6 +208,7 @@ class Task {
     bool? hasSpawnedNext,
     int? pomodoroCount,
     int? focusMinutes,
+    DateTime? updatedAt,
   }) {
     return Task(
       id: id ?? this.id,
@@ -227,6 +230,7 @@ class Task {
       hasSpawnedNext: hasSpawnedNext ?? this.hasSpawnedNext,
       pomodoroCount: pomodoroCount ?? this.pomodoroCount,
       focusMinutes: focusMinutes ?? this.focusMinutes,
+      updatedAt: updatedAt ?? this.updatedAt ?? DateTime.now(),
     );
   }
 
@@ -249,6 +253,7 @@ class Task {
       'hasSpawnedNext': hasSpawnedNext,
       'pomodoroCount': pomodoroCount,
       'focusMinutes': focusMinutes,
+      'updatedAt': (updatedAt ?? createdAt).millisecondsSinceEpoch,
     };
   }
 
@@ -282,6 +287,76 @@ class Task {
       hasSpawnedNext: (map['hasSpawnedNext'] as bool?) ?? false,
       pomodoroCount: (map['pomodoroCount'] as int?) ?? 0,
       focusMinutes: (map['focusMinutes'] as int?) ?? 0,
+      updatedAt: map['updatedAt'] != null
+          ? DateTime.fromMillisecondsSinceEpoch(map['updatedAt'] as int)
+          : null,
+    );
+  }
+
+  /// Converts this [Task] to a Supabase PostgREST row map.
+  Map<String, dynamic> toSupabaseMap(String userId) {
+    return <String, dynamic>{
+      'id': id,
+      'user_id': userId,
+      'name': name,
+      'value': value,
+      'created_at': createdAt.millisecondsSinceEpoch,
+      'due_date': dueDate?.millisecondsSinceEpoch,
+      'completed_at': completedAt?.millisecondsSinceEpoch,
+      'reminder_offset_minutes': reminderOffsetMinutes,
+      'priority_index': priorityIndex,
+      'is_completed': isCompleted,
+      'is_archived': isArchived,
+      'is_pinned': isPinned,
+      'category': category,
+      'subtasks': subtasks.map((s) => s.toMap()).toList(),
+      'recurrence': recurrence.key,
+      'has_spawned_next': hasSpawnedNext,
+      'pomodoro_count': pomodoroCount,
+      'focus_minutes': focusMinutes,
+      'updated_at': (updatedAt ?? createdAt).millisecondsSinceEpoch,
+    };
+  }
+
+  /// Deserializes a [Task] from a Supabase PostgREST row map.
+  factory Task.fromSupabaseMap(Map<String, dynamic> map) {
+    final rawSubtasks = map['subtasks'] as List<dynamic>?;
+    final parsedSubtasks = rawSubtasks != null
+        ? rawSubtasks
+              .map((item) => SubTask.fromMap(item as Map<String, dynamic>))
+              .toList()
+        : const <SubTask>[];
+
+    final createdMs = (map['created_at'] as num).toInt();
+    final updatedMs = map['updated_at'] != null
+        ? (map['updated_at'] as num).toInt()
+        : createdMs;
+
+    return Task(
+      id: (map['id'] as num).toInt(),
+      name: map['name'] as String,
+      value: (map['value'] as String?) ?? '',
+      createdAt: DateTime.fromMillisecondsSinceEpoch(createdMs),
+      updatedAt: DateTime.fromMillisecondsSinceEpoch(updatedMs),
+      dueDate: map['due_date'] != null
+          ? DateTime.fromMillisecondsSinceEpoch((map['due_date'] as num).toInt())
+          : null,
+      completedAt: map['completed_at'] != null
+          ? DateTime.fromMillisecondsSinceEpoch(
+              (map['completed_at'] as num).toInt(),
+            )
+          : null,
+      reminderOffsetMinutes: map['reminder_offset_minutes'] as int?,
+      priorityIndex: (map['priority_index'] as int?) ?? -1,
+      isCompleted: (map['is_completed'] as bool?) ?? false,
+      isArchived: (map['is_archived'] as bool?) ?? false,
+      isPinned: (map['is_pinned'] as bool?) ?? false,
+      category: (map['category'] as String?) ?? 'Personal',
+      subtasks: parsedSubtasks,
+      recurrence: RecurrenceRule.fromKey(map['recurrence'] as String?),
+      hasSpawnedNext: (map['has_spawned_next'] as bool?) ?? false,
+      pomodoroCount: (map['pomodoro_count'] as int?) ?? 0,
+      focusMinutes: (map['focus_minutes'] as int?) ?? 0,
     );
   }
 

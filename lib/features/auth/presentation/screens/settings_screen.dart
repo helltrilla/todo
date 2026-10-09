@@ -443,6 +443,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final taskController = context.watch<TaskController>();
     final themeController = context.watch<ThemeController>();
     final localeController = context.watch<LocaleController>();
+    final authController = context.watch<AuthController>();
+    final currentUser = authController.currentUser;
 
     final completed = taskController.completedTasksCount;
     final total = taskController.totalTasksCount;
@@ -705,7 +707,158 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           const SizedBox(height: 24),
 
-          // 3. Notifications & Tactile Haptics
+          // 3. Cloud Synchronization (Синхронизация с Supabase)
+          Text(
+            tr.cloudSync,
+            style: TextStyle(
+              color: AppColors.maintext,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.cardBg,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(9),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF3ECF8E).withValues(alpha: 0.16),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.cloud_sync_rounded,
+                        color: Color(0xFF3ECF8E),
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            tr.cloudSync,
+                            style: TextStyle(
+                              color: AppColors.maintext,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            currentUser?.isLocal == true
+                                ? tr.offlineModeDesc
+                                : (taskController.lastSyncedAt != null
+                                    ? '${tr.syncedJustNow}: ${taskController.lastSyncedAt!.hour.toString().padLeft(2, '0')}:${taskController.lastSyncedAt!.minute.toString().padLeft(2, '0')}'
+                                    : tr.cloudSyncSubtitle),
+                            style: TextStyle(
+                              color: AppColors.labeltext,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    if (taskController.isSyncing)
+                      const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Color(0xFF3ECF8E),
+                        ),
+                      )
+                    else
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: (currentUser?.isLocal == true
+                                  ? Colors.grey
+                                  : const Color(0xFF3ECF8E))
+                              .withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          currentUser?.isLocal == true
+                              ? tr.offlineMode
+                              : tr.syncedJustNow,
+                          style: TextStyle(
+                            color: currentUser?.isLocal == true
+                                ? AppColors.labeltext
+                                : const Color(0xFF3ECF8E),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                if (currentUser?.isLocal != true) ...[
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: taskController.isSyncing
+                          ? null
+                          : () async {
+                              AppHaptics.medium();
+                              final ok = await taskController.syncWithCloud();
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      ok
+                                          ? tr.syncSuccess
+                                          : (taskController.syncError ??
+                                              'Ошибка синхронизации'),
+                                    ),
+                                  ),
+                                );
+                              }
+                            },
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFF3ECF8E)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 11),
+                      ),
+                      icon: const Icon(
+                        Icons.sync_rounded,
+                        size: 18,
+                        color: Color(0xFF3ECF8E),
+                      ),
+                      label: Text(
+                        tr.syncNow,
+                        style: const TextStyle(
+                          color: Color(0xFF3ECF8E),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // 4. Notifications & Tactile Haptics
           Text(
             tr.notificationsAndHaptics,
             style: TextStyle(

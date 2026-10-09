@@ -10,7 +10,9 @@ import 'package:todo/core/localization/app_language.dart';
 import 'package:todo/core/localization/locale_controller.dart';
 import 'package:todo/features/auth/data/repositories/auth_repository_impl.dart';
 import 'package:todo/features/auth/presentation/controllers/auth_controller.dart';
+import 'package:todo/features/tasks/data/datasources/task_remote_data_source.dart';
 import 'package:todo/features/tasks/data/repositories/task_local_repository.dart';
+import 'package:todo/features/tasks/data/repositories/task_sync_repository.dart';
 import 'package:todo/features/tasks/presentation/controllers/task_controller.dart';
 
 Future<void> main() async {
@@ -45,8 +47,17 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _themeController = ThemeController(widget.prefs);
     _localeController = LocaleController(widget.prefs);
-    _authController = AuthController(AuthRepositoryImpl(widget.prefs));
-    _taskController = TaskController(TaskLocalRepository(widget.prefs));
+    final authRepo = AuthRepositoryImpl(widget.prefs);
+    final localRepo = TaskLocalRepository(widget.prefs);
+    final remoteDataSource = SupabaseTaskRemoteDataSource();
+    final taskRepo = TaskSyncRepository(
+      local: localRepo,
+      remote: remoteDataSource,
+      auth: authRepo,
+    );
+
+    _authController = AuthController(authRepo);
+    _taskController = TaskController(taskRepo);
     _router = AppRouter.createRouter(_authController);
 
     _themeController.updateSystemBrightness(

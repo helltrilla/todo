@@ -24,6 +24,8 @@ class AuthRepositoryImpl implements IAuthRepository {
   static const _currentUserKey = 'auth_current_user';
   static const _internalAccountsKey = 'auth_internal_accounts';
   static const _seenOnboardingKey = 'auth_seen_onboarding';
+  static const _accessTokenKey = 'auth_access_token';
+  static const _refreshTokenKey = 'auth_refresh_token';
 
   @override
   bool hasSeenOnboarding() {
@@ -177,6 +179,15 @@ class AuthRepositoryImpl implements IAuthRepository {
       }
 
       final decoded = json.decode(response.body) as Map<String, dynamic>;
+      final accessToken = decoded['access_token'] as String?;
+      final refreshToken = decoded['refresh_token'] as String?;
+      if (accessToken != null && accessToken.isNotEmpty) {
+        await _prefs.setString(_accessTokenKey, accessToken);
+      }
+      if (refreshToken != null && refreshToken.isNotEmpty) {
+        await _prefs.setString(_refreshTokenKey, refreshToken);
+      }
+
       final userMap =
           (decoded['user'] as Map<String, dynamic>?) ?? <String, dynamic>{};
       final metadata =
@@ -267,6 +278,8 @@ class AuthRepositoryImpl implements IAuthRepository {
   Future<Result<void>> signOut() async {
     try {
       await _prefs.remove(_currentUserKey);
+      await _prefs.remove(_accessTokenKey);
+      await _prefs.remove(_refreshTokenKey);
       return const Success(null);
     } catch (_) {
       return const Error(CacheFailure('Не удалось выйти из профиля'));
@@ -286,11 +299,16 @@ class AuthRepositoryImpl implements IAuthRepository {
         }
       }
       await _prefs.remove(_currentUserKey);
+      await _prefs.remove(_accessTokenKey);
+      await _prefs.remove(_refreshTokenKey);
       return const Success(null);
     } catch (_) {
       return const Error(CacheFailure('Не удалось удалить профиль'));
     }
   }
+
+  @override
+  String? getAccessToken() => _prefs.getString(_accessTokenKey);
 
   // ---------------------------------------------------------------------------
   // Private helpers

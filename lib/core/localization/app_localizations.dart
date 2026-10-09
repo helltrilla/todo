@@ -625,6 +625,70 @@ class AppLocalizations {
         AppLanguage.fr => '+ Ajouter',
         AppLanguage.sr => '+ Додај',
       };
+
+  String get cloudSync => switch (language) {
+        AppLanguage.ru => 'Облачная синхронизация',
+        AppLanguage.en => 'Cloud Synchronization',
+        AppLanguage.de => 'Cloud-Synchronisierung',
+        AppLanguage.fr => 'Synchronisation Cloud',
+        AppLanguage.sr => 'Синхронизација у облаку',
+      };
+
+  String get cloudSyncSubtitle => switch (language) {
+        AppLanguage.ru => 'Синхронизация задач с базой данных Supabase',
+        AppLanguage.en => 'Sync tasks with Supabase database',
+        AppLanguage.de => 'Aufgaben mit Supabase synchronisieren',
+        AppLanguage.fr => 'Synchroniser les tâches avec Supabase',
+        AppLanguage.sr => 'Синхронизуј задатке са Supabase базом',
+      };
+
+  String get syncNow => switch (language) {
+        AppLanguage.ru => 'Синхронизировать сейчас',
+        AppLanguage.en => 'Sync Now',
+        AppLanguage.de => 'Jetzt synchronisieren',
+        AppLanguage.fr => 'Synchroniser maintenant',
+        AppLanguage.sr => 'Синхронизуј сада',
+      };
+
+  String get syncing => switch (language) {
+        AppLanguage.ru => 'Синхронизация...',
+        AppLanguage.en => 'Syncing...',
+        AppLanguage.de => 'Synchronisiere...',
+        AppLanguage.fr => 'Synchronisation...',
+        AppLanguage.sr => 'Синхронизација...',
+      };
+
+  String get syncedJustNow => switch (language) {
+        AppLanguage.ru => 'Синхронизировано',
+        AppLanguage.en => 'Synced',
+        AppLanguage.de => 'Synchronisiert',
+        AppLanguage.fr => 'Synchronisé',
+        AppLanguage.sr => 'Синхронизовано',
+      };
+
+  String get offlineMode => switch (language) {
+        AppLanguage.ru => 'Офлайн-режим',
+        AppLanguage.en => 'Offline Mode',
+        AppLanguage.de => 'Offline-Modus',
+        AppLanguage.fr => 'Mode hors-ligne',
+        AppLanguage.sr => 'Офлајн режим',
+      };
+
+  String get offlineModeDesc => switch (language) {
+        AppLanguage.ru => 'Войдите через Email OTP для сохранения задач в облаке',
+        AppLanguage.en => 'Sign in with Email OTP to enable cloud sync',
+        AppLanguage.de => 'Mit E-Mail-OTP anmelden für Cloud-Synchronisierung',
+        AppLanguage.fr => 'Connectez-vous par e-mail pour activer le cloud',
+        AppLanguage.sr => 'Пријавите се путем имејла за чување у облаку',
+      };
+
+  String get syncSuccess => switch (language) {
+        AppLanguage.ru => 'Задачи синхронизированы с облаком',
+        AppLanguage.en => 'Tasks synced with cloud',
+        AppLanguage.de => 'Aufgaben synchronisiert',
+        AppLanguage.fr => 'Tâches synchronisées',
+        AppLanguage.sr => 'Задаци су синхронизовани',
+      };
 }
 
 extension AppLocalizationsX on BuildContext {

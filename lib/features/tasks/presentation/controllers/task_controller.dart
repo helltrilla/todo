@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:todo/core/errors/result.dart';
 import 'package:todo/core/notifications/notification_service.dart';
+import 'package:todo/features/tasks/data/repositories/task_sync_repository.dart';
 import 'package:todo/features/tasks/domain/models/priority_level.dart';
 import 'package:todo/features/tasks/domain/models/task.dart';
 import 'package:todo/features/tasks/domain/models/task_category_style.dart';
@@ -30,6 +31,15 @@ class TaskController extends ChangeNotifier {
   String _searchQuery = '';
   bool _isLoading = false;
   String? _error;
+  bool _isSyncing = false;
+  String? _syncError;
+
+  bool get isSyncing => _isSyncing;
+  String? get syncError => _syncError;
+  DateTime? get lastSyncedAt {
+    final repo = _repository;
+    return repo is TaskSyncRepository ? repo.lastSyncedAt : null;
+  }
 
   /// All filtered and sorted tasks.
   List<Task> get tasks => List.unmodifiable(_filteredAndSorted(_tasks));
@@ -234,6 +244,33 @@ class TaskController extends ChangeNotifier {
 
     _isLoading = false;
     notifyListeners();
+
+    if (_repository is TaskSyncRepository) {
+      unawaited(syncWithCloud());
+    }
+  }
+
+  /// Triggers two-way cloud synchronization with Supabase.
+  Future<bool> syncWithCloud() async {
+    final repo = _repository;
+    if (repo is! TaskSyncRepository) return false;
+    _isSyncing = true;
+    _syncError = null;
+    notifyListeners();
+
+    final result = await repo.syncWithCloud();
+    _isSyncing = false;
+
+    switch (result) {
+      case Success(:final data):
+        _tasks = data;
+        notifyListeners();
+        return true;
+      case Error(:final failure):
+        _syncError = failure.message;
+        notifyListeners();
+        return false;
+    }
   }
 
   void setSearchQuery(String query) {

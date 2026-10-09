@@ -631,8 +631,16 @@ class _SectionedTaskList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.only(bottom: 110),
+    return RefreshIndicator(
+      color: AppColors.active,
+      backgroundColor: AppColors.cardBg,
+      onRefresh: () async {
+        AppHaptics.light();
+        await context.read<TaskController>().syncWithCloud();
+      },
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.only(bottom: 110),
       children: [
         if (futureTasks.isNotEmpty) ...[
           const Text(
@@ -684,6 +692,7 @@ class _SectionedTaskList extends StatelessWidget {
           ),
         ],
       ],
+    ),
     );
   }
 }

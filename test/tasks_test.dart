@@ -10,7 +10,9 @@ import 'package:todo/core/errors/failures.dart';
 import 'package:todo/core/errors/result.dart';
 import 'package:todo/features/auth/data/repositories/auth_repository_impl.dart';
 import 'package:todo/features/auth/domain/models/app_user.dart';
+import 'package:todo/features/tasks/data/datasources/task_remote_data_source.dart';
 import 'package:todo/features/tasks/data/repositories/task_local_repository.dart';
+import 'package:todo/features/tasks/data/repositories/task_sync_repository.dart';
 import 'package:todo/features/tasks/domain/models/priority_level.dart';
 import 'package:todo/features/tasks/domain/models/task.dart';
 import 'package:todo/features/tasks/domain/models/task_category_style.dart';
@@ -546,4 +548,215 @@ void main() {
       },
     );
   });
+
+  group('Task Supabase Mapping', () {
+    test('converts to and from Supabase snake_case map accurately', () {
+      final now = DateTime.fromMillisecondsSinceEpoch(1700000000000);
+      final task = Task(
+        id: 777,
+        name: 'Supabase Sync Test',
+        value: 'Testing RLS and sync',
+        createdAt: now,
+        priorityIndex: 1,
+        isCompleted: true,
+        category: 'Work',
+        subtasks: const [
+          SubTask(id: 1, title: 'Step 1', isCompleted: true),
+        ],
+      );
+
+      final map = task.toSupabaseMap('user-uuid-123');
+      expect(map['id'], 777);
+      expect(map['user_id'], 'user-uuid-123');
+      expect(map['name'], 'Supabase Sync Test');
+      expect(map['created_at'], 1700000000000);
+      expect(map['priority_index'], 1);
+      expect(map['is_completed'], isTrue);
+
+      final restored = Task.fromSupabaseMap(map);
+      expect(restored.id, task.id);
+      expect(restored.name, task.name);
+      expect(restored.value, task.value);
+      expect(restored.createdAt, task.createdAt);
+      expect(restored.priorityIndex, task.priorityIndex);
+      expect(restored.isCompleted, task.isCompleted);
+      expect(restored.subtasks.length, 1);
+      expect(restored.subtasks.first.title, 'Step 1');
+    });
+  });
+
+  group('SupabaseTaskRemoteDataSource', () {
+    test('fetches tasks with correct auth headers', () async {
+      final mockClient = MockClient((request) async {
+        expect(request.url.path, '/rest/v1/tasks');
+        expect(request.url.queryParameters['user_id'], 'eq.user-456');
+        expect(request.headers['Authorization'], 'Bearer test-token-123');
+        return http.Response(
+          json.encode([
+            {
+              'id': 101,
+              'name': 'Cloud Task',
+              'value': '',
+              'created_at': 1700000000000,
+              'priority_index': 0,
+              'is_completed': false,
+              'category': 'Personal',
+              'subtasks': [],
+            }
+          ]),
+          200,
+        );
+      });
+
+      final dataSource = SupabaseTaskRemoteDataSource(httpClient: mockClient);
+      final result = await dataSource.fetchTasks(
+        userId: 'user-456',
+        accessToken: 'test-token-123',
+      );
+
+      expect(result, isA<Success<List<Task>>>());
+      final tasks = (result as Success<List<Task>>).data;
+      expect(tasks.length, 1);
+      expect(tasks.first.id, 101);
+      expect(tasks.first.name, 'Cloud Task');
+    });
+
+    test('upserts task and returns representation', () async {
+      final mockClient = MockClient((request) async {
+        expect(request.method, 'POST');
+        expect(request.headers['Prefer'], contains('resolution=merge-duplicates'));
+        return http.Response(
+          json.encode([
+            {
+              'id': 202,
+              'name': 'Created Task',
+              'value': 'Remote',
+              'created_at': 1700000000000,
+              'priority_index': -1,
+              'is_completed': false,
+              'category': 'Personal',
+              'subtasks': [],
+            }
+          ]),
+          200,
+        );
+      });
+
+      final dataSource = SupabaseTaskRemoteDataSource(httpClient: mockClient);
+      final task = Task(
+        id: 202,
+        name: 'Created Task',
+        value: 'Remote',
+        createdAt: DateTime.fromMillisecondsSinceEpoch(1700000000000),
+        priorityIndex: -1,
+      );
+
+      final result = await dataSource.upsertTask(
+        task: task,
+        userId: 'user-456',
+        accessToken: 'test-token-123',
+      );
+
+      expect(result, isA<Success<Task>>());
+      expect((result as Success<Task>).data.id, 202);
+    });
+
+    test('deletes task by id', () async {
+      final mockClient = MockClient((request) async {
+        expect(request.method, 'DELETE');
+        expect(request.url.queryParameters['id'], 'eq.303');
+        return http.Response('', 204);
+      });
+
+      final dataSource = SupabaseTaskRemoteDataSource(httpClient: mockClient);
+      final result = await dataSource.deleteTask(
+        id: 303,
+        accessToken: 'test-token-123',
+      );
+
+      expect(result, isA<Success<void>>());
+    });
+  });
+
+  group('TaskSyncRepository (Offline-First Sync)', () {
+    late SharedPreferences prefs;
+    late TaskLocalRepository localRepo;
+
+    setUp(() async {
+      SharedPreferences.setMockInitialValues({});
+      prefs = await SharedPreferences.getInstance();
+      localRepo = TaskLocalRepository(prefs);
+    });
+
+    test('syncs and merges cloud tasks with local repository', () async {
+      // Seed a local task
+      final localTask = Task(
+        id: 1,
+        name: 'Local Task',
+        value: '',
+        createdAt: DateTime.fromMillisecondsSinceEpoch(1700000000000),
+        priorityIndex: 0,
+      );
+      await localRepo.save(localTask);
+
+      final cloudTask = Task(
+        id: 2,
+        name: 'Remote Cloud Task',
+        value: '',
+        createdAt: DateTime.fromMillisecondsSinceEpoch(1700000005000),
+        priorityIndex: 1,
+      );
+
+      final mockClient = MockClient((request) async {
+        if (request.method == 'GET') {
+          return http.Response(
+            json.encode([cloudTask.toSupabaseMap('user-test')]),
+            200,
+          );
+        }
+        if (request.method == 'POST') {
+          // Uploading local task to cloud
+          return http.Response('', 200);
+        }
+        return http.Response('', 404);
+      });
+
+      final remoteDataSource = SupabaseTaskRemoteDataSource(
+        httpClient: mockClient,
+      );
+      final authRepo = AuthRepositoryImpl(prefs);
+
+      // Seed mock user and access token in auth repo
+      await prefs.setString(
+        'auth_current_user',
+        const AppUser(
+          id: 'user-test',
+          name: 'Tester',
+          email: 'test@supabase.co',
+          isLocal: false,
+        ).toJson(),
+      );
+      await prefs.setString('auth_access_token', 'valid-jwt-token');
+
+      final syncRepo = TaskSyncRepository(
+        local: localRepo,
+        remote: remoteDataSource,
+        auth: authRepo,
+      );
+
+      final syncResult = await syncRepo.syncWithCloud();
+      expect(syncResult, isA<Success<List<Task>>>());
+      final merged = (syncResult as Success<List<Task>>).data;
+
+      // Both tasks should be present in merged result
+      expect(merged.length, 2);
+      expect(merged.any((t) => t.id == 1), isTrue);
+      expect(merged.any((t) => t.id == 2), isTrue);
+
+      // Local repository now contains both
+      final localFetch = await localRepo.getAll();
+      expect((localFetch as Success<List<Task>>).data.length, 2);
+    });
+  });
 }
+

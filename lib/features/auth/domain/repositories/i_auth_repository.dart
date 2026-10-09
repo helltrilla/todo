@@ -47,4 +47,7 @@ abstract interface class IAuthRepository {
 
   /// Marks the first-launch onboarding as seen.
   Future<void> completeOnboarding();
+
+  /// Returns the Supabase access token for the current active cloud session, if any.
+  String? getAccessToken();
 }
