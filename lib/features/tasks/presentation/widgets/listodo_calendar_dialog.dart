@@ -172,16 +172,16 @@ class _ListodoCalendarDialogState extends State<ListodoCalendarDialog> {
                   IconButton(
                     visualDensity: VisualDensity.compact,
                     onPressed: () => _changeMonth(-1),
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.chevron_left_rounded,
-                      color: AppColors.white,
+                      color: AppColors.icons,
                     ),
                   ),
                   Column(
                     children: [
                       Text(
                         _monthNames[_displayedMonth.month - 1],
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.maintext,
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
@@ -189,7 +189,7 @@ class _ListodoCalendarDialogState extends State<ListodoCalendarDialog> {
                       ),
                       Text(
                         '${_displayedMonth.year}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.labeltext,
                           fontSize: 12,
                         ),
@@ -199,9 +199,9 @@ class _ListodoCalendarDialogState extends State<ListodoCalendarDialog> {
                   IconButton(
                     visualDensity: VisualDensity.compact,
                     onPressed: () => _changeMonth(1),
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.chevron_right_rounded,
-                      color: AppColors.white,
+                      color: AppColors.icons,
                     ),
                   ),
                 ],
@@ -294,11 +294,11 @@ class _ListodoCalendarDialogState extends State<ListodoCalendarDialog> {
                 },
               ),
               const SizedBox(height: 14),
-              const Divider(color: Colors.white12, height: 1),
+              Divider(color: AppColors.divider, height: 1),
               const SizedBox(height: 12),
 
               // iOS-style Dual Wheel Time Picker (Hours & Minutes)
-              const Row(
+              Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
@@ -306,7 +306,7 @@ class _ListodoCalendarDialogState extends State<ListodoCalendarDialog> {
                     color: AppColors.accentYellow,
                     size: 16,
                   ),
-                  SizedBox(width: 6),
+                  const SizedBox(width: 6),
                   Flexible(
                     child: Text(
                       'Время',
@@ -362,7 +362,7 @@ class _ListodoCalendarDialogState extends State<ListodoCalendarDialog> {
                         }),
                       ),
                     ),
-                    const Text(
+                    Text(
                       ':',
                       style: TextStyle(
                         color: AppColors.accentYellow,
@@ -408,7 +408,7 @@ class _ListodoCalendarDialogState extends State<ListodoCalendarDialog> {
               const SizedBox(height: 12),
 
               // Push Notification Reminder Section
-              const Row(
+              Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
@@ -416,7 +416,7 @@ class _ListodoCalendarDialogState extends State<ListodoCalendarDialog> {
                     color: AppColors.accentYellow,
                     size: 16,
                   ),
-                  SizedBox(width: 6),
+                  const SizedBox(width: 6),
                   Flexible(
                     child: Text(
                       'Уведомление до задачи',
@@ -431,7 +431,7 @@ class _ListodoCalendarDialogState extends State<ListodoCalendarDialog> {
                 ],
               ),
               const SizedBox(height: 4),
-              const Text(
+              Text(
                 '⚡ В сам момент задачи уведомление придёт автоматически',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: AppColors.labeltext, fontSize: 11),

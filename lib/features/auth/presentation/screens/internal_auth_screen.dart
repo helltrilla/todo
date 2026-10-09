@@ -76,8 +76,8 @@ class _InternalAuthScreenState extends State<InternalAuthScreen> {
       backgroundColor: AppColors.bgmain,
       appBar: AppBar(
         backgroundColor: AppColors.bgmain,
-        iconTheme: const IconThemeData(color: AppColors.white),
-        title: const Text(
+        iconTheme: IconThemeData(color: AppColors.icons),
+        title: Text(
           'Внутренний профиль',
           style: TextStyle(color: AppColors.maintext, fontSize: 18),
         ),
@@ -108,7 +108,7 @@ class _InternalAuthScreenState extends State<InternalAuthScreen> {
                 _isRegisterMode
                     ? 'Создать локальный аккаунт'
                     : 'Войти в локальный аккаунт',
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.maintext,
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -119,7 +119,7 @@ class _InternalAuthScreenState extends State<InternalAuthScreen> {
                 _isRegisterMode
                     ? 'Данные сохраняются на устройстве. Быстро и без интернета.'
                     : 'Введите логин и пароль от вашего локального профиля.',
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.labeltext,
                   fontSize: 14,
                 ),
@@ -205,7 +205,7 @@ class _ModePill extends StatelessWidget {
           color: isActive ? AppColors.accentYellow : AppColors.cardBg,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: isActive ? AppColors.accentYellow : Colors.white24,
+            color: isActive ? AppColors.accentYellow : AppColors.border,
           ),
         ),
         child: Text(
@@ -241,22 +241,26 @@ class _InputBox extends StatelessWidget {
     return TextField(
       controller: controller,
       obscureText: obscureText,
-      style: const TextStyle(color: AppColors.maintext),
+      style: TextStyle(color: AppColors.maintext),
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
-        labelStyle: const TextStyle(color: AppColors.labeltext),
-        hintStyle: const TextStyle(color: Colors.white24),
+        labelStyle: TextStyle(color: AppColors.labeltext),
+        hintStyle: TextStyle(color: AppColors.labeltext.withValues(alpha: 0.6)),
         prefixIcon: Icon(icon, color: AppColors.labeltext),
         filled: true,
         fillColor: AppColors.cardBg,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
+          borderSide: BorderSide(color: AppColors.border),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: AppColors.border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(
+          borderSide: BorderSide(
             color: AppColors.accentYellow,
             width: 1.5,
           ),

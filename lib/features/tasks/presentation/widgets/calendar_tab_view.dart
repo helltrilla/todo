@@ -84,9 +84,9 @@ class _CalendarTabViewState extends State<CalendarTabView> {
         // Month switcher & Horizontal day strip card
         Container(
           padding: const EdgeInsets.symmetric(vertical: 14),
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: AppColors.cardBg,
-            borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
+            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
           ),
           child: Column(
             children: [
@@ -98,16 +98,16 @@ class _CalendarTabViewState extends State<CalendarTabView> {
                     IconButton(
                       visualDensity: VisualDensity.compact,
                       onPressed: () => _changeMonth(-1),
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.chevron_left_rounded,
-                        color: AppColors.white,
+                        color: AppColors.icons,
                       ),
                     ),
                     Column(
                       children: [
                         Text(
                           _monthNames[_visibleMonth.month - 1].toUpperCase(),
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppColors.maintext,
                             fontSize: 14,
                             fontWeight: FontWeight.w800,
@@ -116,7 +116,7 @@ class _CalendarTabViewState extends State<CalendarTabView> {
                         ),
                         Text(
                           '${_visibleMonth.year}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppColors.labeltext,
                             fontSize: 11,
                           ),
@@ -126,9 +126,9 @@ class _CalendarTabViewState extends State<CalendarTabView> {
                     IconButton(
                       visualDensity: VisualDensity.compact,
                       onPressed: () => _changeMonth(1),
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.chevron_right_rounded,
-                        color: AppColors.white,
+                        color: AppColors.icons,
                       ),
                     ),
                   ],
@@ -169,7 +169,7 @@ class _CalendarTabViewState extends State<CalendarTabView> {
                             border: Border.all(
                               color: isSelected
                                   ? AppColors.accentYellow
-                                  : Colors.white12,
+                                  : AppColors.border,
                               width: isSelected ? 1.5 : 1.0,
                             ),
                           ),
@@ -191,7 +191,7 @@ class _CalendarTabViewState extends State<CalendarTabView> {
                               const SizedBox(height: 4),
                               Text(
                                 '$day',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: AppColors.maintext,
                                   fontSize: 16,
                                   fontWeight: FontWeight.w800,
@@ -305,17 +305,17 @@ class _CalendarTabViewState extends State<CalendarTabView> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.event_available_outlined,
                           size: 64,
-                          color: Colors.white24,
+                          color: AppColors.border,
                         ),
                         const SizedBox(height: 12),
                         Text(
                           _showCompleted
                               ? 'Нет выполненных задач за этот день'
                               : 'На выбранный день задач нет',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppColors.labeltext,
                             fontSize: 14,
                           ),

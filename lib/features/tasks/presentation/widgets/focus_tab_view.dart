@@ -123,7 +123,7 @@ class _FocusTabViewState extends State<FocusTabView>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
+                    Text(
                       '⏱ Время фокуса',
                       style: TextStyle(
                         color: AppColors.maintext,
@@ -132,7 +132,7 @@ class _FocusTabViewState extends State<FocusTabView>
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.close_rounded,
                         color: AppColors.labeltext,
                       ),
@@ -153,7 +153,7 @@ class _FocusTabViewState extends State<FocusTabView>
                       ),
                       color: tempMinutes > 1
                           ? AppColors.accentYellow
-                          : Colors.white24,
+                          : AppColors.border,
                       onPressed: tempMinutes > 1
                           ? () {
                               AppHaptics.selection();
@@ -186,14 +186,14 @@ class _FocusTabViewState extends State<FocusTabView>
                         children: [
                           Text(
                             '$tempMinutes',
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: AppColors.maintext,
                               fontSize: 44,
                               fontWeight: FontWeight.w900,
                             ),
                           ),
                           const SizedBox(width: 6),
-                          const Text(
+                          Text(
                             'мин',
                             style: TextStyle(
                               color: AppColors.labeltext,
@@ -419,7 +419,7 @@ class _FocusTabViewState extends State<FocusTabView>
                           existing == null
                               ? 'Добавить плейлист'
                               : 'Настроить плейлист',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppColors.maintext,
                             fontSize: 17,
                             fontWeight: FontWeight.bold,
@@ -448,7 +448,7 @@ class _FocusTabViewState extends State<FocusTabView>
                         decoration: BoxDecoration(
                           color: AppColors.bgmain,
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.white12),
+                          border: Border.all(color: AppColors.border),
                           image: decodedBytes != null
                               ? DecorationImage(
                                   image: MemoryImage(decodedBytes),
@@ -464,7 +464,7 @@ class _FocusTabViewState extends State<FocusTabView>
                         child:
                             (decodedBytes == null &&
                                 (previewUrl == null || previewUrl!.isEmpty))
-                            ? const Icon(
+                            ? Icon(
                                 Icons.music_note_rounded,
                                 color: AppColors.labeltext,
                                 size: 30,
@@ -489,7 +489,7 @@ class _FocusTabViewState extends State<FocusTabView>
                               },
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: AppColors.maintext,
-                                side: const BorderSide(color: Colors.white24),
+                                side: BorderSide(color: AppColors.border),
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 10,
                                   vertical: 8,
@@ -512,7 +512,7 @@ class _FocusTabViewState extends State<FocusTabView>
                                 isFetchingCover
                                     ? 'Загружаем обложку...'
                                     : '✨ Подтянуть обложку по ссылке',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: AppColors.accentYellow,
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
@@ -527,7 +527,7 @@ class _FocusTabViewState extends State<FocusTabView>
                   const SizedBox(height: 14),
                   TextField(
                     controller: urlCtrl,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.maintext,
                       fontSize: 13,
                     ),
@@ -536,9 +536,9 @@ class _FocusTabViewState extends State<FocusTabView>
                         autoFetchFromLink();
                       }
                     },
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       isDense: true,
-                      border: OutlineInputBorder(),
+                      border: const OutlineInputBorder(),
                       hintText: 'https://open.spotify.com/playlist/...',
                       labelText: 'Ссылка на плейлист (URL)',
                       labelStyle: TextStyle(
@@ -550,13 +550,13 @@ class _FocusTabViewState extends State<FocusTabView>
                   const SizedBox(height: 12),
                   TextField(
                     controller: titleCtrl,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.maintext,
                       fontSize: 14,
                     ),
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       isDense: true,
-                      border: OutlineInputBorder(),
+                      border: const OutlineInputBorder(),
                       hintText: 'Например: Lo-Fi для работы',
                       labelText: 'Название плейлиста',
                       labelStyle: TextStyle(
@@ -571,7 +571,7 @@ class _FocusTabViewState extends State<FocusTabView>
                     children: [
                       TextButton(
                         onPressed: () => Navigator.of(ctx).pop(),
-                        child: const Text(
+                        child: Text(
                           'Отмена',
                           style: TextStyle(color: AppColors.labeltext),
                         ),
@@ -779,7 +779,7 @@ class _FocusTabViewState extends State<FocusTabView>
                     children: [
                       Text(
                         formattedTime,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.maintext,
                           fontSize: 42,
                           fontWeight: FontWeight.w800,
@@ -792,14 +792,14 @@ class _FocusTabViewState extends State<FocusTabView>
                         children: [
                           Text(
                             isRunning ? 'В фокусе...' : 'Готов к старту',
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: AppColors.labeltext,
                               fontSize: 13,
                             ),
                           ),
                           if (!isRunning) ...[
                             const SizedBox(width: 4),
-                            const Icon(
+                            Icon(
                               Icons.edit_outlined,
                               size: 13,
                               color: AppColors.labeltext,
@@ -849,7 +849,7 @@ class _FocusTabViewState extends State<FocusTabView>
               onPressed: _resetTimer,
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.maintext,
-                side: const BorderSide(color: Colors.white24),
+                side: BorderSide(color: AppColors.border),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 18,
                   vertical: 14,
@@ -874,7 +874,7 @@ class _FocusTabViewState extends State<FocusTabView>
             border: Border.all(
               color: _ambientSound != 'off'
                   ? AppColors.accentYellow.withValues(alpha: 0.45)
-                  : Colors.white12,
+                  : AppColors.border,
             ),
           ),
           child: Column(
@@ -882,13 +882,13 @@ class _FocusTabViewState extends State<FocusTabView>
             children: [
               Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.tune_rounded,
                     color: AppColors.accentYellow,
                     size: 20,
                   ),
                   const SizedBox(width: 8),
-                  const Expanded(
+                  Expanded(
                     child: Text(
                       'Аудио-микшер и атмосфера',
                       style: TextStyle(
@@ -908,7 +908,7 @@ class _FocusTabViewState extends State<FocusTabView>
                         color: AppColors.accentYellow.withValues(alpha: 0.16),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Text(
+                      child: Text(
                         'Mix активен',
                         style: TextStyle(
                           color: AppColors.accentYellow,
@@ -946,7 +946,7 @@ class _FocusTabViewState extends State<FocusTabView>
                             border: Border.all(
                               color: selected
                                   ? AppColors.accentYellow
-                                  : Colors.white12,
+                                  : AppColors.border,
                             ),
                           ),
                           child: Row(
@@ -988,7 +988,7 @@ class _FocusTabViewState extends State<FocusTabView>
                 decoration: BoxDecoration(
                   color: AppColors.bgmain,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.white10),
+                  border: Border.all(color: AppColors.border),
                 ),
                 child: Column(
                   children: [
@@ -1003,7 +1003,7 @@ class _FocusTabViewState extends State<FocusTabView>
                           size: 16,
                         ),
                         const SizedBox(width: 6),
-                        const SizedBox(
+                        SizedBox(
                           width: 82,
                           child: Text(
                             'Атмосфера',
@@ -1019,11 +1019,11 @@ class _FocusTabViewState extends State<FocusTabView>
                             data: SliderTheme.of(context).copyWith(
                               activeTrackColor: _ambientSound != 'off'
                                   ? AppColors.accentYellow
-                                  : Colors.white24,
-                              inactiveTrackColor: Colors.white12,
+                                  : AppColors.border,
+                              inactiveTrackColor: AppColors.divider,
                               thumbColor: _ambientSound != 'off'
                                   ? AppColors.accentYellow
-                                  : Colors.white54,
+                                  : AppColors.labeltext,
                               trackHeight: 4,
                               overlayShape: const RoundSliderOverlayShape(
                                 overlayRadius: 14,
@@ -1055,7 +1055,7 @@ class _FocusTabViewState extends State<FocusTabView>
                         ),
                       ],
                     ),
-                    const Divider(color: Colors.white10, height: 8),
+                    Divider(color: AppColors.divider, height: 8),
                     // Channel 2: System Phone / Music Volume
                     Row(
                       children: [
@@ -1065,7 +1065,7 @@ class _FocusTabViewState extends State<FocusTabView>
                           size: 16,
                         ),
                         const SizedBox(width: 6),
-                        const SizedBox(
+                        SizedBox(
                           width: 82,
                           child: Text(
                             'Телефон',
@@ -1080,7 +1080,7 @@ class _FocusTabViewState extends State<FocusTabView>
                           child: SliderTheme(
                             data: SliderTheme.of(context).copyWith(
                               activeTrackColor: const Color(0xFF1DB954),
-                              inactiveTrackColor: Colors.white12,
+                              inactiveTrackColor: AppColors.divider,
                               thumbColor: const Color(0xFF1DB954),
                               trackHeight: 4,
                               overlayShape: const RoundSliderOverlayShape(
@@ -1124,7 +1124,7 @@ class _FocusTabViewState extends State<FocusTabView>
           decoration: BoxDecoration(
             color: AppColors.cardBg,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white12),
+            border: Border.all(color: AppColors.border),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1137,7 +1137,7 @@ class _FocusTabViewState extends State<FocusTabView>
                     size: 20,
                   ),
                   const SizedBox(width: 8),
-                  const Expanded(
+                  Expanded(
                     child: Text(
                       'Музыка для фокуса',
                       style: TextStyle(
@@ -1258,7 +1258,7 @@ class _FocusTabViewState extends State<FocusTabView>
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'Мои плейлисты',
                     style: TextStyle(
                       color: AppColors.maintext,
@@ -1268,7 +1268,7 @@ class _FocusTabViewState extends State<FocusTabView>
                   ),
                   GestureDetector(
                     onTap: () => _openPlaylistDialog(),
-                    child: const Text(
+                    child: Text(
                       '+ Добавить плейлист',
                       style: TextStyle(
                         color: AppColors.accentYellow,
@@ -1297,7 +1297,7 @@ class _FocusTabViewState extends State<FocusTabView>
                         style: BorderStyle.solid,
                       ),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
@@ -1305,7 +1305,7 @@ class _FocusTabViewState extends State<FocusTabView>
                           color: AppColors.accentYellow,
                           size: 22,
                         ),
-                        SizedBox(width: 10),
+                        const SizedBox(width: 10),
                         Flexible(
                           child: Text(
                             'Добавить свой плейлист (Spotify / Яндекс / Apple Music)',
@@ -1352,9 +1352,9 @@ class _FocusTabViewState extends State<FocusTabView>
                           decoration: BoxDecoration(
                             color: AppColors.bgmain,
                             borderRadius: BorderRadius.circular(18),
-                            border: Border.all(color: Colors.white12),
+                            border: Border.all(color: AppColors.border),
                           ),
-                          child: const Column(
+                          child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Icon(
@@ -1362,7 +1362,7 @@ class _FocusTabViewState extends State<FocusTabView>
                                 color: AppColors.accentYellow,
                                 size: 28,
                               ),
-                              SizedBox(height: 8),
+                              const SizedBox(height: 8),
                               Text(
                                 '+ Добавить',
                                 style: TextStyle(
@@ -1385,7 +1385,7 @@ class _FocusTabViewState extends State<FocusTabView>
         const SizedBox(height: 24),
 
         // 3. Task selector for current focus session
-        const Text(
+        Text(
           'Фокус на задаче',
           style: TextStyle(
             color: AppColors.maintext,
@@ -1400,9 +1400,9 @@ class _FocusTabViewState extends State<FocusTabView>
             decoration: BoxDecoration(
               color: AppColors.cardBg,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white12),
+              border: Border.all(color: AppColors.border),
             ),
-            child: const Text(
+            child: Text(
               'Нет активных задач. Добавьте задачу кнопкой «+» по центру.',
               style: TextStyle(color: AppColors.labeltext, fontSize: 13),
             ),
@@ -1432,7 +1432,7 @@ class _FocusTabViewState extends State<FocusTabView>
                     border: Border.all(
                       color: isFocused
                           ? AppColors.accentYellow
-                          : Colors.white12,
+                          : AppColors.border,
                       width: isFocused ? 1.5 : 1.0,
                     ),
                   ),
@@ -1454,7 +1454,7 @@ class _FocusTabViewState extends State<FocusTabView>
                           children: [
                             Text(
                               task.name,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: AppColors.maintext,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
@@ -1464,7 +1464,7 @@ class _FocusTabViewState extends State<FocusTabView>
                               const SizedBox(height: 3),
                               Text(
                                 '🍅 ${task.pomodoroCount} сессий • ${task.focusMinutes} мин в фокусе',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: AppColors.accentYellow,
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
@@ -1481,7 +1481,7 @@ class _FocusTabViewState extends State<FocusTabView>
                             controller.toggleCompleted(task.id);
                             pomodoro.setFocusedTaskId(null);
                           },
-                          child: const Text(
+                          child: Text(
                             'Готово ✓',
                             style: TextStyle(
                               color: AppColors.accentYellow,

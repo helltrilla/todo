@@ -63,7 +63,7 @@ class _ExportBackupDialogState extends State<ExportBackupDialog> {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.white24,
+                color: AppColors.border,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -78,14 +78,14 @@ class _ExportBackupDialogState extends State<ExportBackupDialog> {
                   color: AppColors.accentYellow.withValues(alpha: 0.16),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.ios_share_rounded,
                   color: AppColors.accentYellow,
                   size: 20,
                 ),
               ),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -97,7 +97,7 @@ class _ExportBackupDialogState extends State<ExportBackupDialog> {
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                    SizedBox(height: 2),
+                    const SizedBox(height: 2),
                     Text(
                       'Сохраните или поделитесь задачами',
                       style: TextStyle(
@@ -110,7 +110,7 @@ class _ExportBackupDialogState extends State<ExportBackupDialog> {
               ),
               IconButton(
                 onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.close, color: AppColors.labeltext),
+                icon: Icon(Icons.close, color: AppColors.labeltext),
               ),
             ],
           ),
@@ -121,18 +121,18 @@ class _ExportBackupDialogState extends State<ExportBackupDialog> {
             decoration: BoxDecoration(
               color: AppColors.bgmain,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.white12),
+              border: Border.all(color: AppColors.border),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _StatItem(label: 'Задач', value: '${widget.tasks.length}'),
-                Container(width: 1, height: 24, color: Colors.white12),
+                Container(width: 1, height: 24, color: AppColors.border),
                 _StatItem(
                   label: 'Категорий',
                   value: '${widget.categories.length}',
                 ),
-                Container(width: 1, height: 24, color: Colors.white12),
+                Container(width: 1, height: 24, color: AppColors.border),
                 _StatItem(
                   label: 'Завершено',
                   value: '${widget.tasks.where((t) => t.isCompleted).length}',
@@ -141,7 +141,7 @@ class _ExportBackupDialogState extends State<ExportBackupDialog> {
             ),
           ),
           const SizedBox(height: 18),
-          const Text(
+          Text(
             'Выберите формат экспорта:',
             style: TextStyle(
               color: AppColors.maintext,
@@ -168,13 +168,13 @@ class _ExportBackupDialogState extends State<ExportBackupDialog> {
                   ),
                   decoration: BoxDecoration(
                     color: isSelected
-                        ? AppColors.accentYellow.withValues(alpha: 0.12)
-                        : AppColors.bgmain,
+                      ? AppColors.accentYellow.withValues(alpha: 0.12)
+                      : AppColors.bgmain,
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
                       color: isSelected
                           ? AppColors.accentYellow
-                          : Colors.white12,
+                          : AppColors.border,
                       width: isSelected ? 1.5 : 1.0,
                     ),
                   ),
@@ -205,7 +205,7 @@ class _ExportBackupDialogState extends State<ExportBackupDialog> {
                             const SizedBox(height: 2),
                             Text(
                               _formatDescription(format),
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: AppColors.labeltext,
                                 fontSize: 11,
                               ),
@@ -219,7 +219,7 @@ class _ExportBackupDialogState extends State<ExportBackupDialog> {
                             : Icons.radio_button_off_rounded,
                         color: isSelected
                             ? AppColors.accentYellow
-                            : Colors.white24,
+                            : AppColors.border,
                         size: 20,
                       ),
                     ],
@@ -276,7 +276,7 @@ class _ExportBackupDialogState extends State<ExportBackupDialog> {
                           }
                         },
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Colors.white24),
+                    side: BorderSide(color: AppColors.border),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
@@ -372,7 +372,7 @@ class _StatItem extends StatelessWidget {
       children: [
         Text(
           value,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.maintext,
             fontSize: 16,
             fontWeight: FontWeight.w800,
@@ -381,7 +381,7 @@ class _StatItem extends StatelessWidget {
         const SizedBox(height: 2),
         Text(
           label,
-          style: const TextStyle(color: AppColors.labeltext, fontSize: 11),
+          style: TextStyle(color: AppColors.labeltext, fontSize: 11),
         ),
       ],
     );

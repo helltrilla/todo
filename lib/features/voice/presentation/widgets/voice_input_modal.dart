@@ -75,9 +75,9 @@ class _VoiceInputModalState extends State<VoiceInputModal>
     }
 
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.cardBg,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       ),
       padding: EdgeInsets.only(
         left: 20,
@@ -92,7 +92,7 @@ class _VoiceInputModalState extends State<VoiceInputModal>
             width: 36,
             height: 4,
             decoration: BoxDecoration(
-              color: Colors.white24,
+              color: AppColors.border,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -227,7 +227,7 @@ class _VoiceInputModalState extends State<VoiceInputModal>
         border: Border.all(
           color: hasError
               ? Colors.redAccent.withValues(alpha: 0.4)
-              : Colors.white12,
+              : AppColors.border,
         ),
       ),
       child: SingleChildScrollView(
@@ -240,7 +240,7 @@ class _VoiceInputModalState extends State<VoiceInputModal>
           style: TextStyle(
             color: hasError
                 ? Colors.redAccent
-                : (text.isNotEmpty ? AppColors.white : AppColors.labeltext),
+                : (text.isNotEmpty ? AppColors.maintext : AppColors.labeltext),
             fontSize: 14,
             height: 1.4,
             fontStyle: text.isEmpty ? FontStyle.italic : FontStyle.normal,

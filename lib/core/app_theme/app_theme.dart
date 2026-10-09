@@ -1,82 +1,213 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:todo/core/app_theme/app_color_palette.dart';
+import 'package:todo/core/app_theme/app_colors.dart';
 
 class AppTheme {
-  static ThemeData get dark => ThemeData(
-    brightness: Brightness.dark,
-    scaffoldBackgroundColor: const Color(0xFF121212),
-    primaryColor: const Color(0xFF242424),
-    cardColor: const Color(0xFF1E1E1E),
-    appBarTheme: const AppBarTheme(
-      backgroundColor: Color(0xFF121212),
-      elevation: 0,
-    ),
-    bottomSheetTheme: const BottomSheetThemeData(
-      backgroundColor: Color(0xFF121212),
-      constraints: BoxConstraints(maxWidth: 640),
-    ),
-    dialogTheme: const DialogThemeData(backgroundColor: Color(0xFF242424)),
-    datePickerTheme: const DatePickerThemeData(),
-    textTheme: GoogleFonts.interTextTheme(
-      const TextTheme(
-        titleMedium: TextStyle(
-          fontSize: 30,
-          fontStyle: FontStyle.italic,
-          color: Colors.white,
-        ),
-      ),
-    ),
-  );
+  static ThemeData light([AppColorPalette palette = AppColorPalette.iris]) {
+    final colors = AppThemeColors.light(palette);
+    final baseTextTheme = GoogleFonts.interTextTheme(ThemeData.light().textTheme);
 
-  static ThemeData get midnight => ThemeData(
-    brightness: Brightness.dark,
-    scaffoldBackgroundColor: const Color(0xFF000000),
-    primaryColor: const Color(0xFF101010),
-    cardColor: const Color(0xFF0D0D0E),
-    appBarTheme: const AppBarTheme(
-      backgroundColor: Color(0xFF000000),
-      elevation: 0,
-    ),
-    bottomSheetTheme: const BottomSheetThemeData(
-      backgroundColor: Color(0xFF000000),
-      constraints: BoxConstraints(maxWidth: 640),
-    ),
-    dialogTheme: const DialogThemeData(backgroundColor: Color(0xFF101010)),
-    datePickerTheme: const DatePickerThemeData(),
-    textTheme: GoogleFonts.interTextTheme(
-      const TextTheme(
-        titleMedium: TextStyle(
-          fontSize: 30,
-          fontStyle: FontStyle.italic,
-          color: Colors.white,
+    return ThemeData(
+      brightness: Brightness.light,
+      useMaterial3: true,
+      scaffoldBackgroundColor: colors.bgmain,
+      primaryColor: colors.primary,
+      cardColor: colors.cardBg,
+      colorScheme: ColorScheme.light(
+        primary: palette.primary,
+        secondary: palette.accent,
+        surface: colors.cardBg,
+        onSurface: colors.maintext,
+        outline: colors.border,
+      ),
+      appBarTheme: AppBarTheme(
+        backgroundColor: colors.bgmain,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        iconTheme: IconThemeData(color: colors.maintext),
+        titleTextStyle: GoogleFonts.inter(
+          color: colors.maintext,
+          fontSize: 20,
+          fontWeight: FontWeight.w800,
         ),
       ),
-    ),
-  );
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: colors.cardBg,
+        surfaceTintColor: Colors.transparent,
+        constraints: const BoxConstraints(maxWidth: 640),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: colors.cardBg,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      ),
+      cardTheme: CardThemeData(
+        color: colors.cardBg,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: colors.cardBorder),
+        ),
+      ),
+      dividerTheme: DividerThemeData(
+        color: colors.divider,
+        thickness: 1,
+        space: 1,
+      ),
+      datePickerTheme: const DatePickerThemeData(),
+      extensions: [colors],
+      textTheme: baseTextTheme.copyWith(
+        titleMedium: GoogleFonts.inter(
+          fontSize: 30,
+          fontStyle: FontStyle.italic,
+          color: colors.maintext,
+        ),
+        bodyLarge: GoogleFonts.inter(color: colors.maintext),
+        bodyMedium: GoogleFonts.inter(color: colors.maintext),
+        bodySmall: GoogleFonts.inter(color: colors.labeltext),
+      ),
+    );
+  }
 
-  static ThemeData get light => ThemeData(
-    brightness: Brightness.light,
-    scaffoldBackgroundColor: const Color(0xFFF5F6F9),
-    primaryColor: const Color(0xFFFFFFFF),
-    cardColor: const Color(0xFFFFFFFF),
-    appBarTheme: const AppBarTheme(
-      backgroundColor: Color(0xFFF5F6F9),
-      elevation: 0,
-    ),
-    bottomSheetTheme: const BottomSheetThemeData(
-      backgroundColor: Color(0xFFFFFFFF),
-      constraints: BoxConstraints(maxWidth: 640),
-    ),
-    dialogTheme: const DialogThemeData(backgroundColor: Color(0xFFFFFFFF)),
-    datePickerTheme: const DatePickerThemeData(),
-    textTheme: GoogleFonts.interTextTheme(
-      const TextTheme(
-        titleMedium: TextStyle(
-          fontSize: 30,
-          fontStyle: FontStyle.italic,
-          color: Color(0xFF18191B),
+  static ThemeData dark([AppColorPalette palette = AppColorPalette.iris]) {
+    final colors = AppThemeColors.dark(palette);
+    final baseTextTheme = GoogleFonts.interTextTheme(ThemeData.dark().textTheme);
+
+    return ThemeData(
+      brightness: Brightness.dark,
+      useMaterial3: true,
+      scaffoldBackgroundColor: colors.bgmain,
+      primaryColor: colors.primary,
+      cardColor: colors.cardBg,
+      colorScheme: ColorScheme.dark(
+        primary: palette.primary,
+        secondary: palette.accent,
+        surface: colors.cardBg,
+        onSurface: colors.maintext,
+        outline: colors.border,
+      ),
+      appBarTheme: AppBarTheme(
+        backgroundColor: colors.bgmain,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        iconTheme: IconThemeData(color: colors.maintext),
+        titleTextStyle: GoogleFonts.inter(
+          color: colors.maintext,
+          fontSize: 20,
+          fontWeight: FontWeight.w800,
         ),
       ),
-    ),
-  );
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: colors.cardBg,
+        surfaceTintColor: Colors.transparent,
+        constraints: const BoxConstraints(maxWidth: 640),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: colors.cardBg,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      ),
+      cardTheme: CardThemeData(
+        color: colors.cardBg,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: colors.cardBorder),
+        ),
+      ),
+      dividerTheme: DividerThemeData(
+        color: colors.divider,
+        thickness: 1,
+        space: 1,
+      ),
+      datePickerTheme: const DatePickerThemeData(),
+      extensions: [colors],
+      textTheme: baseTextTheme.copyWith(
+        titleMedium: GoogleFonts.inter(
+          fontSize: 30,
+          fontStyle: FontStyle.italic,
+          color: colors.maintext,
+        ),
+        bodyLarge: GoogleFonts.inter(color: colors.maintext),
+        bodyMedium: GoogleFonts.inter(color: colors.maintext),
+        bodySmall: GoogleFonts.inter(color: colors.labeltext),
+      ),
+    );
+  }
+
+  static ThemeData midnight([AppColorPalette palette = AppColorPalette.iris]) {
+    final colors = AppThemeColors.midnight(palette);
+    final baseTextTheme = GoogleFonts.interTextTheme(ThemeData.dark().textTheme);
+
+    return ThemeData(
+      brightness: Brightness.dark,
+      useMaterial3: true,
+      scaffoldBackgroundColor: colors.bgmain,
+      primaryColor: colors.primary,
+      cardColor: colors.cardBg,
+      colorScheme: ColorScheme.dark(
+        primary: palette.primary,
+        secondary: palette.accent,
+        surface: colors.cardBg,
+        onSurface: colors.maintext,
+        outline: colors.border,
+      ),
+      appBarTheme: AppBarTheme(
+        backgroundColor: colors.bgmain,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        iconTheme: IconThemeData(color: colors.maintext),
+        titleTextStyle: GoogleFonts.inter(
+          color: colors.maintext,
+          fontSize: 20,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: colors.cardBg,
+        surfaceTintColor: Colors.transparent,
+        constraints: const BoxConstraints(maxWidth: 640),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: colors.cardBg,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      ),
+      cardTheme: CardThemeData(
+        color: colors.cardBg,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: colors.cardBorder),
+        ),
+      ),
+      dividerTheme: DividerThemeData(
+        color: colors.divider,
+        thickness: 1,
+        space: 1,
+      ),
+      datePickerTheme: const DatePickerThemeData(),
+      extensions: [colors],
+      textTheme: baseTextTheme.copyWith(
+        titleMedium: GoogleFonts.inter(
+          fontSize: 30,
+          fontStyle: FontStyle.italic,
+          color: colors.maintext,
+        ),
+        bodyLarge: GoogleFonts.inter(color: colors.maintext),
+        bodyMedium: GoogleFonts.inter(color: colors.maintext),
+        bodySmall: GoogleFonts.inter(color: colors.labeltext),
+      ),
+    );
+  }
 }

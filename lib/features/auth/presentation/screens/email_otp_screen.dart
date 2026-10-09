@@ -90,8 +90,8 @@ class _EmailOtpScreenState extends State<EmailOtpScreen> {
       backgroundColor: AppColors.bgmain,
       appBar: AppBar(
         backgroundColor: AppColors.bgmain,
-        iconTheme: const IconThemeData(color: AppColors.white),
-        title: const Text(
+        iconTheme: IconThemeData(color: AppColors.icons),
+        title: Text(
           'Вход по Почте',
           style: TextStyle(color: AppColors.maintext, fontSize: 18),
         ),
@@ -106,7 +106,7 @@ class _EmailOtpScreenState extends State<EmailOtpScreen> {
                 _codeSent
                     ? 'Введите код из письма'
                     : 'Получите одноразовый код',
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.maintext,
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -117,7 +117,7 @@ class _EmailOtpScreenState extends State<EmailOtpScreen> {
                 _codeSent
                     ? 'Мы отправили код подтверждения на ${_emailController.text.trim()}'
                     : 'Укажите вашу почту. Supabase отправит на неё письмо с кодом для входа.',
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.labeltext,
                   fontSize: 14,
                   height: 1.4,
@@ -211,7 +211,7 @@ class _EmailOtpScreenState extends State<EmailOtpScreen> {
                           _codeSent = false;
                           _codeController.clear();
                         }),
-                  child: const Text(
+                  child: Text(
                     'Изменить Email или отправить заново',
                     style: TextStyle(color: AppColors.accentYellow),
                   ),
@@ -245,22 +245,26 @@ class _AuthTextField extends StatelessWidget {
     return TextField(
       controller: controller,
       keyboardType: keyboardType,
-      style: const TextStyle(color: AppColors.maintext),
+      style: TextStyle(color: AppColors.maintext),
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
-        labelStyle: const TextStyle(color: AppColors.labeltext),
-        hintStyle: const TextStyle(color: Colors.white24),
+        labelStyle: TextStyle(color: AppColors.labeltext),
+        hintStyle: TextStyle(color: AppColors.labeltext.withValues(alpha: 0.6)),
         prefixIcon: Icon(icon, color: AppColors.labeltext),
         filled: true,
         fillColor: AppColors.cardBg,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
+          borderSide: BorderSide(color: AppColors.border),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: AppColors.border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: AppColors.active, width: 1.5),
+          borderSide: BorderSide(color: AppColors.active, width: 1.5),
         ),
       ),
     );

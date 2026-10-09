@@ -116,7 +116,7 @@ class TaskCard extends StatelessWidget {
                 ? priority.color.withValues(alpha: 0.5)
                 : (task.hasPriority && !task.isCompleted
                       ? priority.color.withValues(alpha: 0.2)
-                      : Colors.transparent),
+                      : AppColors.cardBorder),
             width: isUrgent ? 1.4 : 1.0,
           ),
         ),
@@ -188,7 +188,7 @@ class _CompletionCheckbox extends StatelessWidget {
           shape: BoxShape.circle,
           color: isCompleted ? accentColor : Colors.transparent,
           border: Border.all(
-            color: isCompleted ? accentColor : Colors.white38,
+            color: isCompleted ? accentColor : AppColors.border,
             width: 1.8,
           ),
         ),
@@ -216,7 +216,7 @@ class _TaskInfo extends StatelessWidget {
         Row(
           children: [
             if (task.isPinned) ...[
-              const Icon(
+              Icon(
                 Icons.push_pin_rounded,
                 size: 15,
                 color: AppColors.accentYellow,
@@ -304,7 +304,7 @@ class _TaskInfo extends StatelessWidget {
           children: [
             Text(
               _formatDate(displayDate, includeTime: showTime),
-              style: const TextStyle(color: AppColors.labeltext, fontSize: 12),
+              style: TextStyle(color: AppColors.labeltext, fontSize: 12),
             ),
             if (task.dueDate != null && !task.isCompleted)
               Container(
@@ -316,7 +316,7 @@ class _TaskInfo extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.notifications_active_outlined,
                       size: 11,
                       color: AppColors.accentYellow,
@@ -324,7 +324,7 @@ class _TaskInfo extends StatelessWidget {
                     const SizedBox(width: 3),
                     Text(
                       task.reminderLabel ?? 'В момент',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.accentYellow,
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
@@ -365,13 +365,13 @@ class _TaskInfo extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.07),
+                  color: AppColors.unactive.withValues(alpha: 0.35),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.checklist_rounded,
                       size: 12,
                       color: AppColors.accentYellow,
@@ -379,7 +379,7 @@ class _TaskInfo extends StatelessWidget {
                     const SizedBox(width: 4),
                     Text(
                       '${task.completedSubtasksCount}/${task.subtasks.length}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.maintext,
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
@@ -443,7 +443,7 @@ class _PriorityBadge extends StatelessWidget {
     if (!task.hasPriority) {
       return Icon(
         priority.icon,
-        color: Colors.white.withValues(alpha: 0.25),
+        color: AppColors.labeltext.withValues(alpha: 0.35),
         size: 20,
       );
     }
@@ -492,11 +492,11 @@ class _CategoryTag extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: AppColors.active.withValues(alpha: 0.4)),
         ),
-        child: const Row(
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.public_rounded, size: 11, color: AppColors.accentYellow),
-            SizedBox(width: 4),
+            const SizedBox(width: 4),
             Text(
               'Общее',
               style: TextStyle(

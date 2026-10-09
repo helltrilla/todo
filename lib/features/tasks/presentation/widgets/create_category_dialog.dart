@@ -56,7 +56,7 @@ class _CreateCategoryDialogState extends State<CreateCategoryDialog> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'Новая категория',
                     style: TextStyle(
                       color: AppColors.maintext,
@@ -103,10 +103,10 @@ class _CreateCategoryDialogState extends State<CreateCategoryDialog> {
                 controller: _nameController,
                 autofocus: true,
                 onChanged: (_) => setState(() {}),
-                style: const TextStyle(color: AppColors.maintext),
+                style: TextStyle(color: AppColors.maintext),
                 decoration: InputDecoration(
                   hintText: 'Например, Study или Fitness',
-                  hintStyle: const TextStyle(color: AppColors.labeltext),
+                  hintStyle: TextStyle(color: AppColors.labeltext),
                   filled: true,
                   fillColor: AppColors.bg,
                   contentPadding: const EdgeInsets.symmetric(
@@ -115,11 +115,11 @@ class _CreateCategoryDialogState extends State<CreateCategoryDialog> {
                   ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: Colors.white24),
+                    borderSide: BorderSide(color: AppColors.border),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: Colors.white24),
+                    borderSide: BorderSide(color: AppColors.border),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
@@ -130,7 +130,7 @@ class _CreateCategoryDialogState extends State<CreateCategoryDialog> {
               const SizedBox(height: 18),
 
               // Icon Picker Grid
-              const Text(
+              Text(
                 'Иконка категории',
                 style: TextStyle(
                   color: AppColors.labeltext,
@@ -175,7 +175,7 @@ class _CreateCategoryDialogState extends State<CreateCategoryDialog> {
               const SizedBox(height: 18),
 
               // Color Swatch Row
-              const Text(
+              Text(
                 'Цвет категории',
                 style: TextStyle(
                   color: AppColors.labeltext,
@@ -225,7 +225,7 @@ class _CreateCategoryDialogState extends State<CreateCategoryDialog> {
                   Expanded(
                     child: TextButton(
                       onPressed: () => Navigator.of(context).pop(),
-                      child: const Text(
+                      child: Text(
                         'Отмена',
                         style: TextStyle(color: AppColors.labeltext),
                       ),

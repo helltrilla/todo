@@ -58,23 +58,29 @@ class _DailyDigestCardState extends State<DailyDigestCard>
         return Container(
           margin: const EdgeInsets.only(bottom: 16),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
+            gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                Color(0xFF221A3A),
-                Color(0xFF16152B),
-                Color(0xFF121212),
-              ],
+              colors: AppColors.isDark
+                  ? const [
+                      Color(0xFF221A3A),
+                      Color(0xFF16152B),
+                      Color(0xFF121212),
+                    ]
+                  : [
+                      AppColors.active.withValues(alpha: 0.1),
+                      AppColors.cardBg,
+                      AppColors.cardBg,
+                    ],
             ),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: const Color(0xFF8875FF).withValues(alpha: 0.35),
+              color: AppColors.active.withValues(alpha: AppColors.isDark ? 0.35 : 0.25),
               width: 1.2,
             ),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF8875FF).withValues(alpha: 0.12),
+                color: AppColors.active.withValues(alpha: AppColors.isDark ? 0.12 : 0.05),
                 blurRadius: 18,
                 offset: const Offset(0, 6),
               ),
@@ -168,7 +174,7 @@ class _DailyDigestCardState extends State<DailyDigestCard>
                       // Headline
                       Text(
                         digest.headline,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.maintext,
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
@@ -199,8 +205,10 @@ class _DailyDigestCardState extends State<DailyDigestCard>
                       // Summary
                       Text(
                         digest.summary,
-                        style: const TextStyle(
-                          color: Color(0xFFC7C7CC),
+                        style: TextStyle(
+                          color: AppColors.isDark
+                              ? const Color(0xFFC7C7CC)
+                              : AppColors.labeltext,
                           fontSize: 13,
                           height: 1.45,
                         ),

@@ -20,12 +20,20 @@ class GithubHeatmapCard extends StatelessWidget {
   final int currentStreak;
   final int bestStreak;
 
-  static const List<Color> _levelColors = [
+  static const List<Color> _darkLevelColors = [
     Color(0xFF161B22), // 0: None
     Color(0xFF0E4429), // 1: 1-2
     Color(0xFF006D32), // 2: 3-4
     Color(0xFF26A641), // 3: 5-7
     Color(0xFF39D353), // 4: 8+
+  ];
+
+  static const List<Color> _lightLevelColors = [
+    Color(0xFFEBEDF0), // 0: None
+    Color(0xFF9BE9A8), // 1: 1-2
+    Color(0xFF40C463), // 2: 3-4
+    Color(0xFF30A14E), // 3: 5-7
+    Color(0xFF216E39), // 4: 8+
   ];
 
   static const List<String> _weekdayLabels = [
@@ -40,6 +48,9 @@ class GithubHeatmapCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isLight = Theme.of(context).brightness == Brightness.light;
+    final levelColors = isLight ? _lightLevelColors : _darkLevelColors;
+
     // Group days into week columns (each column has up to 7 days, Mon..Sun)
     final weeks = _buildWeeksMatrix(heatmapDays);
 
@@ -48,7 +59,7 @@ class GithubHeatmapCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.cardBg,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white12),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -68,7 +79,7 @@ class GithubHeatmapCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -80,7 +91,7 @@ class GithubHeatmapCard extends StatelessWidget {
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    SizedBox(height: 2),
+                    const SizedBox(height: 2),
                     Text(
                       'GitHub-style матрица за 120 дней',
                       style: TextStyle(
@@ -136,7 +147,7 @@ class GithubHeatmapCard extends StatelessWidget {
                         height: 16,
                         child: Text(
                           _weekdayLabels[i],
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppColors.labeltext,
                             fontSize: 9,
                             fontWeight: FontWeight.w600,
@@ -157,7 +168,7 @@ class GithubHeatmapCard extends StatelessWidget {
                           return const SizedBox(width: 14, height: 16);
                         }
                         final isSelected = selectedDay == day;
-                        final color = _levelColors[day.level.clamp(0, 4)];
+                        final color = levelColors[day.level.clamp(0, 4)];
 
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 2),
@@ -175,8 +186,8 @@ class GithubHeatmapCard extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(3),
                                 border: Border.all(
                                   color: isSelected
-                                      ? Colors.white
-                                      : Colors.white.withValues(alpha: 0.08),
+                                      ? AppColors.primary
+                                      : AppColors.border.withValues(alpha: 0.4),
                                   width: isSelected ? 1.5 : 0.6,
                                 ),
                               ),
@@ -198,7 +209,7 @@ class GithubHeatmapCard extends StatelessWidget {
               // Legend
               Row(
                 children: [
-                  const Text(
+                  Text(
                     'Меньше',
                     style: TextStyle(color: AppColors.labeltext, fontSize: 10),
                   ),
@@ -209,14 +220,14 @@ class GithubHeatmapCard extends StatelessWidget {
                       height: 10,
                       margin: const EdgeInsets.symmetric(horizontal: 2),
                       decoration: BoxDecoration(
-                        color: _levelColors[idx],
+                        color: levelColors[idx],
                         borderRadius: BorderRadius.circular(2),
-                        border: Border.all(color: Colors.white12, width: 0.5),
+                        border: Border.all(color: AppColors.border, width: 0.5),
                       ),
                     );
                   }),
                   const SizedBox(width: 4),
-                  const Text(
+                  Text(
                     'Больше',
                     style: TextStyle(color: AppColors.labeltext, fontSize: 10),
                   ),
@@ -224,7 +235,7 @@ class GithubHeatmapCard extends StatelessWidget {
               ),
               Text(
                 'Рекорд: $bestStreak дн.',
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.labeltext,
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
@@ -255,7 +266,7 @@ class GithubHeatmapCard extends StatelessWidget {
                     child: Text(
                       '${_formatDate(selectedDay!.date)}: выполнено ${selectedDay!.completedCount} задач'
                       '${selectedDay!.focusMinutes > 0 ? ' • ${selectedDay!.focusMinutes} мин фокуса' : ''}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.maintext,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,

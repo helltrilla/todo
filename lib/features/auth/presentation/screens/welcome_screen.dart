@@ -25,7 +25,7 @@ class WelcomeScreen extends StatelessWidget {
               const Spacer(),
               const _ListodoHeroBanner(),
               const SizedBox(height: 24),
-              const Text(
+              Text(
                 'Управляй своими задачами легко и стильно',
                 textAlign: TextAlign.center,
                 style: TextStyle(
@@ -36,7 +36,7 @@ class WelcomeScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 12),
-              const Text(
+              Text(
                 'Выбери удобный способ входа: через реальную почту с кодом подтверждения (Supabase) или создай внутренний локальный профиль.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
@@ -72,7 +72,7 @@ class WelcomeScreen extends StatelessWidget {
                 ),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.accentYellow,
-                  side: const BorderSide(
+                  side: BorderSide(
                     color: AppColors.accentYellow,
                     width: 1.5,
                   ),
@@ -105,9 +105,9 @@ class _ListodoHeroBanner extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppColors.cardBg,
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: Colors.white10),
+              border: Border.all(color: AppColors.border),
             ),
-            child: const Column(
+            child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
@@ -115,7 +115,7 @@ class _ListodoHeroBanner extends StatelessWidget {
                   size: 64,
                   color: AppColors.active,
                 ),
-                SizedBox(height: 12),
+                const SizedBox(height: 12),
                 Text(
                   'TodoApp',
                   style: TextStyle(

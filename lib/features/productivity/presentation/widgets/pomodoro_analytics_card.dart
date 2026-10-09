@@ -42,7 +42,7 @@ class PomodoroAnalyticsCard extends StatelessWidget {
                 child: const Text('🍅', style: TextStyle(fontSize: 16)),
               ),
               const SizedBox(width: 10),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -54,7 +54,7 @@ class PomodoroAnalyticsCard extends StatelessWidget {
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    SizedBox(height: 2),
+                    const SizedBox(height: 2),
                     Text(
                       'Статистика концентрации и таймера',
                       style: TextStyle(
@@ -139,14 +139,14 @@ class _PomodoroStatTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.bgmain,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white10),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.labeltext,
               fontSize: 10,
               fontWeight: FontWeight.w600,
@@ -164,7 +164,7 @@ class _PomodoroStatTile extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             subtitle,
-            style: const TextStyle(color: AppColors.labeltext, fontSize: 10),
+            style: TextStyle(color: AppColors.labeltext, fontSize: 10),
           ),
         ],
       ),

@@ -149,13 +149,13 @@ class _HomeScreenState extends State<HomeScreen> {
     return showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text(
+        title: Text(
           'Удалить задачу?',
           style: TextStyle(color: AppColors.maintext),
         ),
         content: Text(
           'Удалить «${task.name}»?',
-          style: const TextStyle(color: AppColors.labeltext),
+          style: TextStyle(color: AppColors.labeltext),
         ),
         actions: [
           TextButton(
@@ -195,7 +195,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.cardBg,
       isScrollControlled: true,
       builder: (_) => AddTaskSheet(
         initialTask: task,
@@ -225,7 +225,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   2 => 'Режим фокуса',
                   _ => 'Мой профиль',
                 },
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.maintext,
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
@@ -248,8 +248,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         ? Icons.view_agenda_rounded
                         : Icons.grid_view_rounded,
                     color: taskCtrl.isMatrixView
-                        ? const Color(0xFF8875FF)
-                        : AppColors.white,
+                        ? AppColors.active
+                        : AppColors.icons,
                     size: 20,
                   ),
                 );
@@ -271,12 +271,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 context.pushNamed(AppRouterNames.settings);
               },
               style: IconButton.styleFrom(
-                side: const BorderSide(color: Colors.white24),
+                side: BorderSide(color: AppColors.border),
                 shape: const CircleBorder(),
               ),
-              icon: const Icon(
+              icon: Icon(
                 Icons.settings_outlined,
-                color: AppColors.white,
+                color: AppColors.icons,
                 size: 20,
               ),
             ),
@@ -402,11 +402,12 @@ class _ListodoBottomBar extends StatelessWidget {
   final VoidCallback onAddTap;
 
   @override
+  @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.cardBg,
-        border: Border(top: BorderSide(color: Colors.white12)),
+        border: Border(top: BorderSide(color: AppColors.border)),
       ),
       child: SafeArea(
         top: false,
@@ -514,7 +515,7 @@ class _ListodoHeaderTitle extends StatelessWidget {
           child: Text(
             name,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.maintext,
               fontSize: 22,
               fontWeight: FontWeight.bold,
@@ -560,20 +561,20 @@ class _ListodoSearchBar extends StatelessWidget {
       height: 50,
       padding: const EdgeInsets.only(left: 16, right: 6),
       decoration: BoxDecoration(
-        color: AppColors.bgmain,
+        color: AppColors.cardBg,
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: Colors.white24),
+        border: Border.all(color: AppColors.border),
       ),
       child: Row(
         children: [
-          const Icon(Icons.search, color: AppColors.white, size: 22),
+          Icon(Icons.search, color: AppColors.icons, size: 22),
           const SizedBox(width: 10),
           Expanded(
             child: TextField(
               controller: controller,
               onChanged: onChanged,
-              style: const TextStyle(color: AppColors.maintext, fontSize: 14),
-              decoration: const InputDecoration(
+              style: TextStyle(color: AppColors.maintext, fontSize: 14),
+              decoration: InputDecoration(
                 hintText: 'Try to find task....',
                 hintStyle: TextStyle(color: AppColors.labeltext, fontSize: 14),
                 border: InputBorder.none,
@@ -634,9 +635,9 @@ class _CategoryFilterRow extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Colors.transparent,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white24),
+                border: Border.all(color: AppColors.border),
               ),
-              child: const Icon(Icons.add, color: AppColors.white, size: 18),
+              child: Icon(Icons.add, color: AppColors.icons, size: 18),
             ),
           ),
           const SizedBox(width: 8),
@@ -668,7 +669,7 @@ class _CategoryFilterRow extends StatelessWidget {
                           ? activeColor
                           : (style != null
                                 ? style.color.withValues(alpha: 0.4)
-                                : Colors.white24),
+                                : AppColors.border),
                     ),
                   ),
                   child: Row(
@@ -741,7 +742,7 @@ class _SectionedTaskList extends StatelessWidget {
         padding: const EdgeInsets.only(bottom: 110),
         children: [
           if (futureTasks.isNotEmpty) ...[
-            const Text(
+            Text(
               'Future',
               style: TextStyle(
                 color: AppColors.maintext,
@@ -766,7 +767,7 @@ class _SectionedTaskList extends StatelessWidget {
             const SizedBox(height: 12),
           ],
           if (todayTasks.isNotEmpty) ...[
-            const Text(
+            Text(
               'Today task',
               style: TextStyle(
                 color: AppColors.maintext,
@@ -800,12 +801,12 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.check_circle_outline, size: 72, color: Colors.white24),
-          SizedBox(height: 12),
+          Icon(Icons.check_circle_outline, size: 72, color: AppColors.border),
+          const SizedBox(height: 12),
           Text(
             'Нет задач по выбранному фильтру',
             style: TextStyle(color: AppColors.labeltext, fontSize: 14),
@@ -843,7 +844,7 @@ class _StreakHeaderBadge extends StatelessWidget {
           border: Border.all(
             color: doneToday
                 ? const Color(0xFFFF8A00).withValues(alpha: 0.65)
-                : Colors.white24,
+                : AppColors.border,
           ),
         ),
         child: Row(

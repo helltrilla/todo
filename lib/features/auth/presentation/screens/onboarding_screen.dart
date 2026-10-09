@@ -39,7 +39,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _pageController = PageController();
   int _currentIndex = 0;
 
-  static const List<_OnboardingSlideData> _slides = [
+  static final List<_OnboardingSlideData> _slides = [
     _OnboardingSlideData(
       badge: 'УМНЫЕ ЗАДАЧИ',
       title: 'Управляйте всеми делами в одном месте',
@@ -47,8 +47,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           'Создавайте задачи с приоритетами и категорией «Общее», чтобы срочные дела всегда оставались на виду.',
       primaryIcon: Icons.local_fire_department_rounded,
       secondaryIcon: Icons.public_rounded,
-      accentColor: Color(0xFFFF4D4F),
-      features: [
+      accentColor: const Color(0xFFFF4D4F),
+      features: const [
         '4 уровня приоритета: Срочно 🔥, Высокий ⚡, Средний 📌, Низкий 🌿',
         'Категория «Общее» светится во всех вкладках и не даёт забыть важное',
       ],
@@ -61,7 +61,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       primaryIcon: Icons.calendar_month_rounded,
       secondaryIcon: Icons.schedule_rounded,
       accentColor: AppColors.accentYellow,
-      features: [
+      features: const [
         'Быстрые кнопки: Сегодня, Завтра, Через неделю',
         'Двойной скролл времени (Часы / Минуты) и лента дней в Календаре',
       ],
@@ -74,7 +74,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       primaryIcon: Icons.timer_outlined,
       secondaryIcon: Icons.inventory_2_outlined,
       accentColor: AppColors.active,
-      features: [
+      features: const [
         'Свайп вправо на выполненной карточке отправляет её в Архив профиля',
         'Встроенный таймер фокуса (15 / 25 / 45 мин) с привязкой к задаче',
       ],
@@ -130,7 +130,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 children: [
                   Row(
                     children: [
-                      const Text(
+                      Text(
                         'TodoApp',
                         style: TextStyle(
                           color: AppColors.maintext,
@@ -164,7 +164,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ),
                   TextButton(
                     onPressed: _finishOnboarding,
-                    child: const Text(
+                    child: Text(
                       'Пропустить',
                       style: TextStyle(
                         color: AppColors.labeltext,
@@ -202,7 +202,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     height: 8,
                     width: active ? 28 : 8,
                     decoration: BoxDecoration(
-                      color: active ? AppColors.accentYellow : Colors.white24,
+                      color: active ? AppColors.accentYellow : AppColors.border,
                       borderRadius: BorderRadius.circular(8),
                     ),
                   );
@@ -217,7 +217,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   if (_currentIndex > 0)
                     TextButton(
                       onPressed: _prevSlide,
-                      child: const Text(
+                      child: Text(
                         'НАЗАД',
                         style: TextStyle(
                           color: AppColors.labeltext,
@@ -296,7 +296,7 @@ class _OnboardingSlideWidget extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: AppColors.cardBg,
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white24),
+                      border: Border.all(color: AppColors.border),
                     ),
                     child: Icon(
                       slide.secondaryIcon,
@@ -329,7 +329,7 @@ class _OnboardingSlideWidget extends StatelessWidget {
           Text(
             slide.title,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.maintext,
               fontSize: 22,
               fontWeight: FontWeight.w800,
@@ -340,7 +340,7 @@ class _OnboardingSlideWidget extends StatelessWidget {
           Text(
             slide.subtitle,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.labeltext,
               fontSize: 14,
               height: 1.4,
@@ -358,7 +358,7 @@ class _OnboardingSlideWidget extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: AppColors.cardBg,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.white12),
+                  border: Border.all(color: AppColors.border),
                 ),
                 child: Row(
                   children: [
@@ -371,7 +371,7 @@ class _OnboardingSlideWidget extends StatelessWidget {
                     Expanded(
                       child: Text(
                         feat,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.maintext,
                           fontSize: 12,
                           fontWeight: FontWeight.w500,

@@ -348,7 +348,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
             children: [
               Text(
                 _isEditing ? 'Edit task' : 'Add task',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                   color: AppColors.maintext,
@@ -449,7 +449,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                   ),
                   GestureDetector(
                     onTap: () => setState(() => _aiFeedbackMessage = null),
-                    child: const Icon(
+                    child: Icon(
                       Icons.close,
                       color: AppColors.labeltext,
                       size: 16,
@@ -462,11 +462,11 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
           const SizedBox(height: 14),
           TextField(
             controller: _nameController,
-            style: const TextStyle(color: AppColors.maintext),
+            style: TextStyle(color: AppColors.maintext),
             decoration: InputDecoration(
               border: const OutlineInputBorder(),
               labelText: 'Task',
-              labelStyle: const TextStyle(
+              labelStyle: TextStyle(
                 color: AppColors.labeltext,
                 fontSize: 12,
               ),
@@ -484,9 +484,9 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
           const SizedBox(height: 12),
           TextField(
             controller: _descController,
-            style: const TextStyle(color: AppColors.maintext),
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(),
+            style: TextStyle(color: AppColors.maintext),
+            decoration: InputDecoration(
+              border: const OutlineInputBorder(),
               labelText: 'Description',
               labelStyle: TextStyle(color: AppColors.labeltext, fontSize: 12),
             ),
@@ -500,17 +500,17 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                 child: TextField(
                   controller: _subtaskController,
                   onSubmitted: (_) => _addSubtask(),
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.maintext,
                     fontSize: 13,
                   ),
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     isDense: true,
-                    contentPadding: EdgeInsets.symmetric(
+                    contentPadding: const EdgeInsets.symmetric(
                       horizontal: 12,
                       vertical: 10,
                     ),
-                    border: OutlineInputBorder(),
+                    border: const OutlineInputBorder(),
                     hintText: 'Добавить подзадачу (шаг чек-листа)...',
                     hintStyle: TextStyle(
                       color: AppColors.labeltext,
@@ -525,9 +525,9 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                 onPressed: _addSubtask,
                 style: IconButton.styleFrom(
                   backgroundColor: AppColors.cardBg,
-                  side: const BorderSide(color: Colors.white24),
+                  side: BorderSide(color: AppColors.border),
                 ),
-                icon: const Icon(
+                icon: Icon(
                   Icons.add_task_rounded,
                   color: AppColors.accentYellow,
                   size: 20,
@@ -548,7 +548,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                   decoration: BoxDecoration(
                     color: AppColors.cardBg,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.white12),
+                    border: Border.all(color: AppColors.border),
                   ),
                   child: Row(
                     children: [
@@ -581,7 +581,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                       ),
                       GestureDetector(
                         onTap: () => _removeSubtask(sub.id),
-                        child: const Icon(
+                        child: Icon(
                           Icons.close,
                           size: 16,
                           color: AppColors.labeltext,
@@ -797,7 +797,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                             ),
                           ),
                           const SizedBox(height: 2),
-                          const Text(
+                          Text(
                             'Напишите всё подряд — ИИ разложит по полочкам',
                             style: TextStyle(
                               color: AppColors.labeltext,
@@ -825,26 +825,26 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Divider(color: Colors.white12, height: 1),
+                  Divider(color: AppColors.divider, height: 1),
                   const SizedBox(height: 12),
                   TextField(
                     controller: _aiPromptController,
                     maxLines: 3,
                     minLines: 2,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.maintext,
                       fontSize: 13,
                     ),
                     decoration: InputDecoration(
                       hintText: tr.aiPromptPlaceholder,
-                      hintStyle: const TextStyle(
+                      hintStyle: TextStyle(
                         color: AppColors.labeltext,
                         fontSize: 12,
                       ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.15),
+                          color: AppColors.border,
                         ),
                       ),
                       filled: true,
@@ -955,15 +955,15 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.06),
+          color: AppColors.bgmain,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white10),
+          border: Border.all(color: AppColors.border),
         ),
         child: Text(
           sampleText,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(color: AppColors.labeltext, fontSize: 11),
+          style: TextStyle(color: AppColors.labeltext, fontSize: 11),
         ),
       ),
     );
@@ -997,7 +997,7 @@ class _RecurrenceChip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
+            Icon(
               Icons.repeat_rounded,
               color: AppColors.accentYellow,
               size: 15,
@@ -1005,7 +1005,7 @@ class _RecurrenceChip extends StatelessWidget {
             const SizedBox(width: 5),
             Text(
               recurrence.shortLabel,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.accentYellow,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
@@ -1014,7 +1014,7 @@ class _RecurrenceChip extends StatelessWidget {
             const SizedBox(width: 6),
             GestureDetector(
               onTap: onClear,
-              child: const Icon(
+              child: Icon(
                 Icons.close,
                 size: 14,
                 color: AppColors.accentYellow,
@@ -1043,14 +1043,14 @@ class _RecurrencePickerDialog extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            Row(
               children: [
                 Icon(
                   Icons.repeat_rounded,
                   color: AppColors.accentYellow,
                   size: 20,
                 ),
-                SizedBox(width: 8),
+                const SizedBox(width: 8),
                 Text(
                   'Повторение задачи',
                   style: TextStyle(
@@ -1085,7 +1085,7 @@ class _RecurrencePickerDialog extends StatelessWidget {
                       border: Border.all(
                         color: selected
                             ? AppColors.accentYellow
-                            : Colors.white12,
+                            : AppColors.border,
                       ),
                     ),
                     child: Row(
@@ -1115,7 +1115,7 @@ class _RecurrencePickerDialog extends StatelessWidget {
                           ),
                         ),
                         if (selected)
-                          const Icon(
+                          Icon(
                             Icons.check_circle_rounded,
                             color: AppColors.accentYellow,
                             size: 18,
@@ -1210,17 +1210,17 @@ class _DateChip extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.bgmain,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Colors.white24),
+          border: Border.all(color: AppColors.border),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               label,
-              style: const TextStyle(color: AppColors.maintext, fontSize: 11),
+              style: TextStyle(color: AppColors.maintext, fontSize: 11),
             ),
             const SizedBox(width: 6),
-            const Icon(
+            Icon(
               Icons.notifications_active_outlined,
               size: 12,
               color: AppColors.accentYellow,
@@ -1228,7 +1228,7 @@ class _DateChip extends StatelessWidget {
             const SizedBox(width: 3),
             Text(
               reminderText,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.accentYellow,
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
@@ -1237,7 +1237,7 @@ class _DateChip extends StatelessWidget {
             const SizedBox(width: 6),
             GestureDetector(
               onTap: onClear,
-              child: const Icon(
+              child: Icon(
                 Icons.close,
                 size: 14,
                 color: AppColors.labeltext,

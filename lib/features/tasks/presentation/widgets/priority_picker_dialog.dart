@@ -42,7 +42,7 @@ class _PriorityPickerDialogState extends State<PriorityPickerDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
+              Text(
                 'Приоритет задачи',
                 textAlign: TextAlign.center,
                 style: TextStyle(
@@ -52,7 +52,7 @@ class _PriorityPickerDialogState extends State<PriorityPickerDialog> {
                 ),
               ),
               const SizedBox(height: 6),
-              const Text(
+              Text(
                 'Влияет на позицию в списке и подсветку карточки',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: AppColors.labeltext, fontSize: 12),

@@ -28,7 +28,7 @@ class PriorityCard extends StatelessWidget {
               : AppColors.bgmain,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? priority.color : Colors.white12,
+            color: isSelected ? priority.color : AppColors.border,
             width: isSelected ? 1.8 : 1,
           ),
         ),
@@ -59,7 +59,7 @@ class PriorityCard extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     priority.subtitle,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.labeltext,
                       fontSize: 12,
                     ),

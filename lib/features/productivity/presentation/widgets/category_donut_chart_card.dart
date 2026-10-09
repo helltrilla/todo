@@ -42,7 +42,7 @@ class CategoryDonutChartCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.cardBg,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white12),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -55,14 +55,14 @@ class CategoryDonutChartCard extends StatelessWidget {
                   color: AppColors.active.withValues(alpha: 0.16),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.pie_chart_outline_rounded,
                   color: AppColors.active,
                   size: 18,
                 ),
               ),
               const SizedBox(width: 10),
-              const Expanded(
+              Expanded(
                 child: Text(
                   'Распределение по категориям',
                   style: TextStyle(
@@ -94,13 +94,13 @@ class CategoryDonutChartCard extends StatelessWidget {
                       children: [
                         Text(
                           '${(completionRate * 100).round()}%',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppColors.maintext,
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
-                        const Text(
+                        Text(
                           'готово',
                           style: TextStyle(
                             color: AppColors.labeltext,
@@ -137,7 +137,7 @@ class CategoryDonutChartCard extends StatelessWidget {
                             child: Text(
                               item.categoryName,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: AppColors.maintext,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
@@ -146,7 +146,7 @@ class CategoryDonutChartCard extends StatelessWidget {
                           ),
                           Text(
                             '${item.taskCount} (${item.percentage.round()}%)',
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: AppColors.labeltext,
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
@@ -161,10 +161,10 @@ class CategoryDonutChartCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          const Divider(color: Colors.white10, height: 1),
+          Divider(color: AppColors.divider, height: 1),
           const SizedBox(height: 12),
           // Priority Bar Distribution
-          const Text(
+          Text(
             'Приоритеты задач',
             style: TextStyle(
               color: AppColors.labeltext,
@@ -202,7 +202,7 @@ class CategoryDonutChartCard extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         '${p.taskCount}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.maintext,
                           fontSize: 12,
                           fontWeight: FontWeight.w800,

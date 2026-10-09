@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:todo/core/app_theme/app_color_palette.dart';
 import 'package:todo/core/app_theme/app_colors.dart';
 import 'package:todo/core/app_theme/app_theme_mode.dart';
 import 'package:todo/core/app_theme/theme_controller.dart';
@@ -60,7 +61,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(height: 16),
                 Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.language_rounded,
                       color: AppColors.active,
                       size: 22,
@@ -150,7 +151,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 ),
                               ),
                               if (isSelected)
-                                const Icon(
+                                Icon(
                                   Icons.check_circle_rounded,
                                   color: AppColors.active,
                                   size: 22,
@@ -252,25 +253,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (ctx) => AlertDialog(
         title: Text(
           tr.aiSettingsTitle,
-          style: const TextStyle(color: AppColors.maintext),
+          style: TextStyle(color: AppColors.maintext),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Для глубокого понимания задач используется Google Gemini Flash. Если ключ не указан — работает встроенный офлайн-парсер.',
               style: TextStyle(color: AppColors.labeltext, fontSize: 13),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: controller,
-              style: const TextStyle(color: AppColors.maintext, fontSize: 13),
+              style: TextStyle(color: AppColors.maintext, fontSize: 13),
               decoration: InputDecoration(
                 border: const OutlineInputBorder(),
                 labelText: tr.aiApiKeyLabel,
                 hintText: 'AIzaSy...',
-                labelStyle: const TextStyle(
+                labelStyle: TextStyle(
                   color: AppColors.labeltext,
                   fontSize: 12,
                 ),
@@ -417,7 +418,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const SizedBox(height: 16),
               Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.privacy_tip_outlined,
                     color: AppColors.active,
                   ),
@@ -553,7 +554,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.arrow_back_ios_new_rounded,
                       size: 14,
                       color: AppColors.accentYellow,
@@ -617,7 +618,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         color: AppColors.active.withValues(alpha: 0.14),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.palette_outlined,
                         color: AppColors.active,
                         size: 20,
@@ -719,7 +720,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                       ),
                                     ),
                                     if (isSelected)
-                                      const Icon(
+                                      Icon(
                                         Icons.check_circle_rounded,
                                         color: AppColors.active,
                                         size: 16,
@@ -733,6 +734,145 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       }).toList(),
                     );
                   },
+                ),
+                const SizedBox(height: 20),
+                Divider(color: AppColors.border),
+                const SizedBox(height: 16),
+                // Accent Color Palette Selector (Палитра красок)
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(9),
+                      decoration: BoxDecoration(
+                        color: themeController.palette.primary.withValues(alpha: 0.16),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        Icons.color_lens_outlined,
+                        color: themeController.palette.primary,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            currentLang.code == 'ru'
+                                ? 'Палитра акцентов'
+                                : 'Accent Color Palette',
+                            style: TextStyle(
+                              color: AppColors.maintext,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            currentLang.code == 'ru'
+                                ? 'Выберите цвет кнопок, бейджей и акцентов'
+                                : 'Choose primary color for buttons and highlights',
+                            style: TextStyle(
+                              color: AppColors.labeltext,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: AppColorPalette.values.map((palette) {
+                      final isSelected = themeController.palette == palette;
+                      final paletteName =
+                          palette.localizedName(currentLang.code);
+
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 10),
+                        child: GestureDetector(
+                          onTap: () {
+                            AppHaptics.selection();
+                            themeController.setPalette(palette);
+                          },
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? palette.primary.withValues(alpha: 0.14)
+                                  : AppColors.bg,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: isSelected
+                                    ? palette.primary
+                                    : AppColors.border,
+                                width: isSelected ? 2.0 : 1.0,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    Container(
+                                      width: 22,
+                                      height: 22,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        gradient: LinearGradient(
+                                          colors: [palette.primary, palette.accent],
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                        ),
+                                        boxShadow: isSelected
+                                            ? [
+                                                BoxShadow(
+                                                  color: palette.primary
+                                                      .withValues(alpha: 0.45),
+                                                  blurRadius: 8,
+                                                  spreadRadius: 1,
+                                                )
+                                              ]
+                                            : null,
+                                      ),
+                                    ),
+                                    if (isSelected)
+                                      const Icon(
+                                        Icons.check,
+                                        color: Colors.white,
+                                        size: 14,
+                                      ),
+                                  ],
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  paletteName,
+                                  style: TextStyle(
+                                    color: isSelected
+                                        ? palette.primary
+                                        : AppColors.maintext,
+                                    fontSize: 13,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w700
+                                        : FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
                 ),
               ],
             ),
@@ -766,7 +906,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               child: Text(
                 '${currentLang.flag} ${currentLang.code.toUpperCase()}',
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.active,
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
@@ -933,7 +1073,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           // 4. AI & Smart Task Creation
           Text(
             tr.aiSettingsTitle,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.maintext,
               fontSize: 16,
               fontWeight: FontWeight.w700,
@@ -977,7 +1117,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             children: [
                               Text(
                                 tr.aiSettingsTitle,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: AppColors.maintext,
                                   fontSize: 14,
                                   fontWeight: FontWeight.w700,
@@ -986,7 +1126,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               const SizedBox(height: 2),
                               Text(
                                 tr.aiSettingsSubtitle,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: AppColors.labeltext,
                                   fontSize: 12,
                                 ),
@@ -1124,7 +1264,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     color: AppColors.accentYellow.withValues(alpha: 0.14),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.vibration_rounded,
                     color: AppColors.accentYellow,
                     size: 20,
@@ -1244,7 +1384,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             child: Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.touch_app_outlined,
                   color: AppColors.accentYellow,
                   size: 20,

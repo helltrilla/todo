@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:todo/core/app_theme/app_color_palette.dart';
+import 'package:todo/core/app_theme/app_colors.dart';
 import 'package:todo/core/app_theme/app_theme_mode.dart';
 
 class ThemeController extends ChangeNotifier {
@@ -7,13 +9,17 @@ class ThemeController extends ChangeNotifier {
     _loadFromPrefs();
   }
 
-  static const String _prefKey = 'app_theme_mode';
+  static const String prefModeKey = 'app_theme_mode';
+  static const String prefPaletteKey = 'app_color_palette';
+  static const String colorPaletteKey = prefPaletteKey;
   final SharedPreferences _prefs;
 
   AppThemeMode _mode = AppThemeMode.dark;
+  AppColorPalette _palette = AppColorPalette.iris;
   Brightness _systemBrightness = Brightness.dark;
 
   AppThemeMode get mode => _mode;
+  AppColorPalette get palette => _palette;
   Brightness get systemBrightness => _systemBrightness;
 
   bool get isMidnight => _mode == AppThemeMode.midnight;
@@ -42,9 +48,16 @@ class ThemeController extends ChangeNotifier {
     }
   }
 
+  ThemeMode get themeMode => materialThemeMode;
+
+  Future<void> toggleMidnight(bool enabled) async {
+    await setThemeMode(enabled ? AppThemeMode.midnight : AppThemeMode.dark);
+  }
+
   void updateSystemBrightness(Brightness brightness) {
     if (_systemBrightness != brightness) {
       _systemBrightness = brightness;
+      _syncAppColors();
       notifyListeners();
     }
   }
@@ -52,12 +65,34 @@ class ThemeController extends ChangeNotifier {
   Future<void> setThemeMode(AppThemeMode newMode) async {
     if (_mode == newMode) return;
     _mode = newMode;
-    await _prefs.setString(_prefKey, newMode.key);
+    _syncAppColors();
+    await _prefs.setString(prefModeKey, newMode.key);
     notifyListeners();
   }
 
+  Future<void> setPalette(AppColorPalette newPalette) async {
+    if (_palette == newPalette) return;
+    _palette = newPalette;
+    _syncAppColors();
+    await _prefs.setString(prefPaletteKey, newPalette.key);
+    notifyListeners();
+  }
+
+  void _syncAppColors() {
+    AppColors.update(
+      isDark: isDark,
+      isMidnight: isMidnight,
+      palette: _palette,
+    );
+  }
+
   void _loadFromPrefs() {
-    final savedKey = _prefs.getString(_prefKey);
-    _mode = AppThemeMode.fromKey(savedKey);
+    final savedModeKey = _prefs.getString(prefModeKey);
+    _mode = AppThemeMode.fromKey(savedModeKey);
+
+    final savedPaletteKey = _prefs.getString(prefPaletteKey);
+    _palette = AppColorPalette.fromKey(savedPaletteKey);
+
+    _syncAppColors();
   }
 }

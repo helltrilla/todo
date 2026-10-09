@@ -164,7 +164,7 @@ class _ProfileTabViewState extends State<ProfileTabView> {
                     Text(
                       userName,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.maintext,
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -175,7 +175,7 @@ class _ProfileTabViewState extends State<ProfileTabView> {
                       Text(
                         user.email!,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.labeltext,
                           fontSize: 13,
                         ),
@@ -230,9 +230,9 @@ class _ProfileTabViewState extends State<ProfileTabView> {
                 ),
                 style: IconButton.styleFrom(
                   backgroundColor: AppColors.bgmain.withValues(alpha: 0.65),
-                  side: const BorderSide(color: Colors.white12),
+                  side: BorderSide(color: AppColors.border),
                 ),
-                icon: const Icon(
+                icon: Icon(
                   Icons.tune_rounded,
                   color: AppColors.accentYellow,
                   size: 20,
@@ -245,7 +245,7 @@ class _ProfileTabViewState extends State<ProfileTabView> {
         const SizedBox(height: 24),
 
         // 2. Task Statistics Dashboard
-        const Text(
+        Text(
           'Статистика задач',
           style: TextStyle(
             color: AppColors.maintext,
@@ -290,7 +290,7 @@ class _ProfileTabViewState extends State<ProfileTabView> {
           decoration: BoxDecoration(
             color: AppColors.cardBg,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white12),
+            border: Border.all(color: AppColors.border),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -298,7 +298,7 @@ class _ProfileTabViewState extends State<ProfileTabView> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'Прогресс выполнения',
                     style: TextStyle(
                       color: AppColors.labeltext,
@@ -308,7 +308,7 @@ class _ProfileTabViewState extends State<ProfileTabView> {
                   ),
                   Text(
                     '${(progress * 100).round()}% ($completed из $total)',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.accentYellow,
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
@@ -322,8 +322,8 @@ class _ProfileTabViewState extends State<ProfileTabView> {
                 child: LinearProgressIndicator(
                   value: progress,
                   minHeight: 8,
-                  backgroundColor: Colors.white12,
-                  valueColor: const AlwaysStoppedAnimation<Color>(
+                  backgroundColor: AppColors.divider,
+                  valueColor: AlwaysStoppedAnimation<Color>(
                     AppColors.accentYellow,
                   ),
                 ),
@@ -376,7 +376,7 @@ class _ProfileTabViewState extends State<ProfileTabView> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
+            Text(
               'Мои категории',
               style: TextStyle(
                 color: AppColors.maintext,
@@ -386,12 +386,12 @@ class _ProfileTabViewState extends State<ProfileTabView> {
             ),
             TextButton.icon(
               onPressed: _promptAddCategory,
-              icon: const Icon(
+              icon: Icon(
                 Icons.add_circle_outline,
                 size: 16,
                 color: AppColors.accentYellow,
               ),
-              label: const Text(
+              label: Text(
                 'Добавить',
                 style: TextStyle(
                   color: AppColors.accentYellow,
@@ -409,7 +409,7 @@ class _ProfileTabViewState extends State<ProfileTabView> {
           decoration: BoxDecoration(
             color: AppColors.cardBg,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white12),
+            border: Border.all(color: AppColors.border),
           ),
           child: Wrap(
             spacing: 8,
@@ -427,11 +427,11 @@ class _ProfileTabViewState extends State<ProfileTabView> {
                     color: AppColors.accentYellow.withValues(alpha: 0.4),
                   ),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(Icons.public, size: 14, color: AppColors.accentYellow),
-                    SizedBox(width: 6),
+                    const SizedBox(width: 6),
                     Text(
                       TaskController.globalCategory,
                       style: TextStyle(
@@ -530,7 +530,7 @@ class _ProfileTabViewState extends State<ProfileTabView> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Архив выполненных',
                           style: TextStyle(
                             color: AppColors.maintext,
@@ -543,7 +543,7 @@ class _ProfileTabViewState extends State<ProfileTabView> {
                           archivedTasks.isEmpty
                               ? 'Пока пусто • свайпните выполненную задачу вправо'
                               : 'Нажмите, чтобы открыть список и поиск по архиву',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppColors.labeltext,
                             fontSize: 12,
                           ),
@@ -571,7 +571,7 @@ class _ProfileTabViewState extends State<ProfileTabView> {
                     ),
                   ),
                   const SizedBox(width: 6),
-                  const Icon(
+                  Icon(
                     Icons.chevron_right_rounded,
                     color: AppColors.labeltext,
                   ),
@@ -600,7 +600,7 @@ class _ProfileTabViewState extends State<ProfileTabView> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: Colors.white12),
+                border: Border.all(color: AppColors.border),
               ),
               child: Row(
                 children: [
@@ -610,14 +610,14 @@ class _ProfileTabViewState extends State<ProfileTabView> {
                       color: AppColors.accentYellow.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.cloud_download_outlined,
                       color: AppColors.accentYellow,
                       size: 22,
                     ),
                   ),
                   const SizedBox(width: 14),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -629,7 +629,7 @@ class _ProfileTabViewState extends State<ProfileTabView> {
                             fontWeight: FontWeight.w700,
                           ),
                         ),
-                        SizedBox(height: 3),
+                        const SizedBox(height: 3),
                         Text(
                           'Выгрузка в JSON, CSV или Markdown (бэкап задач)',
                           style: TextStyle(
@@ -641,7 +641,7 @@ class _ProfileTabViewState extends State<ProfileTabView> {
                     ),
                   ),
                   const SizedBox(width: 6),
-                  const Icon(
+                  Icon(
                     Icons.chevron_right_rounded,
                     color: AppColors.labeltext,
                   ),
@@ -713,7 +713,7 @@ class _ArchivedTasksSheetState extends State<_ArchivedTasksSheet> {
                   color: Color(0xFF4CAF50),
                 ),
                 const SizedBox(width: 10),
-                const Expanded(
+                Expanded(
                   child: Text(
                     'Архив выполненных',
                     style: TextStyle(
@@ -744,7 +744,7 @@ class _ArchivedTasksSheetState extends State<_ArchivedTasksSheet> {
                 const SizedBox(width: 4),
                 IconButton(
                   onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close, color: AppColors.labeltext),
+                  icon: Icon(Icons.close, color: AppColors.labeltext),
                 ),
               ],
             ),
@@ -752,14 +752,14 @@ class _ArchivedTasksSheetState extends State<_ArchivedTasksSheet> {
             TextField(
               controller: _searchController,
               onChanged: (v) => setState(() => _query = v),
-              style: const TextStyle(color: AppColors.maintext, fontSize: 14),
+              style: TextStyle(color: AppColors.maintext, fontSize: 14),
               decoration: InputDecoration(
                 hintText: 'Поиск в архиве по названию или категории...',
-                hintStyle: const TextStyle(
+                hintStyle: TextStyle(
                   color: AppColors.labeltext,
                   fontSize: 13,
                 ),
-                prefixIcon: const Icon(
+                prefixIcon: Icon(
                   Icons.search_rounded,
                   color: AppColors.labeltext,
                   size: 20,
@@ -770,7 +770,7 @@ class _ArchivedTasksSheetState extends State<_ArchivedTasksSheet> {
                           _searchController.clear();
                           setState(() => _query = '');
                         },
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.clear_rounded,
                           color: AppColors.labeltext,
                           size: 18,
@@ -785,33 +785,33 @@ class _ArchivedTasksSheetState extends State<_ArchivedTasksSheet> {
                 ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: Colors.white12),
+                  borderSide: BorderSide(color: AppColors.border),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: Colors.white12),
+                  borderSide: BorderSide(color: AppColors.border),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: AppColors.active),
+                  borderSide: BorderSide(color: AppColors.active),
                 ),
               ),
             ),
             const SizedBox(height: 14),
             Expanded(
               child: allArchived.isEmpty
-                  ? const Center(
+                  ? Center(
                       child: Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 24),
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
                               Icons.swipe_right_outlined,
-                              color: Colors.white24,
+                              color: AppColors.border,
                               size: 48,
                             ),
-                            SizedBox(height: 12),
+                            const SizedBox(height: 12),
                             Text(
                               'В архиве пока нет задач.\nСвайпните выполненную задачу вправо на главном экране, чтобы переместить её сюда.',
                               textAlign: TextAlign.center,
@@ -826,7 +826,7 @@ class _ArchivedTasksSheetState extends State<_ArchivedTasksSheet> {
                       ),
                     )
                   : filtered.isEmpty
-                  ? const Center(
+                  ? Center(
                       child: Text(
                         'Ничего не найдено по вашему запросу',
                         style: TextStyle(
@@ -908,8 +908,8 @@ class _UserAvatarCircle extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             gradient: bytes == null
-                ? const LinearGradient(
-                    colors: [AppColors.active, Color(0xFF5E4AE3)],
+                ? LinearGradient(
+                    colors: [AppColors.active, const Color(0xFF5E4AE3)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   )
@@ -1027,19 +1027,19 @@ class _ProfileSettingsSheetState extends State<_ProfileSettingsSheet> {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: Colors.white24,
+              color: AppColors.border,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
           const SizedBox(height: 16),
           Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.manage_accounts_outlined,
                 color: AppColors.accentYellow,
               ),
               const SizedBox(width: 10),
-              const Expanded(
+              Expanded(
                 child: Text(
                   'Настройка профиля',
                   style: TextStyle(
@@ -1051,7 +1051,7 @@ class _ProfileSettingsSheetState extends State<_ProfileSettingsSheet> {
               ),
               IconButton(
                 onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.close, color: AppColors.labeltext),
+                icon: Icon(Icons.close, color: AppColors.labeltext),
               ),
             ],
           ),
@@ -1079,7 +1079,7 @@ class _ProfileSettingsSheetState extends State<_ProfileSettingsSheet> {
                 onPressed: _pickPhoto,
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.accentYellow,
-                  side: const BorderSide(color: AppColors.accentYellow),
+                  side: BorderSide(color: AppColors.accentYellow),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),
@@ -1104,7 +1104,7 @@ class _ProfileSettingsSheetState extends State<_ProfileSettingsSheet> {
           // Nickname input
           Align(
             alignment: Alignment.centerLeft,
-            child: const Text(
+            child: Text(
               'Никнейм профиля',
               style: TextStyle(
                 color: AppColors.labeltext,
@@ -1117,28 +1117,28 @@ class _ProfileSettingsSheetState extends State<_ProfileSettingsSheet> {
           TextField(
             controller: _nameController,
             onChanged: (_) => setState(() {}),
-            style: const TextStyle(color: AppColors.maintext, fontSize: 15),
+            style: TextStyle(color: AppColors.maintext, fontSize: 15),
             decoration: InputDecoration(
               hintText: 'Введите ваше имя',
-              hintStyle: const TextStyle(color: AppColors.labeltext),
+              hintStyle: TextStyle(color: AppColors.labeltext),
               filled: true,
               fillColor: AppColors.bgmain,
-              prefixIcon: const Icon(
+              prefixIcon: Icon(
                 Icons.alternate_email_rounded,
                 color: AppColors.accentYellow,
                 size: 20,
               ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: Colors.white12),
+                borderSide: BorderSide(color: AppColors.border),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: Colors.white12),
+                borderSide: BorderSide(color: AppColors.border),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: AppColors.active),
+                borderSide: BorderSide(color: AppColors.active),
               ),
             ),
           ),
@@ -1199,7 +1199,7 @@ class _ArchivedTaskRow extends StatelessWidget {
               children: [
                 Text(
                   task.name,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.maintext,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -1209,7 +1209,7 @@ class _ArchivedTaskRow extends StatelessWidget {
                 if (task.category.isNotEmpty)
                   Text(
                     task.category,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.labeltext,
                       fontSize: 11,
                     ),
@@ -1220,7 +1220,7 @@ class _ArchivedTaskRow extends StatelessWidget {
           IconButton(
             tooltip: 'Вернуть на главный экран',
             onPressed: onRestore,
-            icon: const Icon(
+            icon: Icon(
               Icons.unarchive_outlined,
               color: AppColors.accentYellow,
               size: 20,
@@ -1261,7 +1261,7 @@ class _StatMetricCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.cardBg,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white12),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         children: [
@@ -1269,7 +1269,7 @@ class _StatMetricCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.maintext,
               fontSize: 20,
               fontWeight: FontWeight.w800,
@@ -1281,7 +1281,7 @@ class _StatMetricCard extends StatelessWidget {
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: AppColors.labeltext, fontSize: 11),
+            style: TextStyle(color: AppColors.labeltext, fontSize: 11),
           ),
         ],
       ),
@@ -1320,7 +1320,7 @@ class _ProductivityStreakCard extends StatelessWidget {
         border: Border.all(
           color: isLitToday
               ? const Color(0xFFFF8A00).withValues(alpha: 0.45)
-              : Colors.white12,
+              : AppColors.border,
         ),
       ),
       child: Column(
@@ -1334,7 +1334,7 @@ class _ProductivityStreakCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: isLitToday
                       ? const Color(0xFFFF8A00).withValues(alpha: 0.18)
-                      : Colors.white.withValues(alpha: 0.06),
+                      : AppColors.bgmain,
                   borderRadius: BorderRadius.circular(13),
                 ),
                 child: Icon(
@@ -1352,7 +1352,7 @@ class _ProductivityStreakCard extends StatelessWidget {
                   children: [
                     Text(
                       'Стрик: $streak дн. подряд',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.maintext,
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
@@ -1363,7 +1363,7 @@ class _ProductivityStreakCard extends StatelessWidget {
                       isLitToday
                           ? 'Сегодня выполнено задач: $doneToday'
                           : 'Выполни 1 задачу сегодня, чтобы продлить серию',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.labeltext,
                         fontSize: 12,
                       ),
@@ -1379,7 +1379,7 @@ class _ProductivityStreakCard extends StatelessWidget {
                 ),
                 child: Text(
                   'Рекорд: $best',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.accentYellow,
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
@@ -1400,7 +1400,7 @@ class _ProductivityStreakCard extends StatelessWidget {
                 children: [
                   Text(
                     label,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.labeltext,
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
@@ -1414,11 +1414,11 @@ class _ProductivityStreakCard extends StatelessWidget {
                       shape: BoxShape.circle,
                       color: active
                           ? const Color(0xFFFF8A00).withValues(alpha: 0.2)
-                          : Colors.white.withValues(alpha: 0.05),
+                          : AppColors.bgmain,
                       border: Border.all(
                         color: active
                             ? const Color(0xFFFF8A00)
-                            : Colors.white12,
+                            : AppColors.border,
                         width: active ? 1.5 : 1.0,
                       ),
                     ),
@@ -1427,7 +1427,7 @@ class _ProductivityStreakCard extends StatelessWidget {
                           ? Icons.local_fire_department_rounded
                           : Icons.circle,
                       size: active ? 16 : 6,
-                      color: active ? const Color(0xFFFF8A00) : Colors.white24,
+                      color: active ? const Color(0xFFFF8A00) : AppColors.border,
                     ),
                   ),
                 ],
