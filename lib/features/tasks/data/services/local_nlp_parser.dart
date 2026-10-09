@@ -1,6 +1,7 @@
 import 'package:todo/features/tasks/domain/models/smart_task_draft.dart';
 
-/// Offline rule-based NLP parser that extracts structured tasks from natural language.
+/// Comprehensive offline rule-based NLP parser that transforms free-form natural language,
+/// conversational thoughts, slang, and compound utterances into clean structured tasks.
 /// Works with zero latency and requires no network access or API keys.
 class LocalNlpParser {
   const LocalNlpParser();
@@ -17,41 +18,42 @@ class LocalNlpParser {
 
     final now = referenceTime ?? DateTime.now();
 
-    // 1. Extract multiline bullets first while newlines are intact
+    // Stage 1: Extract multiline bullet subtasks (preserving lines)
     final (bulletSubtasks, textAfterBullets) = _extractBulletSubtasks(text);
 
-    // 2. Extract Date & Time (including relative offsets)
+    // Stage 2: Extract Date, Time & Relative Offsets
     final (dueDate, textWithoutDateTime) = _extractDateTime(
       textAfterBullets,
       now,
     );
 
-    // 3. Extract Priority
-    final (priorityIndex, textWithoutPriority) = _extractPriority(
-      textWithoutDateTime,
-    );
-
-    // 4. Extract Inline / Trigger / Chained Subtasks
+    // Stage 3: Extract Inline / Trigger / Chained Subtasks
     final (inlineSubtasks, textWithoutSubtasks) = _extractInlineSubtasks(
-      textWithoutPriority,
+      textWithoutDateTime,
     );
     final allSubtasks = [...bulletSubtasks, ...inlineSubtasks];
 
-    // 5. Extract Category (from full input to maintain context)
-    final category = _extractCategory(
-      text,
-      availableCategories ?? const [],
+    // Stage 4: Extract Context, Reasons & Notes ("а то...", "код...", "терминал...")
+    final (descriptions, textWithoutContext) = _extractContextAndNotes(
+      textWithoutSubtasks,
     );
 
-    // 6. Clean Title with Conversational Russian Normalizer
-    final (name, description) = _cleanTitleAndDescription(
-      textWithoutSubtasks,
+    // Stage 5: Extract Priority (urgent, high, low, contextual markers)
+    final (priorityIndex, textWithoutPriority) = _extractPriority(
+      textWithoutContext,
       text,
     );
+
+    // Stage 6: Clean & Normalize Task Title (infinitive verbs, strip modals/fillers)
+    final name = _cleanAndNormalizeTitle(textWithoutPriority, text);
+
+    // Stage 7: Extract Category (prioritizing the normalized title, then full text)
+    final category = _extractCategory(name, availableCategories ?? const []) ??
+        _extractCategory(text, availableCategories ?? const []);
 
     return SmartTaskDraft(
       name: name.isNotEmpty ? name : text,
-      description: description,
+      description: descriptions.join('. '),
       dueDate: dueDate,
       reminderOffsetMinutes: dueDate != null ? 15 : null,
       priorityIndex: priorityIndex,
@@ -68,6 +70,9 @@ class LocalNlpParser {
     );
   }
 
+  // ===========================================================================
+  // STAGE 1: MULTILINE BULLETS
+  // ===========================================================================
   (List<String>, String) _extractBulletSubtasks(String text) {
     final lines = text.split('\n');
     if (lines.length <= 1) {
@@ -97,53 +102,16 @@ class LocalNlpParser {
     return (const [], text);
   }
 
-  (int, String) _extractPriority(String text) {
-    var working = text;
-
-    // P1 — Urgent (0)
-    final urgent = _wordRegExp(r'очень\s+срочно|срочно|горит|неотложно|важно|критично|asap|urgent|critical|p1|п1');
-    if (urgent.hasMatch(working)) {
-      working = working.replaceAll(urgent, ' ');
-      return (0, _cleanSpaces(working));
-    }
-
-    // P2 — High (1)
-    final explicitHigh = _wordRegExp(r'высокий\s+приоритет|быстрее|поскорее|high|p2|п2');
-    if (explicitHigh.hasMatch(working)) {
-      working = working.replaceAll(explicitHigh, ' ');
-      return (1, _cleanSpaces(working));
-    }
-
-    // Contextual High signals like "успеть", "не опоздать" (do not strip from working if part of phrase)
-    final contextualHigh = _wordRegExp(r'успеть|не\s+опоздать|скорее');
-    if (contextualHigh.hasMatch(working)) {
-      return (1, working);
-    }
-
-    // P4 — Low (3)
-    final low = _wordRegExp(r'низкий\s+приоритет|не\s+к\s+спеху|когда[- ]?нибудь|потом|несрочно|low|p4|п4');
-    if (low.hasMatch(working)) {
-      working = working.replaceAll(low, ' ');
-      return (3, _cleanSpaces(working));
-    }
-
-    // P3 — Medium (2)
-    final medium = _wordRegExp(r'средний\s+приоритет|medium|p3|п3');
-    if (medium.hasMatch(working)) {
-      working = working.replaceAll(medium, ' ');
-      return (2, _cleanSpaces(working));
-    }
-
-    return (-1, working);
-  }
-
+  // ===========================================================================
+  // STAGE 2: DATE & TIME EXTRACTION
+  // ===========================================================================
   (DateTime?, String) _extractDateTime(String text, DateTime now) {
     var working = text;
     DateTime? targetDate;
     int? targetHour;
     int? targetMinute;
 
-    // 1. Relative offsets FIRST: "через N часов", "через час", "через 30 минут", "через полчаса", "через день"
+    // 1. Relative offsets: "через N часов", "через час", "через 30 минут", "через полчаса", "через день"
     final offsetMatch = _wordRegExp(
       r'через\s+(?:(\d+)\s+)?(минут[ыа]?|час[аов]?|дн[ейя]|день|недел[юьи]|полчаса)',
     ).firstMatch(working);
@@ -168,20 +136,20 @@ class LocalNlpParser {
       return (targetDate, _cleanSpaces(working));
     }
 
-    // 2. Specific Time: "15:30", "15-30", "15.00", "в 15:00"
-    final timeMatch = RegExp(
-      r'(?:(?:в|к)\s+)?(\b\d{1,2})[:.-](\d{2})\b',
+    // 2. Exact Time: "15:30", "15.00", "в 15:30", "к 14:00", "в 9:15 утра"
+    final exactTimeMatch = RegExp(
+      r'(?:(?:примерно|где-то|около|часов|часиков)\s+)?(?:(?:в|к|с)\s+)?(\b\d{1,2})[:.-](\d{2})(?:\s*(?:утра|вечера|дня|ночи))?(?=[^а-яА-ЯёЁa-zA-Z0-9_]|$)',
       caseSensitive: false,
     ).firstMatch(working);
 
-    if (timeMatch != null) {
-      targetHour = int.tryParse(timeMatch.group(1)!);
-      targetMinute = int.tryParse(timeMatch.group(2)!);
-      working = working.replaceFirst(timeMatch.group(0)!, ' ');
+    if (exactTimeMatch != null) {
+      targetHour = int.tryParse(exactTimeMatch.group(1)!);
+      targetMinute = int.tryParse(exactTimeMatch.group(2)!);
+      working = working.replaceFirst(exactTimeMatch.group(0)!, ' ');
     } else {
-      // 3. Phrased hour: "в 9 утра", "в 8 вечера", "в 15", "к 11 часам", "в 11:00"
+      // 3. Colloquial hours: "часиков в 5 вечера", "в 6 вечера", "к 10 утра", "с 9 утра", "в 15", "к 11"
       final phrasedHourMatch = RegExp(
-        r'(?:(?<=^|[^a-zA-Z0-9а-яА-ЯёЁ_]))(?:в|к)\s+(\d{1,2})(?:\s*(утра|вечера|дня|ночи|час(?:а|ов)?))?(?=[^a-zA-Z0-9а-яА-ЯёЁ_]|$)',
+        r'(?:(?<=^|[^a-zA-Z0-9а-яА-ЯёЁ_]))(?:(?:примерно|где-то|около|часов|часиков)\s+)?(?:в|к|с)\s+(\d{1,2})(?:\s*(утра|вечера|дня|ночи|час(?:а|ов)?))?(?=[^a-zA-Z0-9а-яА-ЯёЁ_]|$)',
         caseSensitive: false,
       ).firstMatch(working);
 
@@ -204,10 +172,11 @@ class LocalNlpParser {
       }
     }
 
-    // 4. Absolute Days: "сегодня", "завтра", "послезавтра"
+    // 4. Absolute / Relative Days: "сегодня", "завтра", "послезавтра", "на выходных"
     final poslezavtra = _wordRegExp(r'послезавтра');
     final zavtra = _wordRegExp(r'завтра');
     final segodnya = _wordRegExp(r'сегодня');
+    final vyhodnye = _wordRegExp(r'(?:на|в)\s+выходны[хе]');
 
     if (poslezavtra.hasMatch(working)) {
       targetDate = DateTime(now.year, now.month, now.day).add(const Duration(days: 2));
@@ -218,9 +187,14 @@ class LocalNlpParser {
     } else if (segodnya.hasMatch(working)) {
       targetDate = DateTime(now.year, now.month, now.day);
       working = working.replaceAll(segodnya, ' ');
+    } else if (vyhodnye.hasMatch(working)) {
+      var daysToSat = (DateTime.saturday - now.weekday) % 7;
+      if (daysToSat <= 0) daysToSat += 7;
+      targetDate = DateTime(now.year, now.month, now.day).add(Duration(days: daysToSat));
+      working = working.replaceAll(vyhodnye, ' ');
     }
 
-    // 5. Days of week: "в понедельник", "во вторник", "в среду", etc.
+    // 5. Weekdays: "в понедельник", "до пятницы", etc.
     final weekDayMap = {
       'понедельник': DateTime.monday,
       'пн': DateTime.monday,
@@ -242,7 +216,7 @@ class LocalNlpParser {
     };
 
     for (final entry in weekDayMap.entries) {
-      final pattern = _wordRegExp('(?:в|во)?\\s*${entry.key}');
+      final pattern = _wordRegExp('(?:в|во|до|к)?\\s*${entry.key}');
       if (pattern.hasMatch(working)) {
         final targetWeekday = entry.value;
         var daysToAdd = (targetWeekday - now.weekday) % 7;
@@ -252,6 +226,31 @@ class LocalNlpParser {
         break;
       }
     }
+
+    // 6. Broad parts of day when no exact hour was specified:
+    // "утром", "до обеда", "вечером", "после работы"
+    if (targetHour == null) {
+      final morning = _wordRegExp(r'(?:с\s+)?утр[ао]|утром');
+      final afternoon = _wordRegExp(r'до\s+обеда|в\s+обед|днем');
+      final evening = _wordRegExp(r'вечером|после\s+работы|до\s+вечера');
+
+      if (morning.hasMatch(working)) {
+        targetHour = 9;
+        targetMinute = 0;
+        working = working.replaceAll(morning, ' ');
+      } else if (afternoon.hasMatch(working)) {
+        targetHour = 13;
+        targetMinute = 0;
+        working = working.replaceAll(afternoon, ' ');
+      } else if (evening.hasMatch(working)) {
+        targetHour = 18;
+        targetMinute = 0;
+        working = working.replaceAll(evening, ' ');
+      }
+    }
+
+    // Clean remaining loose temporal prepositions
+    working = working.replaceAll(_wordRegExp(r'утром|вечером|днем|ночью|до\s+конца\s+недели|до\s+конца\s+месяца|на\s+следующей\s+неделе'), ' ');
 
     // Combine date and time
     if (targetDate != null || targetHour != null) {
@@ -269,43 +268,47 @@ class LocalNlpParser {
     return (null, _cleanSpaces(working));
   }
 
+  // ===========================================================================
+  // STAGE 3: SUBTASK EXTRACTION & ACTION CHAINING
+  // ===========================================================================
   (List<String>, String) _extractInlineSubtasks(String text) {
     final subtasks = <String>[];
     var working = text;
 
-    // 1. Colon trigger: e.g. "Купить продукты: молоко, хлеб, сыр и яблоки в супермаркете"
-    final triggerPattern = RegExp(
-      r'(?:(?<=^|[^a-zA-Z0-9а-яА-ЯёЁ_]))(купить|взять|сделать|шаги|чек-лист|подзадачи|не\s+забыть|продукты)\s*[:]\s*(.+)$',
-      caseSensitive: false,
-    );
-
-    final match = triggerPattern.firstMatch(working);
-
-    if (match != null) {
-      final itemsStr = match.group(2)!.trim();
-      var splitItems = itemsStr
+    // 1. Universal Colon Trigger:
+    // e.g. "Купить продукты: молоко, хлеб, сыр и яблоки", "Убраться в хате перед гостями: вынести мусор, помыть полы"
+    final colonIndex = working.indexOf(':');
+    if (colonIndex != -1 && colonIndex > 3 && colonIndex < working.length - 3) {
+      final afterColon = working.substring(colonIndex + 1).trim();
+      var rawSplit = afterColon
           .split(RegExp(r'[,;]|\s+и\s+|\s+а также\s+', caseSensitive: false))
           .map((s) => s.trim())
           .where((s) => s.isNotEmpty && s.length >= 2)
           .toList();
 
-      if (splitItems.length >= 2) {
-        final lastItem = splitItems.last;
+      if (rawSplit.length >= 2) {
+        final lastItem = rawSplit.last;
         final locMatch = RegExp(r'^(.+?)\s+(в|на|из|у|возле|около)\s+(.+)$', caseSensitive: false).firstMatch(lastItem);
         String? trailingLocation;
         if (locMatch != null) {
-          splitItems[splitItems.length - 1] = locMatch.group(1)!.trim();
+          rawSplit[rawSplit.length - 1] = locMatch.group(1)!.trim();
           trailingLocation = '${locMatch.group(2)} ${locMatch.group(3)}'.trim();
         }
 
-        for (final item in splitItems) {
-          final cleanItem = _cleanSubtaskItem(item.replaceAll(RegExp(r'^[•\-\d.\s]+'), ''));
-          if (cleanItem.isNotEmpty) {
-            subtasks.add(cleanItem);
+        for (final item in rawSplit) {
+          final clean = _cleanSubtaskItem(item);
+          if (clean.isNotEmpty) {
+            subtasks.add(clean);
           }
         }
 
-        var baseText = working.substring(0, match.start + match.group(1)!.length).trim();
+        var baseText = working.substring(0, colonIndex).trim();
+        // Remove trailing context phrases like "перед приходом гостей" if present before colon
+        final eventContext = RegExp(r'\s+(?:перед|до)\s+(?:приход[а-яА-ЯёЁ\w\s]+|гост[а-яА-ЯёЁ\w\s]+)$', caseSensitive: false).firstMatch(baseText);
+        if (eventContext != null) {
+          baseText = baseText.substring(0, eventContext.start).trim();
+        }
+
         if (trailingLocation != null) {
           baseText = '$baseText $trailingLocation';
         }
@@ -314,13 +317,7 @@ class LocalNlpParser {
     }
 
     // 2. Secondary subtask clauses:
-    // e.g.:
-    // "еще надо похавать и помыться"
-    // "еще похавать надо и помыться"
-    // "а еще зайти в магаз и купить воды"
-    // "плюс сделать уроки и помыть посуду"
-    // "и успеть похавать до этого"
-    // "и не забыть взять паспорт и ключи"
+    // e.g. "еще надо похавать и помыться", "а еще зайти в магаз и купить воды", "плюс сделать уроки"
     final secondaryClausePattern = RegExp(
       r'[,;]?\s+(?:а\s+|и\s+)?(?:еще|ещё|также|плюс|заодно|потом|успеть|перед\s+этим|до\s+этого|не\s+забыть\s+(?:бы\s+)?|по\s+дороге)\s+(.+)$',
       caseSensitive: false,
@@ -341,8 +338,23 @@ class LocalNlpParser {
       }
     }
 
-    // 3. Patterns ending in "до этого" or "перед этим":
-    // e.g. "и похавать до этого"
+    // 3. Single secondary action separated by comma with infinitive verb:
+    // e.g. "сгонять на шиномонтаж в субботу к 11, переобуть резину"
+    final singleInfinitiveMatch = RegExp(
+      r'[,;]\s+([а-яА-ЯёЁa-zA-Z]+(?:ть|ти|ться|тись|чь)\s+[^,;]+)$',
+      caseSensitive: false,
+    ).firstMatch(working);
+    if (singleInfinitiveMatch != null) {
+      final actionText = singleInfinitiveMatch.group(1)!.trim();
+      final clean = _cleanSubtaskItem(actionText);
+      if (clean.isNotEmpty) {
+        subtasks.add(clean);
+        final base = working.substring(0, singleInfinitiveMatch.start).trim();
+        return (subtasks, _cleanSpaces(base));
+      }
+    }
+
+    // 4. Patterns ending in "до этого" or "перед этим"
     final endingActionPattern = RegExp(
       r'[,;]?\s+(?:и\s+)(.+?)\s+(?:до\s+этого|перед\s+этим)$',
       caseSensitive: false,
@@ -358,14 +370,15 @@ class LocalNlpParser {
       }
     }
 
-    // 4. Inline triggers without colon: e.g. "взять форму и шейкер"
+    // 5. Inline triggers without colon: e.g. "взять форму и шейкер"
     final inlineTrigger = RegExp(
       r'(?:(?<=^|[^a-zA-Z0-9а-яА-ЯёЁ_]))(взять|не\s+забыть|купить)\s+([a-zA-Zа-яА-ЯёЁ0-9\s,;]+(?:,|(?:\s+и\s+))[a-zA-Zа-яА-ЯёЁ0-9\s,;]+)',
       caseSensitive: false,
-    ).firstMatch(working);
+    );
 
-    if (inlineTrigger != null) {
-      final itemsStr = inlineTrigger.group(2)!.trim();
+    final inlineMatch = inlineTrigger.firstMatch(working);
+    if (inlineMatch != null) {
+      final itemsStr = inlineMatch.group(2)!.trim();
       final splitItems = itemsStr
           .split(RegExp(r'[,;]|\s+и\s+|\s+а также\s+', caseSensitive: false))
           .map((s) => _cleanSubtaskItem(s))
@@ -374,7 +387,7 @@ class LocalNlpParser {
 
       if (splitItems.length >= 2) {
         subtasks.addAll(splitItems);
-        working = working.replaceFirst(inlineTrigger.group(0)!, ' ');
+        working = working.replaceFirst(inlineMatch.group(0)!, ' ');
         return (subtasks, _cleanSpaces(working));
       }
     }
@@ -385,19 +398,19 @@ class LocalNlpParser {
   String _cleanSubtaskItem(String raw) {
     var item = raw.trim();
 
-    // Strip leading modal words: "надо", "нужно", "бы", "успеть", "не забыть"
+    // Strip leading modals
     item = item.replaceFirst(
       RegExp(r'^(?:надо|нужно|необходимо|бы|было\s+бы\s+неплохо|успеть|не\s+забыть)\s+', caseSensitive: false),
       '',
     );
 
-    // Strip trailing modal words: "похавать надо" -> "похавать"
+    // Strip trailing modals
     item = item.replaceAll(
       RegExp(r'\s+(?:надо|нужно|бы|было\s+бы)$', caseSensitive: false),
       '',
     );
 
-    // Strip trailing temporal markers: "до этого", "перед этим"
+    // Strip trailing temporal markers
     item = item.replaceFirst(
       RegExp(r'\s+(?:до\s+этого|перед\s+этим)$', caseSensitive: false),
       '',
@@ -406,10 +419,217 @@ class LocalNlpParser {
     return _capitalize(item.trim());
   }
 
+  // ===========================================================================
+  // STAGE 4: REASONS, CONTEXT & NOTES EXTRACTION
+  // ===========================================================================
+  (List<String>, String) _extractContextAndNotes(String text) {
+    final descriptions = <String>[];
+    var working = text;
+
+    // 1. Explanations / Reasons: "а то ...", "потому что ...", "так как ..."
+    final reasonMatch = RegExp(
+      r'[,;]?\s+(а\s+то(?:\s+.+)?|потому\s+что(?:\s+.+)?|так\s+как(?:\s+.+)?|иначе(?:\s+.+)?|ведь(?:\s+.+)?)$',
+      caseSensitive: false,
+    ).firstMatch(working);
+
+    if (reasonMatch != null) {
+      final reasonText = reasonMatch.group(1)!.trim();
+      if (reasonText.length > 3) {
+        descriptions.add(_capitalize(reasonText));
+      }
+      working = working.substring(0, reasonMatch.start).trim();
+    }
+
+    // 2. Extra notes: "код 1234", "код в приложении", "терминал б", "на голодный желудок", "насчет квартиры"
+    final noteMatch = RegExp(
+      r'[,;]?\s+(код\s+[:в0-9а-яА-ЯёЁ\w\s]+|терминал\s+[\wа-яА-ЯёЁ]+|на\s+голодный\s+желудок|насчет\s+[\wа-яА-ЯёЁ\s]+)$',
+      caseSensitive: false,
+    ).firstMatch(working);
+
+    if (noteMatch != null) {
+      final noteText = noteMatch.group(1)!.trim();
+      descriptions.add(_capitalize(noteText));
+      working = working.substring(0, noteMatch.start).trim();
+    }
+
+    return (descriptions, _cleanSpaces(working));
+  }
+
+  // ===========================================================================
+  // STAGE 5: PRIORITY EXTRACTION
+  // ===========================================================================
+  (int, String) _extractPriority(String workingText, String originalText) {
+    var working = workingText;
+
+    // P1 — Urgent (0)
+    final urgentRegex = _wordRegExp(r'очень\s+срочно|горит\s+дедлайн|дедлайн\s+горит|пиздец\s+болит|срочно|горит|неотложно|важно|критично|дедлайн|asap|urgent|critical|p1|п1');
+    if (urgentRegex.hasMatch(originalText)) {
+      working = working.replaceAll(urgentRegex, ' ');
+      return (0, _cleanSpaces(working));
+    }
+
+    // P2 — High (1)
+    final highRegex = _wordRegExp(r'высокий\s+приоритет|быстрее|поскорее|дедлайн|успеть|не\s+опоздать|скорее|high|p2|п2');
+    if (highRegex.hasMatch(originalText)) {
+      working = working.replaceAll(highRegex, ' ');
+      return (1, _cleanSpaces(working));
+    }
+
+    // P4 — Low (3)
+    final lowRegex = _wordRegExp(r'низкий\s+приоритет|не\s+к\s+спеху|когда[- ]?нибудь|потом|несрочно|вообще\s+не\s+к\s+спеху|low|p4|п4');
+    if (lowRegex.hasMatch(originalText)) {
+      working = working.replaceAll(lowRegex, ' ');
+      return (3, _cleanSpaces(working));
+    }
+
+    // P3 — Medium (2)
+    final mediumRegex = _wordRegExp(r'средний\s+приоритет|medium|p3|п3');
+    if (mediumRegex.hasMatch(originalText)) {
+      working = working.replaceAll(mediumRegex, ' ');
+      return (2, _cleanSpaces(working));
+    }
+
+    return (-1, _cleanSpaces(working));
+  }
+
+  // ===========================================================================
+  // STAGE 6: TITLE CLEANING & CONVERSATIONAL NORMALIZATION
+  // ===========================================================================
+  String _cleanAndNormalizeTitle(String cleanedText, String originalText) {
+    var text = _cleanSpaces(cleanedText);
+
+    // 1. Strip conversational filler starters: "так", "короче", "в общем", "слушай", "ну", "давай"
+    text = text.replaceFirst(
+      RegExp(
+        r'^(?:так|так-с|так\s+вот|короче|короче\s+говоря|кароче|короч|крч|в\s+общем|вобщем|слушай|значит|ну|ну-ка|типа|давай)\s*[,:;-]?\s*',
+        caseSensitive: false,
+      ),
+      '',
+    );
+
+    // 2. Strip modal particles: "мне бы", "надо бы", "хотелось бы", "бы"
+    text = text.replaceFirst(
+      RegExp(r'^(?:мне\s+бы|надо\s+бы|нужно\s+бы|хотелось\s+бы|бы)\s+', caseSensitive: false),
+      '',
+    );
+
+    // 3. Normalize 1st person future verbs to natural infinitive Reminders format:
+    // e.g. "позвоню" -> "Позвонить", "заберу" -> "Забрать", "уберусь" -> "Убраться"
+    final firstPersonMap = {
+      'позвоню': 'Позвонить',
+      'созвонюсь': 'Созвониться',
+      'созвонимся': 'Созвониться',
+      'встречу': 'Встретить',
+      'встретимся': 'Встретиться',
+      'напишу': 'Написать',
+      'схожу': 'Сходить',
+      'пойду': 'Пойти',
+      'поеду': 'Поехать',
+      'заеду': 'Заехать',
+      'зайду': 'Зайти',
+      'сдам': 'Сдать',
+      'куплю': 'Купить',
+      'заберу': 'Забрать',
+      'уберусь': 'Убраться',
+      'помою': 'Помыть',
+      'постираю': 'Постирать',
+      'починю': 'Починить',
+      'допишу': 'Дописать',
+      'скину': 'Скинуть',
+      'отправлю': 'Отправить',
+      'посмотрю': 'Посмотреть',
+      'прочитаю': 'Прочитать',
+      'приготовлю': 'Приготовить',
+      'запишусь': 'Записаться',
+      'оплачу': 'Оплатить',
+      'соберусь': 'Собраться',
+    };
+
+    for (final entry in firstPersonMap.entries) {
+      final verbRegex = RegExp('^${entry.key}(?=[^а-яА-ЯёЁa-zA-Z0-9_]|\$)', caseSensitive: false);
+      if (verbRegex.hasMatch(text)) {
+        text = text.replaceFirst(verbRegex, entry.value);
+        break;
+      }
+    }
+
+    // 4. "мне [инфинитив]" -> "[Инфинитив]" (e.g. "мне ехать в шарагу" -> "Ехать в шарагу")
+    final infinitivePattern = RegExp(
+      r'^(?:мне\s+)?([а-яА-ЯёЁa-zA-Z]+(?:ть|ти|ться|тись|чь))(?=[^а-яА-ЯёЁa-zA-Z0-9_]|$)\s*(.*)$',
+      caseSensitive: false,
+    );
+    final infMatch = infinitivePattern.firstMatch(text);
+    if (infMatch != null && text.toLowerCase().startsWith('мне ')) {
+      final verb = infMatch.group(1)!;
+      final rest = infMatch.group(2)!.trim();
+      text = rest.isNotEmpty ? '$verb $rest' : verb;
+    }
+
+    // 5. "мне в/на/к [X]" or "надо в/на/к [X]" -> "Пойти в/на/к [X]"
+    final goToPattern = RegExp(
+      r'^(?:мне|надо|нужно|пора|собираюсь|планирую|хочу)\s+(в|на|к)\s+(.+)$',
+      caseSensitive: false,
+    );
+    final goToMatch = goToPattern.firstMatch(text);
+    if (goToMatch != null) {
+      final prep = goToMatch.group(1)!.toLowerCase();
+      final destination = goToMatch.group(2)!.trim();
+      text = 'Пойти $prep $destination';
+    } else {
+      final bareDestPattern = RegExp(
+        r'^(в|на|к)\s+([а-яА-ЯёЁ\w\s]+)$',
+        caseSensitive: false,
+      );
+      final bareDestMatch = bareDestPattern.firstMatch(text);
+      if (bareDestMatch != null) {
+        final prep = bareDestMatch.group(1)!.toLowerCase();
+        final destination = bareDestMatch.group(2)!.trim();
+        text = 'Пойти $prep $destination';
+      }
+    }
+
+    // 6. Strip leading modals: "надо", "нужно", "хочу", "не забыть"
+    text = text.replaceFirst(
+      RegExp(r'^(?:мне\s+)?(?:надо|нужно|необходимо|хочу|пора|планирую|задача:?)\s+', caseSensitive: false),
+      '',
+    );
+    text = text.replaceFirst(
+      RegExp(r'^не\s+забыть\s+(?:бы\s+)?', caseSensitive: false),
+      '',
+    );
+
+    // 7. "сгонять в/на/к [X]" -> "Сходить в/на/к [X]"
+    text = text.replaceFirstMapped(
+      RegExp(r'^(?:сгонять|сбегать|заскочить)\s+(в|на|к)\s+', caseSensitive: false),
+      (m) => 'Сходить ${m.group(1)} ',
+    );
+
+    // 8. "успеть [делать]" -> "[Делать]"
+    text = text.replaceFirst(
+      RegExp(r'^успеть\s+', caseSensitive: false),
+      '',
+    );
+
+    // 9. Clean dangling prepositions or trailing conjunctions
+    text = text.replaceAll(RegExp(r'\s+(?:и|а|а\s+то|до|перед|к|в|на|с|со|по|насчет)\s*$', caseSensitive: false), '');
+    text = text.replaceAll(RegExp(r'[,;:\s]+$'), '');
+
+    var title = _capitalize(text.trim());
+
+    if (title.length < 3) {
+      title = _capitalize(originalText.trim());
+    }
+
+    return title;
+  }
+
+  // ===========================================================================
+  // STAGE 7: CONTEXTUAL CATEGORY MAPPING
+  // ===========================================================================
   String? _extractCategory(String text, List<String> availableCategories) {
     final lower = text.toLowerCase();
 
-    // Check available user categories first
+    // Check existing custom categories first
     for (final cat in availableCategories) {
       if (cat == 'Все' || cat == 'Общее') continue;
       if (lower.contains(cat.toLowerCase())) {
@@ -419,27 +639,27 @@ class LocalNlpParser {
 
     const ru = r'[а-яА-ЯёЁ]*';
 
-    // Keyword mapping with Unicode-aware word boundaries and rich colloquial vocabulary
-    if (_wordRegExp('универ$ru|шараг$ru|колледж$ru|техникум$ru|инстик$ru|институт$ru|пар[ыаеи]|парам$ru|лекци$ru|семинар$ru|лаб[ыаеи]$ru|лабораторн$ru|экзамен$ru|зачет$ru|сесси$ru|дз|домашк$ru|учеб$ru|книг$ru|стать$ru|курс$ru|урок$ru|курсач$ru|диплом$ru|препод$ru|школ$ru').hasMatch(lower)) {
+    // Comprehensive category lexicon
+    if (_wordRegExp('универ$ru|шараг$ru|колледж$ru|техникум$ru|инстик$ru|институт$ru|пар[ыаеи]|парам$ru|лекци$ru|семинар$ru|лаб[ыаеи]$ru|лабораторн$ru|экзамен$ru|зачет$ru|сесси$ru|дз|домашк$ru|учеб$ru|книг$ru|стать$ru|курс$ru|урок$ru|курсач$ru|диплом$ru|препод$ru|школ$ru|матан$ru').hasMatch(lower)) {
       return _findBestMatch(availableCategories, 'Учеба', 'Study');
     }
-    if (_wordRegExp('спорт$ru|тренировк$ru|треня$ru|трен[юе]$ru|зал$ru|качалк$ru|бег$ru|бассейн$ru|фитнес$ru|жим|разминк$ru|турник$ru|шейкер$ru|воркаут$ru').hasMatch(lower)) {
+    if (_wordRegExp('спорт$ru|тренировк$ru|треня$ru|трен[юе]$ru|зал$ru|качалк$ru|бег$ru|пробежк$ru|бассейн$ru|фитнес$ru|жим|разминк$ru|турник$ru|шейкер$ru|воркаут$ru|шиномонтаж$ru|переобуть$ru').hasMatch(lower)) {
       return _findBestMatch(availableCategories, 'Спорт', 'Sport');
     }
-    if (_wordRegExp('купить|покупк$ru|магазин$ru|магаз$ru|продукт$ru|шоппинг|заказать|доставк$ru|рынок|супермаркет$ru|похавать|поесть|перекусить|еда|хавчик$ru').hasMatch(lower)) {
+    if (_wordRegExp('дискорд$ru|тусовк$ru|туса|вписк$ru|бар|паб|кафе$ru|рестик$ru|гулять|прогулк$ru|пацан$ru|друзь$ru|друг$ru|девушк$ru|парикмахер$ru|барбер$ru|стрижк$ru|кино|фильм|садик$ru|аэропорт$ru').hasMatch(lower)) {
+      return _findBestMatch(availableCategories, 'Личное', 'Personal');
+    }
+    if (_wordRegExp('купить|покупк$ru|магазин$ru|магаз$ru|продукт$ru|шоппинг|заказать|доставк$ru|рынок|супермаркет$ru|похавать|поесть|перекусить|еда|хавчик$ru|озон$ru|вб|сдэк$ru|заказ$ru|пицц$ru|мак[еа]?').hasMatch(lower)) {
       return _findBestMatch(availableCategories, 'Покупки', 'Shopping');
     }
-    if (_wordRegExp('врач$ru|стоматолог$ru|доктор$ru|аптек$ru|таблетк$ru|анализ$ru|больниц$ru|клиник$ru|здоровь$ru|осмотр$ru|лекарств$ru|поликлиник$ru|зуб$ru').hasMatch(lower)) {
+    if (_wordRegExp('врач$ru|стоматолог$ru|доктор$ru|аптек$ru|таблетк$ru|анализ$ru|больниц$ru|клиник$ru|здоровь$ru|осмотр$ru|лекарств$ru|поликлиник$ru|зуб$ru|чистк$ru|обезбол$ru').hasMatch(lower)) {
       return _findBestMatch(availableCategories, 'Здоровье', 'Health');
     }
-    if (_wordRegExp('работ$ru|отчет$ru|митинг$ru|созвон$ru|клиент$ru|проект$ru|руководств$ru|начальник$ru|дедлайн$ru|договор$ru|офис$ru|смен[аеы]|таск$ru').hasMatch(lower)) {
+    if (_wordRegExp('работ$ru|отчет$ru|митинг$ru|созвон$ru|клиент$ru|проект$ru|руководств$ru|начальник$ru|дедлайн$ru|договор$ru|офис$ru|смен[аеы]|таск$ru|слак$ru|резюме$ru|правк$ru').hasMatch(lower)) {
       return _findBestMatch(availableCategories, 'Работа', 'Work');
     }
-    if (_wordRegExp('уборк$ru|убраться|постирать|помыть|ремонт$ru|дом$ru|квартир$ru|хат[аеы]$ru|сантехник$ru|посуд$ru|мусор$ru').hasMatch(lower)) {
+    if (_wordRegExp('уборк$ru|убраться|постирать|помыть|ремонт$ru|дом$ru|квартир$ru|хат[аеы]$ru|сантехник$ru|посуд$ru|мусор$ru|кран$ru|дач[аеу]$ru|интернет$ru').hasMatch(lower)) {
       return _findBestMatch(availableCategories, 'Дом', 'Home');
-    }
-    if (_wordRegExp('тусовк$ru|туса|вписк$ru|бар|паб|кафе$ru|рестик$ru|гулять|прогулк$ru|пацан$ru|друзь$ru|парикмахер$ru|барбер$ru').hasMatch(lower)) {
-      return _findBestMatch(availableCategories, 'Личное', 'Personal');
     }
 
     return null;
@@ -457,109 +677,6 @@ class LocalNlpParser {
       }
     }
     return preferredRu;
-  }
-
-  (String, String) _cleanTitleAndDescription(
-    String cleanedText,
-    String originalText,
-  ) {
-    var title = _normalizeConversationalTaskName(cleanedText);
-
-    // If title was stripped too much, recover sensible snippet
-    if (title.length < 3) {
-      title = _capitalize(originalText.trim());
-    }
-
-    // If title is long (over 60 chars), break first sentence into title and rest into description
-    var description = '';
-    if (title.length > 60) {
-      final sentences = title.split(RegExp(r'[.!?]\s+'));
-      if (sentences.length > 1) {
-        title = sentences.first.trim();
-        description = sentences.sublist(1).join('. ').trim();
-      }
-    }
-
-    return (title, description);
-  }
-
-  String _normalizeConversationalTaskName(String raw) {
-    var text = _cleanSpaces(raw);
-
-    // 0. Strip conversational filler starters: "так", "короче", "в общем", "ну", etc.
-    text = text.replaceFirst(
-      RegExp(
-        r'^(?:так|так-с|так\s+вот|короче|короче\s+говоря|кароче|короч|крч|в\s+общем|вобщем|слушай|значит|ну|ну-ка|типа)\s*[,:;-]?\s*',
-        caseSensitive: false,
-      ),
-      '',
-    );
-
-    // 1. "мне [инфинитив]" -> "[Инфинитив]" (e.g. "мне ехать в шарагу" -> "Ехать в шарагу", "мне позвонить маме" -> "Позвонить маме")
-    final infinitivePattern = RegExp(
-      r'^(?:мне\s+)?([а-яА-ЯёЁa-zA-Z]+(?:ть|ти|ться|тись|чь))(?=[^а-яА-ЯёЁa-zA-Z0-9_]|$)\s*(.*)$',
-      caseSensitive: false,
-    );
-    final infMatch = infinitivePattern.firstMatch(text);
-    if (infMatch != null && text.toLowerCase().startsWith('мне ')) {
-      final verb = infMatch.group(1)!;
-      final rest = infMatch.group(2)!.trim();
-      text = rest.isNotEmpty ? '$verb $rest' : verb;
-    }
-
-    // 2. "мне в/на/к [X]" or "надо в/на/к [X]" or "нужно в/на/к [X]" or "пора в/на/к [X]" -> "Пойти в/на/к [X]"
-    final goToPattern = RegExp(
-      r'^(?:мне|надо|нужно|пора|собираюсь|планирую|хочу)\s+(в|на|к)\s+(.+)$',
-      caseSensitive: false,
-    );
-    final goToMatch = goToPattern.firstMatch(text);
-    if (goToMatch != null) {
-      final prep = goToMatch.group(1)!.toLowerCase();
-      final destination = goToMatch.group(2)!.trim();
-      text = 'Пойти $prep $destination';
-    } else {
-      // Bare "в/на/к [X]" -> "Пойти в/на/к [X]"
-      final bareDestPattern = RegExp(
-        r'^(в|на|к)\s+([а-яА-ЯёЁ\w\s]+)$',
-        caseSensitive: false,
-      );
-      final bareDestMatch = bareDestPattern.firstMatch(text);
-      if (bareDestMatch != null) {
-        final prep = bareDestMatch.group(1)!.toLowerCase();
-        final destination = bareDestMatch.group(2)!.trim();
-        text = 'Пойти $prep $destination';
-      }
-    }
-
-    // 3. "мне надо/нужно [делать]" -> "[Делать]"
-    text = text.replaceFirst(
-      RegExp(r'^(?:мне\s+)?(?:надо|нужно|необходимо|хочу|пора|планирую|задача:?)\s+', caseSensitive: false),
-      '',
-    );
-
-    // 4. "не забыть [делать]" -> "[Делать]"
-    text = text.replaceFirst(
-      RegExp(r'^не\s+забыть\s+(?:бы\s+)?', caseSensitive: false),
-      '',
-    );
-
-    // 5. "сгонять в/на/к [X]" -> "Сходить в/на/к [X]"
-    text = text.replaceFirstMapped(
-      RegExp(r'^(?:сгонять|сбегать|заскочить)\s+(в|на|к)\s+', caseSensitive: false),
-      (m) => 'Сходить ${m.group(1)} ',
-    );
-
-    // 6. "успеть [делать]" -> "[Делать]"
-    text = text.replaceFirst(
-      RegExp(r'^успеть\s+', caseSensitive: false),
-      '',
-    );
-
-    // Clean trailing prepositions or punctuation
-    text = text.replaceAll(RegExp(r'\s+(?:и|а|до|перед|к|в|на)\s*$', caseSensitive: false), '');
-    text = text.replaceAll(RegExp(r'[,;:\s]+$'), '');
-
-    return _capitalize(text.trim());
   }
 
   String _cleanSpaces(String text) {
