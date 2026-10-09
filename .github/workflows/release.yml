@@ -149,30 +149,29 @@ jobs:
           files: artifacts/*
           generate_release_notes: true
           body: |
-            ## TodoApp ${{ github.event.inputs.tag_name || github.ref_name }} — Major 2.0 Architecture & Intelligence Update
+            ## TodoApp ${{ github.event.inputs.tag_name || github.ref_name }} — Light Theme Overhaul & Accent Color Palette System
 
-            ### Новое в релизе 2.0.0 / What's New (Русский)
-            - **🤖 AI Daily Digest (Google Gemini 2.0 Flash)**:
-              - Персонализированный утренний бриф дня: анализ задач, выделение топ-фокуса и рекомендация слота продуктивности.
-              - Кэширование генерации раз в сутки с fallback на вдохновляющие цитаты при отсутствии задач.
-            - **🎯 Интерактивная Матрица Эйзенхауэра 2x2 (Drag-and-Drop)**:
-              - Распределение задач по 4 квадрантам матрицы: Срочно/Важно, Важно/Не срочно, Срочно/Не важно, Не срочно/Не важно.
-              - Перетаскивание задач между квадрантами с мгновенным обновлением приоритетов.
-            - **⚡ Нативные шорткаты Siri и Android (Deep Links)**:
-              - Запуск быстрых действий с домашнего экрана (Quick Actions) и голосовых команд через схему `todoapp://add-task`.
-            - **🏛️ Полный переход на Clean Architecture & Centralized DI**:
-              - Сборка графа зависимостей через выделенный типизированный контейнер `AppDependencies`.
-              - Ликвидация антипаттерна «God Object» с декомпозицией на `TaskController`, `PomodoroController`, `SyncController` и `ThemeController`.
-            - **🔔 Рефакторинг NotificationService под чистый DI**:
-              - Полная замена глобального синглтона на интерфейс `INotificationService` с открытым конструктором и поддержкой моков для 100% тестируемости.
-            - **🔒 Защита конфигурации и секретов**:
-              - Устранение захардкоженных ключей в коде: загрузка кредов через `.env` файл и `--dart-define-from-file=.env`.
-            - **🔋 Оптимизация энергопотребления Focus Hub**:
-              - Отказ от таймеров поллинга в UI, переход на реактивный событийный `MediaPlaybackService`.
-            - **🌐 Мультиязычная локализация (5 языков)**:
-              - Поддержка **🇷🇺 Русский**, **🇬🇧 English**, **🇩🇪 Deutsch**, **🇫🇷 Français** и **🇷🇸 Српски** с переключением на лету.
-            - **🎨 4 темы оформления**: Тёмная, Светлая, Midnight (AMOLED #000000), Системная.
-            - **☁️ Облачная синхронизация Supabase (Offline-First)** с защитой от потери данных.
+            ### Новое в релизе 2.0.1 / What's New (Русский)
+            - **☀️ Полный редизайн Светлой темы (Light Theme Redesign)**:
+              - Радикальное повышение контрастности и читаемости интерфейса по гайдлайнам iOS и Material Design 3.
+              - Ликвидация «слепого» белого текста на светлом фоне, блёклых рамок и инвертированных элементов.
+              - Фоновый цвет `#F6F8FA`, контрастные белые карточки `#FFFFFF` с мягкими границами `#E5E7EB` и глубокий тёмный текст `#111827`.
+              - Адаптивный GitHub Heatmap: пустые дни окрашены в `#EBEDF0` вместо черных квадратов, а активность нарастает фирменными зелеными оттенками вплоть до `#216E39`.
+              - Pomodoro-таймер, Donut-чарт категорий, шторка добавления задачи, профиль и экраны авторизации адаптированы под светлое оформление.
+            - **🎨 Палитра акцентных цветов (7 кураторских схем)**:
+              - **Ирис (Iris)** — `#8875FF` + `#F5C26B` (фирменный фиолетовый с золотым).
+              - **Океан (Ocean)** — `#2563EB` + `#38BDF8` (глубокий кобальт и небесный).
+              - **Изумруд (Emerald)** — `#10B981` + `#FBBF24` (изумрудный с янтарным).
+              - **Закат (Sunset)** — `#F97316` + `#FBBF24` (закатный оранжевый).
+              - **Янтарь (Amber)** — `#F59E0B` + `#FB7185` (тёплый золотой с коралловым).
+              - **Роза (Rose)** — `#EC4899` + `#A855F7` (фуксия с пурпурным).
+              - **Индиго (Indigo)** — `#6366F1` + `#EC4899` (неоновый индиго с розовым).
+            - **⚙️ Интерактивный селектор палитр в Настройках**:
+              - Горизонтальный скролл с цветными образцами, активной галочкой и тактильным откликом (Haptics).
+              - Мгновенная реактивная перерисовка UI без перезапуска приложения и сохранение в SharedPreferences.
+            - **🏗️ Архитектура темы**:
+              - Внедрение `ThemeExtension<AppThemeColors>` и динамического фасада `AppColors` для бесшовной синхронизации во всех режимах (Light, Dark, Midnight, System).
+              - 129 автоматизированных тестов успешно пройдены (100% pass rate).
 
             #### Файлы для скачивания:
             - **Android (`.apk`)**: `TodoApp-*-android.apk` — готовый установочный файл для любого Android-устройства.
@@ -184,25 +183,15 @@ jobs:
             ---
 
             ### Release Highlights (English)
-            - **🤖 AI Daily Digest (Gemini 2.0 Flash)**: Automated smart morning briefing highlighting day's top focus and peak productivity window.
-            - **🎯 Interactive 2x2 Eisenhower Matrix**: Priority matrix with drag-and-drop reassignment and seamless list-view switching.
-            - **⚡ Siri & Android Assistant Shortcuts**: Native deep link URI navigation and quick action launching.
-            - **🏛️ Clean Architecture & Typed DI**: Feature-based dependency locator replacing god objects with fine-grained SRP controllers.
-            - **🔔 Pure DI Notification Service**: Abstract `INotificationService` decoupling native channels for deterministic test doubles.
-            - **🔒 Configuration Security**: Zero hardcoded keys in git, clean `.env` secret injection via `--dart-define-from-file`.
-            - **🔋 Battery-Efficient Audio**: Event-driven `MediaPlaybackService` eliminating background poll timers.
-            - **🌐 5 Locales & 4 Themes**: Russian, English, German, French, Serbian; Dark, Light, AMOLED Midnight, and System.
-            - **🌐 Multi-Language Localization (5 Locales)**:
-              - Native localization for **🇷🇺 Russian**, **🇬🇧 English**, **🇩🇪 German**, **🇫🇷 French**, and **🇷🇸 Serbian**.
-              - Instant runtime language switching from Settings without requiring an app restart.
-              - Context-aware pluralization rules for each locale.
-            - **🎨 4 Theme Modes**:
-              - **🌙 Dark**: Listodo signature dark interface.
-              - **☀️ Light**: High-contrast daylight theme.
-              - **🖤 Midnight (AMOLED)**: Deep pure black (`#000000`) optimized for OLED battery efficiency.
-              - **⚙️ System**: Automatically adapts to device system appearance.
-            - **🎧 Focus Ambient Studio & Music Hub**:
-              - 4 procedural ambient soundscapes: **🌧️ Rain**, **🌊 Ocean Waves**, **☕ Cozy Cafe**, **💿 Vinyl Player**.
-              - Dual-channel audio mixer with granular volume sliders.
-              - Custom playlist hub (Spotify, Apple Music, Yandex Music, YouTube Music, VK) with automated cover art retrieval and gallery photo uploads.
-              - Smooth, lag-free lock screen and Control Center media playback integration (Now Playing).
+            - **☀️ Light Theme Complete Overhaul**:
+              - High-contrast, clean daylight styling adhering to iOS Human Interface Guidelines and Material 3.
+              - Elimination of low-contrast white-on-white text, invisible borders, and inverted components.
+              - Crisp `#F6F8FA` background, pure white cards `#FFFFFF`, and high-contrast typography `#111827`.
+              - GitHub Heatmap adaptive color scale (`#EBEDF0` -> `#216E39`).
+            - **🎨 7 Curated Accent Color Palettes**:
+              - Iris, Ocean, Emerald, Sunset, Amber, Rose, and Indigo accent schemes with Russian and English localization.
+            - **⚙️ Interactive Settings Palette Picker**:
+              - Horizontal swatch picker with active checkmarks and haptic feedback.
+            - **🏗️ Clean Theme Architecture**:
+              - `ThemeExtension<AppThemeColors>` integration and dynamic token facade synchronization.
+              - 129 automated tests fully passing.
