@@ -11,6 +11,10 @@ class AppTheme {
           backgroundColor: Color(0xFF121212),
           elevation: 0,
         ),
+        bottomSheetTheme: const BottomSheetThemeData(
+          backgroundColor: Color(0xFF121212),
+          constraints: BoxConstraints(maxWidth: 640),
+        ),
         dialogTheme: const DialogThemeData(
           backgroundColor: Color(0xFF242424),
         ),
@@ -35,6 +39,10 @@ class AppTheme {
           backgroundColor: Color(0xFF000000),
           elevation: 0,
         ),
+        bottomSheetTheme: const BottomSheetThemeData(
+          backgroundColor: Color(0xFF000000),
+          constraints: BoxConstraints(maxWidth: 640),
+        ),
         dialogTheme: const DialogThemeData(
           backgroundColor: Color(0xFF101010),
         ),
@@ -58,6 +66,10 @@ class AppTheme {
         appBarTheme: const AppBarTheme(
           backgroundColor: Color(0xFFF5F6F9),
           elevation: 0,
+        ),
+        bottomSheetTheme: const BottomSheetThemeData(
+          backgroundColor: Color(0xFFFFFFFF),
+          constraints: BoxConstraints(maxWidth: 640),
         ),
         dialogTheme: const DialogThemeData(
           backgroundColor: Color(0xFFFFFFFF),

@@ -2,8 +2,8 @@
   <img src="assets/screenshots/app_icon.png" alt="TodoApp Logo" width="110" height="110" style="border-radius: 24px;" />
   <h1>TodoApp</h1>
   <p>
-    <strong>Современный менеджер задач с категориями, подзадачами, таймером фокуса, звуковой студией, темами, локализацией, авторизацией Supabase OTP и офлайн-first облачной синхронизацией</strong><br/>
-    <em>A modern Flutter task manager featuring custom categories, checklists, Pomodoro focus timer, ambient audio studio, themes, 5-language localization, Supabase Email OTP auth, and offline-first cloud sync</em>
+    <strong>Современный кроссплатформенный менеджер задач (iOS, Android, Web) с категориями, подзадачами, таймером фокуса, звуковой студией, темами, локализацией, авторизацией Supabase OTP и офлайн-first облачной синхронизацией</strong><br/>
+    <em>A modern cross-platform Flutter task manager (iOS, Android, Web PWA) featuring custom categories, checklists, Pomodoro focus timer, ambient audio studio, themes, 5-language localization, Supabase Email OTP auth, and offline-first cloud sync</em>
   </p>
 
   <p>
@@ -13,7 +13,7 @@
   </p>
 
   <p>
-    <img src="https://img.shields.io/badge/Flutter-3.x-02569B?logo=flutter&logoColor=white" alt="Flutter" />
+    <img src="https://img.shields.io/badge/Platforms-iOS_|_Android_|_Web-02569B?logo=flutter&logoColor=white" alt="Platforms" />
     <img src="https://img.shields.io/badge/Dart-3.11+-0175C2?logo=dart&logoColor=white" alt="Dart" />
     <img src="https://img.shields.io/badge/Sync-Offline--First_Supabase-3ECF8E?logo=supabase&logoColor=white" alt="Supabase Sync" />
     <img src="https://img.shields.io/badge/Languages-5_Locales-FF6F00" alt="Localization" />
@@ -79,6 +79,12 @@
   - **Строгая изоляция данных (Row Level Security / RLS)**: каждый пользователь видит и редактирует только свои задачи благодаря политикам безопасности PostgreSQL (`auth.uid() = user_id`).
   - **Интерактивный статус синхронизации**: специальная карточка в Настройках с бейджем состояния (*Синхронизировано / В процессе / Офлайн*), временем последней синхронизации и кнопкой принудительного обновления «Синхронизировать сейчас».
   - **Плавный переход**: локальные офлайн-аккаунты продолжают работать автономно без сетевых ошибок.
+
+- **💻 Кроссплатформенная веб-версия (PWA & Desktop Responsive)**:
+  - Полная поддержка запуска в веб-браузерах (Chrome, Safari, Firefox, Edge).
+  - Адаптивный центрированный макет для широких экранов: элегантное обрамление и мягкие тени на десктопных мониторах.
+  - Ограничение ширины шторки (`bottomSheetTheme.constraints`) для эргономичного отображения диалогов на ПК.
+  - Прогрессивное веб-приложение (PWA) с манифестом `manifest.json`, кастомными иконками и тёмным сплэш-экраном загрузки без белых вспышек.
 
 - **🌐 Мультиязычная локализация (5 языков)**:
   - Полная поддержка 5 языков интерфейса: **🇷🇺 Русский**, **🇬🇧 English**, **🇩🇪 Deutsch**, **🇫🇷 Français** и **🇷🇸 Српски**.
@@ -198,7 +204,11 @@ supabase/
 
 4. **Запустите приложение:**
    ```bash
+   # Запуск на мобильном устройстве или эмуляторе:
    flutter run
+
+   # Запуск веб-версии в браузере Chrome:
+   flutter run -d chrome
    ```
    > При необходимости можно передать собственные ключи Supabase через `--dart-define`:
    > ```bash
@@ -207,7 +217,12 @@ supabase/
    >   --dart-define=SUPABASE_ANON_KEY=your-anon-key
    > ```
 
-5. **Проверка анализатора и тесты:**
+5. **Сборка веб-версии (PWA):**
+   ```bash
+   flutter build web --release
+   ```
+
+6. **Проверка анализатора и тесты:**
    ```bash
    flutter analyze --fatal-infos
    flutter test --coverage
@@ -234,6 +249,12 @@ It pairs structured checklists and subtasks, customizable categories with vibran
   - **Row Level Security (RLS)**: Strict PostgreSQL security policies isolate data so users only access tasks where `auth.uid() = user_id`.
   - **Interactive Sync Status Card**: Dedicated settings panel providing real-time sync indicators (*Synced / In Progress / Offline*), last sync timestamp, and manual "Sync Now" trigger.
   - **Graceful Local Fallback**: Unauthenticated or local offline accounts continue to function without network error banners.
+
+- **💻 Cross-Platform Web & PWA Support (Desktop Responsive)**:
+  - First-class support for desktop and mobile web browsers (Chrome, Safari, Firefox, Edge).
+  - Responsive desktop-first centering shell with subtle depth shadows on widescreen monitors.
+  - Constrained bottom sheets (`bottomSheetTheme.constraints`) preventing full-width layout distortion on ultra-wide viewports.
+  - PWA manifest (`manifest.json`), tailored brand icons, and dark splash bootloader avoiding white flash on page loads.
 
 - **🌐 Multi-Language Localization (5 Locales)**:
   - First-class support for **🇷🇺 Russian**, **🇬🇧 English**, **🇩🇪 German**, **🇫🇷 French**, and **🇷🇸 Serbian**.
@@ -309,10 +330,19 @@ It pairs structured checklists and subtasks, customizable categories with vibran
 
 4. **Run the app:**
    ```bash
+   # Run on mobile device or simulator:
    flutter run
+
+   # Run on web (Chrome):
+   flutter run -d chrome
    ```
 
-5. **Run static analysis and tests:**
+5. **Build web bundle (PWA):**
+   ```bash
+   flutter build web --release
+   ```
+
+6. **Run static analysis and tests:**
    ```bash
    flutter analyze --fatal-infos
    flutter test --coverage

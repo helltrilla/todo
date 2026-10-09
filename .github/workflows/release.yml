@@ -96,9 +96,43 @@ jobs:
           name: ios-release
           path: dist/*
 
+  build-web:
+    name: Build Web Release Bundle
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Flutter Web Release
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            TAG="${{ github.event.inputs.tag_name }}"
+          fi
+          flutter build web --release
+          mkdir -p dist
+          cd build/web
+          zip -r -q "../../dist/TodoApp-${TAG}-web.zip" .
+          cd ../..
+
+      - name: Upload Web artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-release
+          path: dist/*
+
   publish-release:
     name: Create GitHub Release
-    needs: [build-android, build-ios]
+    needs: [build-android, build-ios, build-web]
     runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts
@@ -128,15 +162,21 @@ jobs:
               - **☀️ Светлая (Light)**: яркий, контрастный и чистый дневной интерфейс.
               - **🖤 Midnight (AMOLED)**: ультраглубокий чёрный цвет (`#000000`) для экономии заряда аккумулятора на OLED/AMOLED дисплеях.
               - **⚙️ Системная (System)**: динамическое следование за системной темой iOS/Android.
+            - **☁️ Облачная синхронизация Supabase (Offline-First)**:
+              - Двусторонняя синхронизация задач через Supabase PostgREST и Row Level Security (RLS).
+              - Разрешение конфликтов Last-Write-Wins (LWW).
+            - **💻 Поддержка Web (PWA & Desktop-friendly)**:
+              - Адаптивный центрированный макет для широких экранов и мониторов.
+              - Темный сплэш-экран загрузки и PWA-манифест.
             - **🎧 Студия концентрации и эмбиент-шумы (Focus Audio Studio)**:
               - 4 встроенных аппаратных генератора атмосферных шумов: **🌧️ Дождь**, **🌊 Океанский прибой**, **☕ Уютное кафе**, **💿 Виниловый проигрыватель**.
               - Двухканальный аудиомикшер с раздельными ползунками громкости для фоновой атмосферы и системного звука.
-              - Музыкальный хаб с кастомными плейлистами пользователя (Spotify, Apple Music, Яндекс Музыка, YouTube Music, VK Музыка) с автоподгрузкой обложек и выбором постеров из фотогалереи устройства.
-              - Плавная интеграция с Пунктом управления и экраном блокировки iOS (Now Playing / Control Center) без задержек и подвисаний.
+              - Музыкальный хаб с кастомными плейлистами пользователя (Spotify, Apple Music, Яндекс Музыка, YouTube Music, VK Музыка).
 
             #### Файлы для скачивания:
             - **Android (`.apk`)**: `TodoApp-*-android.apk` — готовый установочный файл для любого Android-устройства.
             - **Android (`.aab`)**: `TodoApp-*-android.aab` — пакет для публикации в Google Play.
+            - **Web (`.zip`)**: `TodoApp-*-web.zip` — готовый веб-бандл (PWA) для развертывания на любом сервере/хостинге.
             - **iOS (`.ipa`)**: `TodoApp-*-ios-unsigned.ipa` — неподписанный IPA для установки на iPhone.
             - **iOS Simulator (`.zip`)**: `TodoApp-*-ios-simulator.zip` — сборка для запуска в симуляторе iOS на macOS.
 

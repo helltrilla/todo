@@ -111,6 +111,43 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
             themeMode: themeCtrl.materialThemeMode,
             debugShowCheckedModeBanner: false,
             routerConfig: _router,
+            builder: (context, child) {
+              if (child == null) return const SizedBox.shrink();
+              return LayoutBuilder(
+                builder: (context, constraints) {
+                  if (constraints.maxWidth > 768) {
+                    final isDark =
+                        Theme.of(context).brightness == Brightness.dark;
+                    return ColoredBox(
+                      color: isDark
+                          ? const Color(0xFF0D0D10)
+                          : const Color(0xFFE2E4E9),
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 680),
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).scaffoldBackgroundColor,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(
+                                    alpha: isDark ? 0.45 : 0.08,
+                                  ),
+                                  blurRadius: 36,
+                                  spreadRadius: 4,
+                                ),
+                              ],
+                            ),
+                            child: ClipRect(child: child),
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+                  return child;
+                },
+              );
+            },
           );
         },
       ),

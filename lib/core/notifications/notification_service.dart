@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:todo/features/tasks/domain/models/task.dart';
+import 'package:url_launcher/url_launcher.dart' as ul;
 
 /// Cross-platform local push notification service backed by native
 /// `UNUserNotificationCenter` on iOS and `NotificationManager` on Android.
@@ -200,16 +201,40 @@ class NotificationService {
     required String url,
     String? fallbackUrl,
   }) async {
-    if (kIsWeb) return false;
+    if (kIsWeb) {
+      final target = Uri.tryParse(url) ??
+          (fallbackUrl != null ? Uri.tryParse(fallbackUrl) : null);
+      if (target != null) {
+        try {
+          return await ul.launchUrl(
+            target,
+            mode: ul.LaunchMode.externalApplication,
+          );
+        } catch (_) {
+          return false;
+        }
+      }
+      return false;
+    }
     try {
       final opened = await _channel.invokeMethod<bool>(
         'openExternalUrl',
         <String, dynamic>{'url': url, 'fallbackUrl': fallbackUrl},
       );
-      return opened ?? false;
-    } catch (_) {
-      return false;
+      if (opened == true) return true;
+    } catch (_) {}
+
+    // Fallback if native platform channel failed to handle the URI
+    final target = Uri.tryParse(fallbackUrl ?? url);
+    if (target != null) {
+      try {
+        return await ul.launchUrl(
+          target,
+          mode: ul.LaunchMode.externalApplication,
+        );
+      } catch (_) {}
     }
+    return false;
   }
 
   /// Sends a system media transport command (`'previous'`, `'playPause'`, `'next'`)

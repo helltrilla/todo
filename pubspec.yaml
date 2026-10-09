@@ -1,7 +1,7 @@
 name: todo
-description: "TodoApp — modern task manager with custom categories, subtasks, focus timer, Supabase OTP auth, and offline-first cloud sync."
+description: "TodoApp — modern task manager with custom categories, subtasks, focus timer, Supabase OTP auth, offline-first cloud sync, and Web/PWA support."
 publish_to: "none"
-version: 1.5.0+8
+version: 1.5.1+9
 
 environment:
   sdk: ^3.10.7
@@ -17,6 +17,7 @@ dependencies:
   http: ^1.6.0
   provider: ^6.1.5+1
   shared_preferences: ^2.5.5
+  url_launcher: ^6.3.3
 
 dev_dependencies:
   flutter_test:
