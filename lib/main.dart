@@ -8,6 +8,14 @@ import 'package:todo/core/app_theme/app_theme.dart';
 import 'package:todo/core/app_theme/theme_controller.dart';
 import 'package:todo/core/localization/app_language.dart';
 import 'package:todo/core/localization/locale_controller.dart';
+import 'package:todo/features/ambient/data/datasources/ambient_audio_native_data_source.dart';
+import 'package:todo/features/ambient/data/repositories/ambient_audio_repository_impl.dart';
+import 'package:todo/features/ambient/domain/usecases/get_ambient_presets_use_case.dart';
+import 'package:todo/features/ambient/domain/usecases/pause_ambient_sound_use_case.dart';
+import 'package:todo/features/ambient/domain/usecases/play_ambient_sound_use_case.dart';
+import 'package:todo/features/ambient/domain/usecases/set_ambient_volume_use_case.dart';
+import 'package:todo/features/ambient/domain/usecases/stop_ambient_sound_use_case.dart';
+import 'package:todo/features/ambient/presentation/controllers/ambient_audio_controller.dart';
 import 'package:todo/features/auth/data/repositories/auth_repository_impl.dart';
 import 'package:todo/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:todo/features/tasks/data/datasources/task_remote_data_source.dart';
@@ -50,6 +58,7 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
   late final LocaleController _localeController;
   late final ISmartTaskParser _smartTaskParser;
   late final VoiceTaskController _voiceTaskController;
+  late final AmbientAudioController _ambientAudioController;
   late final GoRouter _router;
 
   @override
@@ -82,6 +91,20 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
       ),
     );
 
+    // Ambient soundscapes clean architecture wiring:
+    final ambientDataSource = AmbientAudioNativeDataSource();
+    final ambientRepo = AmbientAudioRepositoryImpl(
+      dataSource: ambientDataSource,
+    );
+    _ambientAudioController = AmbientAudioController(
+      getPresetsUseCase: GetAmbientPresetsUseCase(ambientRepo),
+      playUseCase: PlayAmbientSoundUseCase(ambientRepo),
+      pauseUseCase: PauseAmbientSoundUseCase(ambientRepo),
+      stopUseCase: StopAmbientSoundUseCase(ambientRepo),
+      setVolumeUseCase: SetAmbientVolumeUseCase(ambientRepo),
+      externalStateStream: ambientRepo.stateChanges,
+    );
+
     _authController = AuthController(authRepo);
     _taskController = TaskController(taskRepo);
     _router = AppRouter.createRouter(_authController);
@@ -102,6 +125,7 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _router.dispose();
+    _ambientAudioController.dispose();
     _voiceTaskController.dispose();
     _taskController.dispose();
     _authController.dispose();
@@ -122,6 +146,9 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
         ),
         ChangeNotifierProvider<VoiceTaskController>.value(
           value: _voiceTaskController,
+        ),
+        ChangeNotifierProvider<AmbientAudioController>.value(
+          value: _ambientAudioController,
         ),
         Provider<ISmartTaskParser>.value(value: _smartTaskParser),
       ],

@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:todo/core/app_theme/app_colors.dart';
 import 'package:todo/core/haptics/app_haptics.dart';
 import 'package:todo/core/notifications/notification_service.dart';
+import 'package:todo/features/ambient/presentation/controllers/ambient_audio_controller.dart';
 import 'package:todo/features/tasks/presentation/controllers/task_controller.dart';
 
 class _UserPlaylist {
@@ -95,6 +96,8 @@ class _FocusTabViewState extends State<FocusTabView>
   static const List<(String, String, IconData)> _ambientOptions = [
     ('off', 'Выкл', Icons.volume_off_rounded),
     ('rain', '🌧 Дождь', Icons.water_drop_outlined),
+    ('fire', '🔥 Костер', Icons.local_fire_department_outlined),
+    ('noise', '💨 Белый шум', Icons.air_rounded),
     ('waves', '🌊 Прибой', Icons.waves_rounded),
     ('cafe', '☕️ Кафе', Icons.local_cafe_outlined),
     ('vinyl', '💿 Винил', Icons.album_outlined),
@@ -318,20 +321,12 @@ class _FocusTabViewState extends State<FocusTabView>
   void _selectAmbientSound(String soundKey) {
     AppHaptics.selection();
     setState(() => _ambientSound = soundKey);
-    NotificationService.instance.setAmbientSound(
-      sound: soundKey,
-      volume: _ambientVolume,
-    );
+    context.read<AmbientAudioController>().selectSound(soundKey);
   }
 
   void _updateAmbientVolume(double value) {
     setState(() => _ambientVolume = value);
-    if (_ambientSound != 'off') {
-      NotificationService.instance.setAmbientSound(
-        sound: _ambientSound,
-        volume: value,
-      );
-    }
+    context.read<AmbientAudioController>().setVolume(value);
   }
 
   void _updateSystemVolume(double value) {

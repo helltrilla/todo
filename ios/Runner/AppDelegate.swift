@@ -37,12 +37,30 @@ import UserNotifications
   private var vinylPopFreq: Float = 2100.0
   private var vinylCrackleEnv: Float = 0.0
 
+  // Campfire DSP properties
+  private var fireRoarFilterState: Float = 0.0
+  private var fireHissFilterState: Float = 0.0
+  private var fireSnapEnv: Float = 0.0
+  private var fireSnapPhase: Float = 0.0
+  private var fireSnapFreq: Float = 1600.0
+  private var fireCrackleEnv: Float = 0.0
+
+  // White / Pink noise DSP properties (Paul Kellet 3-pole IIR filter)
+  private var pinkB0: Float = 0.0
+  private var pinkB1: Float = 0.0
+  private var pinkB2: Float = 0.0
+
+  // Ambient soundscape playlist order for lock screen cycling
+  private let ambientPresetsList = ["rain", "fire", "noise", "waves", "cafe", "vinyl"]
+  private var isRemoteCommandsConfigured = false
+
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
     AppDelegate.shared = self
     UNUserNotificationCenter.current().delegate = self
+    setupRemoteCommands()
     if let shortcutItem = launchOptions?[.shortcutItem] as? UIApplicationShortcutItem {
       pendingQuickAction = shortcutItem.type
     }
@@ -193,6 +211,26 @@ import UserNotifications
         self?.configureAmbientAudio(sound: sound, volume: volume)
       }
 
+    case "pauseAmbientSound":
+      result(nil)
+      DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+        self?.pauseAmbientAudio()
+      }
+
+    case "resumeAmbientSound":
+      result(nil)
+      DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+        self?.resumeAmbientAudio()
+      }
+
+    case "getAmbientSoundState":
+      let isPlaying = (audioEngine?.isRunning ?? false) && currentAmbientSound != "off"
+      result([
+        "sound": currentAmbientSound,
+        "volume": Double(ambientVolume),
+        "isPlaying": isPlaying
+      ])
+
     case "openExternalUrl":
       let args = call.arguments as? [String: Any]
       let rawUrl = (args?["url"] as? String) ?? ""
@@ -306,6 +344,7 @@ import UserNotifications
 
     if sound == "off" || ambientVolume <= 0.001 {
       audioEngine?.stop()
+      updateNowPlayingInfo(isPlaying: false)
       return
     }
 
@@ -369,6 +408,53 @@ import UserNotifications
             }
 
             sample = (showerBed + drops) * gain
+
+          case "fire":
+            // 2. Warm crackling campfire:
+            // Low frequency flame roar (wood combustion sub-rumble)
+            self.fireRoarFilterState = 0.985 * self.fireRoarFilterState + 0.015 * white
+            self.lfoPhase += (twoPi * 1.8) / sampleRate
+            if self.lfoPhase > twoPi { self.lfoPhase -= twoPi }
+            let flameTurbulence: Float = 0.75 + 0.25 * sin(self.lfoPhase)
+            let roar = self.fireRoarFilterState * flameTurbulence * 2.2
+
+            // High sizzle / ash hiss
+            self.fireHissFilterState = 0.70 * self.fireHissFilterState + 0.30 * white
+            let hiss = (white - self.fireHissFilterState) * 0.12
+
+            // Wood snap / ember burst (distinct wood popping impulse)
+            if self.fireSnapEnv < 0.001 && Float.random(in: 0.0...1.0) > 0.9992 {
+              self.fireSnapEnv = Float.random(in: 0.55...1.0)
+              self.fireSnapFreq = Float.random(in: 1100.0...2800.0)
+              self.fireSnapPhase = 0.0
+            }
+            var snap: Float = 0.0
+            if self.fireSnapEnv > 0.001 {
+              self.fireSnapPhase += (twoPi * self.fireSnapFreq) / sampleRate
+              snap = sin(self.fireSnapPhase) * self.fireSnapEnv * 0.85
+              self.fireSnapEnv *= 0.988 // fast natural wood damping
+            }
+
+            // Frequent delicate ember crackles
+            if self.fireCrackleEnv < 0.01 && Float.random(in: 0.0...1.0) > 0.9975 {
+              self.fireCrackleEnv = Float.random(in: 0.25...0.7)
+            }
+            var crackle: Float = 0.0
+            if self.fireCrackleEnv > 0.01 {
+              crackle = white * self.fireCrackleEnv * 0.45
+              self.fireCrackleEnv *= 0.92
+            }
+
+            sample = (roar + hiss + snap + crackle) * gain * 1.35
+
+          case "noise":
+            // 3. Soothing Pink / White Noise (Paul Kellet's 3-pole IIR pinking filter)
+            // Equal energy per octave for continuous deep concentration masking
+            self.pinkB0 = 0.99886 * self.pinkB0 + white * 0.0555179
+            self.pinkB1 = 0.99332 * self.pinkB1 + white * 0.0750759
+            self.pinkB2 = 0.96900 * self.pinkB2 + white * 0.1538520
+            let pink = self.pinkB0 + self.pinkB1 + self.pinkB2 + white * 0.5362
+            sample = pink * 0.16 * gain * 1.4
 
           case "waves":
             // 2. Dramatic coastal ocean waves: calm trough -> rising swell -> bright foamy crash -> retreat
@@ -488,6 +574,153 @@ import UserNotifications
     if let engine = audioEngine, !engine.isRunning {
       try? engine.start()
     }
+    updateNowPlayingInfo(isPlaying: true)
+  }
+
+  private func titleForAmbientSound(_ sound: String) -> String {
+    switch sound {
+    case "rain": return "🌧 Дождь"
+    case "fire": return "🔥 Костер"
+    case "noise": return "💨 Белый шум"
+    case "waves": return "🌊 Прибой"
+    case "cafe": return "☕️ Кафе"
+    case "vinyl": return "💿 Винил"
+    default: return "Режим фокуса"
+    }
+  }
+
+  private func setupRemoteCommands() {
+    guard !isRemoteCommandsConfigured else { return }
+    isRemoteCommandsConfigured = true
+
+    let commandCenter = MPRemoteCommandCenter.shared()
+
+    commandCenter.playCommand.isEnabled = true
+    commandCenter.playCommand.addTarget { [weak self] _ in
+      guard let self = self else { return .commandFailed }
+      self.resumeAmbientAudio()
+      return .success
+    }
+
+    commandCenter.pauseCommand.isEnabled = true
+    commandCenter.pauseCommand.addTarget { [weak self] _ in
+      guard let self = self else { return .commandFailed }
+      self.pauseAmbientAudio()
+      return .success
+    }
+
+    commandCenter.togglePlayPauseCommand.isEnabled = true
+    commandCenter.togglePlayPauseCommand.addTarget { [weak self] _ in
+      guard let self = self else { return .commandFailed }
+      if self.audioEngine?.isRunning == true && self.currentAmbientSound != "off" {
+        self.pauseAmbientAudio()
+      } else {
+        self.resumeAmbientAudio()
+      }
+      return .success
+    }
+
+    commandCenter.nextTrackCommand.isEnabled = true
+    commandCenter.nextTrackCommand.addTarget { [weak self] _ in
+      guard let self = self else { return .commandFailed }
+      self.cycleAmbientPreset(forward: true)
+      return .success
+    }
+
+    commandCenter.previousTrackCommand.isEnabled = true
+    commandCenter.previousTrackCommand.addTarget { [weak self] _ in
+      guard let self = self else { return .commandFailed }
+      self.cycleAmbientPreset(forward: false)
+      return .success
+    }
+
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(handleAudioInterruption),
+      name: AVAudioSession.interruptionNotification,
+      object: nil
+    )
+  }
+
+  @objc private func handleAudioInterruption(notification: Notification) {
+    guard let userInfo = notification.userInfo,
+          let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
+          let type = AVAudioSession.InterruptionType(rawValue: typeValue) else { return }
+
+    if type == .began {
+      audioEngine?.pause()
+      updateNowPlayingInfo(isPlaying: false)
+      notifyFlutterAmbientChange()
+    } else if type == .ended {
+      if let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt {
+        let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
+        if options.contains(.shouldResume) && currentAmbientSound != "off" {
+          try? audioEngine?.start()
+          updateNowPlayingInfo(isPlaying: true)
+          notifyFlutterAmbientChange()
+        }
+      }
+    }
+  }
+
+  private func updateNowPlayingInfo(isPlaying: Bool) {
+    DispatchQueue.main.async { [weak self] in
+      guard let self = self else { return }
+      if self.currentAmbientSound == "off" || !isPlaying {
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+        return
+      }
+
+      var info = [String: Any]()
+      info[MPMediaItemPropertyTitle] = self.titleForAmbientSound(self.currentAmbientSound)
+      info[MPMediaItemPropertyArtist] = "TodoApp • Режим фокуса"
+      info[MPMediaItemPropertyAlbumTitle] = "Фоновые звуки"
+      info[MPNowPlayingInfoPropertyIsLiveStream] = true
+      info[MPNowPlayingInfoPropertyPlaybackRate] = isPlaying ? 1.0 : 0.0
+
+      MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+    }
+  }
+
+  private func cycleAmbientPreset(forward: Bool) {
+    let list = ambientPresetsList
+    let currentIndex = list.firstIndex(of: currentAmbientSound) ?? -1
+    let nextIndex: Int
+    if forward {
+      nextIndex = (currentIndex + 1) % list.count
+    } else {
+      nextIndex = currentIndex <= 0 ? list.count - 1 : currentIndex - 1
+    }
+    let newSound = list[nextIndex]
+    configureAmbientAudio(sound: newSound, volume: ambientVolume)
+    notifyFlutterAmbientChange()
+  }
+
+  private func notifyFlutterAmbientChange() {
+    DispatchQueue.main.async { [weak self] in
+      guard let self = self else { return }
+      self.notificationChannel?.invokeMethod("onAmbientSoundChanged", [
+        "sound": self.currentAmbientSound,
+        "volume": Double(self.ambientVolume),
+        "isPlaying": (self.audioEngine?.isRunning ?? false) && self.currentAmbientSound != "off"
+      ])
+    }
+  }
+
+  private func pauseAmbientAudio() {
+    audioEngine?.pause()
+    updateNowPlayingInfo(isPlaying: false)
+    notifyFlutterAmbientChange()
+  }
+
+  private func resumeAmbientAudio() {
+    if currentAmbientSound == "off" {
+      configureAmbientAudio(sound: "rain", volume: ambientVolume)
+    } else {
+      try? audioEngine?.start()
+      updateNowPlayingInfo(isPlaying: true)
+    }
+    notifyFlutterAmbientChange()
   }
 
   private func topViewController() -> UIViewController? {

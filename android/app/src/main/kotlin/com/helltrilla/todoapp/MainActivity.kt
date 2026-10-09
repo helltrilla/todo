@@ -296,6 +296,14 @@ class MainActivity : FlutterActivity() {
             var vinylPopPhase = 0.0
             var vinylPopFreq = 2100.0
             var vinylCrackleEnv = 0f
+            var fireRoarState = 0f
+            var fireSnapEnv = 0f
+            var fireSnapFreq = 1600.0
+            var fireSnapPhase = 0.0
+            var fireCrackleEnv = 0f
+            var pinkB0 = 0f
+            var pinkB1 = 0f
+            var pinkB2 = 0f
             val twoPi = 2.0 * PI
 
             try {
@@ -333,6 +341,45 @@ class MainActivity : FlutterActivity() {
                                     drop2Env *= 0.989f
                                 }
                                 (showerBed + drops) * gain
+                            }
+                            "fire" -> {
+                                fireRoarState = 0.985f * fireRoarState + 0.015f * white
+                                lfoPhase += (twoPi * 1.8) / sampleRate
+                                if (lfoPhase > twoPi) lfoPhase -= twoPi
+                                val flameTurbulence = (0.75 + 0.25 * sin(lfoPhase)).toFloat()
+                                val roar = fireRoarState * flameTurbulence * 2.2f
+
+                                val hiss = (white - (0.70f * filterState + 0.30f * white)) * 0.12f
+
+                                if (fireSnapEnv < 0.001f && Random.nextFloat() > 0.9992f) {
+                                    fireSnapEnv = 0.55f + Random.nextFloat() * 0.45f
+                                    fireSnapFreq = 1100.0 + Random.nextDouble() * 1700.0
+                                    fireSnapPhase = 0.0
+                                }
+                                var snap = 0f
+                                if (fireSnapEnv > 0.001f) {
+                                    fireSnapPhase += (twoPi * fireSnapFreq) / sampleRate
+                                    snap = (sin(fireSnapPhase).toFloat()) * fireSnapEnv * 0.85f
+                                    fireSnapEnv *= 0.988f
+                                }
+
+                                if (fireCrackleEnv < 0.01f && Random.nextFloat() > 0.9975f) {
+                                    fireCrackleEnv = 0.25f + Random.nextFloat() * 0.45f
+                                }
+                                var crackle = 0f
+                                if (fireCrackleEnv > 0.01f) {
+                                    crackle = white * fireCrackleEnv * 0.45f
+                                    fireCrackleEnv *= 0.92f
+                                }
+
+                                (roar + hiss + snap + crackle) * gain * 1.35f
+                            }
+                            "noise" -> {
+                                pinkB0 = 0.99886f * pinkB0 + white * 0.0555179f
+                                pinkB1 = 0.99332f * pinkB1 + white * 0.0750759f
+                                pinkB2 = 0.96900f * pinkB2 + white * 0.1538520f
+                                val pink = pinkB0 + pinkB1 + pinkB2 + white * 0.5362f
+                                pink * 0.16f * gain * 1.4f
                             }
                             "waves" -> {
                                 lfoPhase += (twoPi * 0.105) / sampleRate
