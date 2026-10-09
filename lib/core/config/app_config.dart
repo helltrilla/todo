@@ -22,7 +22,7 @@ class AppConfig {
   /// Current semantic version of the application.
   static const String appVersion = String.fromEnvironment(
     'APP_VERSION',
-    defaultValue: '2.0.0',
+    defaultValue: '2.0.1',
   );
 
   /// Backup payload schema version for data format migration and compatibility.
