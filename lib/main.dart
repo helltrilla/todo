@@ -16,6 +16,13 @@ import 'package:todo/features/tasks/data/repositories/task_sync_repository.dart'
 import 'package:todo/features/tasks/data/services/smart_task_parser_impl.dart';
 import 'package:todo/features/tasks/domain/services/i_smart_task_parser.dart';
 import 'package:todo/features/tasks/presentation/controllers/task_controller.dart';
+import 'package:todo/features/voice/data/datasources/speech_to_text_datasource.dart';
+import 'package:todo/features/voice/data/repositories/speech_recognition_repository_impl.dart';
+import 'package:todo/features/voice/domain/usecases/initialize_speech_use_case.dart';
+import 'package:todo/features/voice/domain/usecases/process_voice_task_use_case.dart';
+import 'package:todo/features/voice/domain/usecases/start_listening_use_case.dart';
+import 'package:todo/features/voice/domain/usecases/stop_listening_use_case.dart';
+import 'package:todo/features/voice/presentation/controllers/voice_task_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -42,6 +49,7 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
   late final ThemeController _themeController;
   late final LocaleController _localeController;
   late final ISmartTaskParser _smartTaskParser;
+  late final VoiceTaskController _voiceTaskController;
   late final GoRouter _router;
 
   @override
@@ -58,6 +66,20 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
       local: localRepo,
       remote: remoteDataSource,
       auth: authRepo,
+    );
+
+    // Voice recognition clean architecture wiring:
+    final speechDataSource = SpeechToTextDataSource();
+    final speechRepo = SpeechRecognitionRepositoryImpl(
+      dataSource: speechDataSource,
+    );
+    _voiceTaskController = VoiceTaskController(
+      initializeUseCase: InitializeSpeechUseCase(speechRepo),
+      startListeningUseCase: StartListeningUseCase(speechRepo),
+      stopListeningUseCase: StopListeningUseCase(speechRepo),
+      processVoiceTaskUseCase: ProcessVoiceTaskUseCase(
+        nlpParser: _smartTaskParser,
+      ),
     );
 
     _authController = AuthController(authRepo);
@@ -80,6 +102,7 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _router.dispose();
+    _voiceTaskController.dispose();
     _taskController.dispose();
     _authController.dispose();
     _localeController.dispose();
@@ -96,6 +119,9 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
         ChangeNotifierProvider<ThemeController>.value(value: _themeController),
         ChangeNotifierProvider<LocaleController>.value(
           value: _localeController,
+        ),
+        ChangeNotifierProvider<VoiceTaskController>.value(
+          value: _voiceTaskController,
         ),
         Provider<ISmartTaskParser>.value(value: _smartTaskParser),
       ],

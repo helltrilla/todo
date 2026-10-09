@@ -37,6 +37,10 @@
 	<string>Управление воспроизведением фоновой музыки прямо с экрана режима «Фокус».</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Выберите фотографию из галереи для установки аватара вашего профиля.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>TodoApp использует микрофон для создания задач голосом на ходу.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>TodoApp использует распознавание речи для превращения голоса в задачи и подзадачи.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

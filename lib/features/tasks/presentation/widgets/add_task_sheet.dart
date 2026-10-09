@@ -1,7 +1,9 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:todo/core/app_theme/app_colors.dart';
+import 'package:todo/features/voice/presentation/widgets/voice_input_modal.dart';
 import 'package:todo/core/errors/result.dart';
 import 'package:todo/core/haptics/app_haptics.dart';
 import 'package:todo/core/localization/app_localizations.dart';
@@ -102,41 +104,8 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
     if (!mounted) return;
 
     if (result is Success<SmartTaskDraft>) {
-      final draft = result.data;
       AppHaptics.heavy();
-      setState(() {
-        _isAiParsing = false;
-        if (draft.name.isNotEmpty) {
-          _nameController.text = draft.name;
-        }
-        if (draft.description.isNotEmpty) {
-          _descController.text = draft.description;
-        }
-        if (draft.dueDate != null) {
-          _selectedDate = draft.dueDate;
-        }
-        if (draft.reminderOffsetMinutes != null) {
-          _reminderOffsetMinutes = draft.reminderOffsetMinutes;
-        }
-        if (draft.priorityIndex >= 0 && draft.priorityIndex <= 3) {
-          _priorityIndex = draft.priorityIndex;
-        }
-        if (draft.category != null && draft.category!.isNotEmpty) {
-          _selectedCategory = draft.category!;
-        }
-        if (draft.subtasks.isNotEmpty) {
-          final nowMicro = DateTime.now().microsecondsSinceEpoch;
-          _subtasks = draft.subtasks.asMap().entries.map((entry) {
-            return SubTask(
-              id: nowMicro + entry.key,
-              title: entry.value,
-              isCompleted: false,
-            );
-          }).toList();
-        }
-        _showAiInput = false;
-        _aiFeedbackMessage = context.tr.aiSuccess;
-      });
+      _applySmartDraft(result.data, message: context.tr.aiSuccess);
     } else if (result is Error<SmartTaskDraft>) {
       AppHaptics.light();
       setState(() {
@@ -144,6 +113,49 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
         _aiFeedbackMessage = result.failure.message;
       });
     }
+  }
+
+  Future<void> _openVoiceInput() async {
+    final draft = await VoiceInputModal.show(context);
+    if (draft != null && mounted) {
+      _applySmartDraft(draft, message: '🎙 Голосовая задача распознана!');
+    }
+  }
+
+  void _applySmartDraft(SmartTaskDraft draft, {required String message}) {
+    setState(() {
+      _isAiParsing = false;
+      if (draft.name.isNotEmpty) {
+        _nameController.text = draft.name;
+      }
+      if (draft.description.isNotEmpty) {
+        _descController.text = draft.description;
+      }
+      if (draft.dueDate != null) {
+        _selectedDate = draft.dueDate;
+      }
+      if (draft.reminderOffsetMinutes != null) {
+        _reminderOffsetMinutes = draft.reminderOffsetMinutes;
+      }
+      if (draft.priorityIndex >= 0 && draft.priorityIndex <= 3) {
+        _priorityIndex = draft.priorityIndex;
+      }
+      if (draft.category != null && draft.category!.isNotEmpty) {
+        _selectedCategory = draft.category!;
+      }
+      if (draft.subtasks.isNotEmpty) {
+        final nowMicro = DateTime.now().microsecondsSinceEpoch;
+        _subtasks = draft.subtasks.asMap().entries.map((entry) {
+          return SubTask(
+            id: nowMicro + entry.key,
+            title: entry.value,
+            isCompleted: false,
+          );
+        }).toList();
+      }
+      _showAiInput = false;
+      _aiFeedbackMessage = message;
+    });
   }
 
   void _addSubtask() {
@@ -437,10 +449,22 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
           TextField(
             controller: _nameController,
             style: const TextStyle(color: AppColors.maintext),
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              border: const OutlineInputBorder(),
               labelText: 'Task',
-              labelStyle: TextStyle(color: AppColors.labeltext, fontSize: 12),
+              labelStyle: const TextStyle(
+                color: AppColors.labeltext,
+                fontSize: 12,
+              ),
+              suffixIcon: IconButton(
+                tooltip: 'Голосовой ввод задачи',
+                icon: const Icon(
+                  CupertinoIcons.mic_fill,
+                  size: 20,
+                  color: Color(0xFF8687E7),
+                ),
+                onPressed: _openVoiceInput,
+              ),
             ),
           ),
           const SizedBox(height: 12),
@@ -831,38 +855,72 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 46,
-                    child: ElevatedButton.icon(
-                      onPressed: _isAiParsing ? null : _parseWithAi,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF8687E7),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 0,
-                      ),
-                      icon: _isAiParsing
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: SizedBox(
+                          height: 46,
+                          child: ElevatedButton.icon(
+                            onPressed: _isAiParsing ? null : _parseWithAi,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF8687E7),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
                               ),
-                            )
-                          : const Icon(Icons.auto_fix_high_rounded, size: 18),
-                      label: Text(
-                        _isAiParsing ? tr.aiParsing : tr.aiParseButton,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 0,
+                            ),
+                            icon: _isAiParsing
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons.auto_fix_high_rounded,
+                                    size: 18,
+                                  ),
+                            label: Text(
+                              _isAiParsing ? tr.aiParsing : tr.aiParseButton,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
-                    ),
+                      const SizedBox(width: 8),
+                      SizedBox(
+                        height: 46,
+                        child: ElevatedButton.icon(
+                          onPressed: _openVoiceInput,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF3ECF8E),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 0,
+                          ),
+                          icon: const Icon(CupertinoIcons.mic_fill, size: 18),
+                          label: const Text(
+                            'Голос',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
