@@ -15,11 +15,27 @@ import 'package:todo/features/auth/domain/repositories/i_auth_repository.dart';
 ///
 /// Wraps all results in [Result<T>] with strongly typed [Failure]s.
 class AuthRepositoryImpl implements IAuthRepository {
-  AuthRepositoryImpl(this._prefs, {http.Client? httpClient})
-    : _http = httpClient ?? http.Client();
+  AuthRepositoryImpl(
+    this._prefs, {
+    http.Client? httpClient,
+    String? supabaseUrl,
+    String? supabaseAnonKey,
+  }) : _http = httpClient ?? http.Client(),
+       _isCustomClient = httpClient != null,
+       _supabaseUrl = supabaseUrl ??
+           (AppConfig.supabaseUrl.isNotEmpty
+               ? AppConfig.supabaseUrl
+               : 'https://api.supabase.co'),
+       _supabaseAnonKey = supabaseAnonKey ??
+           (AppConfig.supabaseAnonKey.isNotEmpty
+               ? AppConfig.supabaseAnonKey
+               : 'sb_publishable_dummy');
 
   final SharedPreferences _prefs;
   final http.Client _http;
+  final bool _isCustomClient;
+  final String _supabaseUrl;
+  final String _supabaseAnonKey;
 
   static const _currentUserKey = 'auth_current_user';
   static const _internalAccountsKey = 'auth_internal_accounts';
@@ -120,8 +136,16 @@ class AuthRepositoryImpl implements IAuthRepository {
     required String email,
     String? name,
   }) async {
+    if (!AppConfig.isConfigured && !_isCustomClient) {
+      return const Error(
+        ServerFailure(
+          'Облачная авторизация недоступна: ключи Supabase не заданы при сборке.',
+        ),
+      );
+    }
+
     try {
-      final uri = Uri.parse('${AppConfig.supabaseUrl}/auth/v1/otp');
+      final uri = Uri.parse('$_supabaseUrl/auth/v1/otp');
       final body = <String, dynamic>{
         'email': email.trim(),
         'create_user': true,
@@ -154,6 +178,14 @@ class AuthRepositoryImpl implements IAuthRepository {
     required String code,
     String? name,
   }) async {
+    if (!AppConfig.isConfigured && !_isCustomClient) {
+      return const Error(
+        ServerFailure(
+          'Облачная авторизация недоступна: ключи Supabase не заданы при сборке.',
+        ),
+      );
+    }
+
     try {
       final cleanEmail = email.trim();
       final cleanCode = code.trim();
@@ -319,7 +351,7 @@ class AuthRepositoryImpl implements IAuthRepository {
     required String token,
     required String type,
   }) {
-    final uri = Uri.parse('${AppConfig.supabaseUrl}/auth/v1/verify');
+    final uri = Uri.parse('$_supabaseUrl/auth/v1/verify');
     return _http
         .post(
           uri,
@@ -334,8 +366,8 @@ class AuthRepositoryImpl implements IAuthRepository {
   }
 
   Map<String, String> get _supabaseHeaders => <String, String>{
-    'apikey': AppConfig.supabaseAnonKey,
-    'Authorization': 'Bearer ${AppConfig.supabaseAnonKey}',
+    'apikey': _supabaseAnonKey,
+    'Authorization': 'Bearer $_supabaseAnonKey',
     'Content-Type': 'application/json',
   };
 

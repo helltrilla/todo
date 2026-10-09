@@ -3,23 +3,36 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:todo/core/errors/result.dart';
 import 'package:todo/core/notifications/notification_service.dart';
-import 'package:todo/features/tasks/data/repositories/task_sync_repository.dart';
+import 'package:todo/features/tasks/domain/entities/eisenhower_quadrant.dart';
+import 'package:todo/features/tasks/domain/entities/recurrence_rule.dart';
+import 'package:todo/features/tasks/domain/entities/sub_task.dart';
+import 'package:todo/features/tasks/domain/entities/task.dart';
 import 'package:todo/features/tasks/domain/models/priority_level.dart';
-import 'package:todo/features/tasks/domain/models/task.dart';
 import 'package:todo/features/tasks/domain/models/task_category_style.dart';
+import 'package:todo/features/tasks/domain/repositories/i_sync_repository.dart';
 import 'package:todo/features/tasks/domain/repositories/i_task_repository.dart';
+import 'package:todo/features/tasks/presentation/controllers/sync_controller.dart';
 
-/// Application-layer controller for task management.
-///
-/// Consumes [Result<T>] from [ITaskRepository] without generic try/catch
-/// in the presentation layer, strictly adhering to AGENTS.md & ARCHITECTURE.md.
+/// Presentation-layer controller for Task CRUD, categories, filtering, and sorting.
+/// Adheres strictly to the Single Responsibility Principle (SRP):
+/// Focus timer logic is extracted to [PomodoroController],
+/// Cloud sync orchestration is extracted to [SyncController],
+/// and Theme management is maintained in [ThemeController].
 class TaskController extends ChangeNotifier {
-  TaskController(this._repository) {
+  TaskController(
+    this._repository, {
+    SyncController? syncController,
+    INotificationService? notificationService,
+  }) : _syncController = syncController,
+       _notificationService =
+           notificationService ?? NotificationServiceImpl() {
     _categories = _repository.getCategories();
     _categoryStyles = _repository.getCategoryStyles();
   }
 
   final ITaskRepository _repository;
+  final SyncController? _syncController;
+  final INotificationService _notificationService;
 
   static const String allCategory = 'All Task';
   static const String globalCategory = 'Общее';
@@ -31,14 +44,21 @@ class TaskController extends ChangeNotifier {
   String _searchQuery = '';
   bool _isLoading = false;
   String? _error;
+  bool _isMatrixView = false;
+
+  // Local fallback sync states for backward compatibility if SyncController is not injected:
   bool _isSyncing = false;
   String? _syncError;
 
-  bool get isSyncing => _isSyncing;
-  String? get syncError => _syncError;
+  bool get isSyncing => _syncController?.isSyncing ?? _isSyncing;
+  String? get syncError => _syncController?.syncError ?? _syncError;
   DateTime? get lastSyncedAt {
+    if (_syncController != null) return _syncController.lastSyncedAt;
     final repo = _repository;
-    return repo is TaskSyncRepository ? repo.lastSyncedAt : null;
+    if (repo is ISyncRepository) {
+      return (repo as ISyncRepository).lastSyncedAt;
+    }
+    return null;
   }
 
   /// All filtered and sorted tasks.
@@ -67,6 +87,43 @@ class TaskController extends ChangeNotifier {
   String get searchQuery => _searchQuery;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  bool get isMatrixView => _isMatrixView;
+  INotificationService get notificationService => _notificationService;
+
+  /// Switches between standard ListView and Eisenhower 2x2 Matrix view.
+  void toggleViewMode([bool? forceMatrix]) {
+    _isMatrixView = forceMatrix ?? !_isMatrixView;
+    notifyListeners();
+  }
+
+  /// Returns non-archived tasks belonging to a specific Eisenhower quadrant.
+  List<Task> tasksForQuadrant(EisenhowerQuadrant quadrant) {
+    return tasks
+        .where((t) => !t.isArchived && t.quadrant == quadrant)
+        .toList();
+  }
+
+  /// Reclassifies [task] when dropped onto [targetQuadrant].
+  /// Synchronously updates urgency, importance, and aligned priority level.
+  Future<void> moveTaskToQuadrant(
+    Task task,
+    EisenhowerQuadrant targetQuadrant,
+  ) async {
+    final priorityIndex = switch (targetQuadrant) {
+      EisenhowerQuadrant.q1 => 0, // P1 (Urgent)
+      EisenhowerQuadrant.q2 => 1, // P2 (High)
+      EisenhowerQuadrant.q3 => 2, // P3 (Medium)
+      EisenhowerQuadrant.q4 => 3, // P4 (Low)
+    };
+
+    final updated = task.copyWith(
+      isUrgent: targetQuadrant.isUrgent,
+      isImportant: targetQuadrant.isImportant,
+      priorityIndex: priorityIndex,
+    );
+
+    await updateTask(updated);
+  }
 
   /// Returns the custom or default [TaskCategoryStyle] for [categoryName].
   TaskCategoryStyle styleForCategory(String categoryName) {
@@ -130,7 +187,6 @@ class TaskController extends ChangeNotifier {
   }
 
   /// Current consecutive daily streak of completing at least 1 task per day.
-  /// Remains active today if either today or yesterday has a completed task.
   int get currentStreakDays {
     final activeDays = _completedCalendarDays;
     if (activeDays.isEmpty) return 0;
@@ -188,8 +244,7 @@ class TaskController extends ChangeNotifier {
     });
   }
 
-  /// Returns non-archived tasks scheduled for [date] (or created on [date] if dueDate is null),
-  /// filtered by completion status [completed] and sorted by priority.
+  /// Returns non-archived tasks scheduled for [date], filtered by completion status and sorted by priority.
   List<Task> tasksForDate(DateTime date, {required bool completed}) {
     final list = _tasks.where((t) {
       if (t.isArchived) return false;
@@ -245,20 +300,27 @@ class TaskController extends ChangeNotifier {
     _isLoading = false;
     notifyListeners();
 
-    if (_repository is TaskSyncRepository) {
+    if (_syncController != null) {
+      unawaited(_syncController.syncWithCloud());
+    } else if (_repository is ISyncRepository) {
       unawaited(syncWithCloud());
     }
   }
 
-  /// Triggers two-way cloud synchronization with Supabase.
+  /// Triggers cloud synchronization via [SyncController] or fallback [ISyncRepository].
   Future<bool> syncWithCloud() async {
+    if (_syncController != null) {
+      return _syncController.syncWithCloud();
+    }
+
     final repo = _repository;
-    if (repo is! TaskSyncRepository) return false;
+    if (repo is! ISyncRepository) return false;
+    final syncRepo = repo as ISyncRepository;
     _isSyncing = true;
     _syncError = null;
     notifyListeners();
 
-    final result = await repo.syncWithCloud();
+    final result = await syncRepo.syncWithCloud();
     _isSyncing = false;
 
     switch (result) {
@@ -271,6 +333,12 @@ class TaskController extends ChangeNotifier {
         notifyListeners();
         return false;
     }
+  }
+
+  /// Receives synced tasks from [SyncController] after a cloud fetch.
+  void onTasksSynced(List<Task> updatedTasks) {
+    _tasks = updatedTasks;
+    notifyListeners();
   }
 
   void setSearchQuery(String query) {
@@ -384,7 +452,7 @@ class TaskController extends ChangeNotifier {
       return;
     }
 
-    unawaited(NotificationService.instance.syncTaskNotifications(task));
+    unawaited(_notificationService.syncTaskNotifications(task));
   }
 
   int _generateUniqueId() {
@@ -396,8 +464,6 @@ class TaskController extends ChangeNotifier {
   }
 
   /// Updates all fields of an existing [updatedTask] with optimistic UI and rollback.
-  /// If a recurring task transitions from incomplete to completed for the first time,
-  /// automatically schedules its next occurrence.
   Future<void> updateTask(Task updatedTask) async {
     final index = _tasks.indexWhere((t) => t.id == updatedTask.id);
     if (index == -1) return;
@@ -439,7 +505,7 @@ class TaskController extends ChangeNotifier {
     }
 
     unawaited(
-      NotificationService.instance.syncTaskNotifications(effectiveUpdated),
+      _notificationService.syncTaskNotifications(effectiveUpdated),
     );
 
     if (shouldSpawnNext) {
@@ -468,7 +534,7 @@ class TaskController extends ChangeNotifier {
         _error = failure.message;
         notifyListeners();
       } else {
-        unawaited(NotificationService.instance.syncTaskNotifications(nextTask));
+        unawaited(_notificationService.syncTaskNotifications(nextTask));
       }
     }
   }
@@ -490,7 +556,7 @@ class TaskController extends ChangeNotifier {
     await updateTask(current.copyWith(isPinned: !current.isPinned));
   }
 
-  /// Records a completed Pomodoro focus session (+1 session and +[minutes] focus time) on [taskId].
+  /// Records a completed Pomodoro focus session on [taskId].
   Future<void> recordFocusSession(int taskId, {required int minutes}) async {
     final index = _tasks.indexWhere((t) => t.id == taskId);
     if (index == -1) return;
@@ -505,7 +571,6 @@ class TaskController extends ChangeNotifier {
   }
 
   /// Toggles a single [SubTask] inside a [Task].
-  /// If all subtasks become completed, automatically marks the parent task completed.
   Future<void> toggleSubTask(int taskId, int subTaskId) async {
     final index = _tasks.indexWhere((t) => t.id == taskId);
     if (index == -1) return;
@@ -530,8 +595,7 @@ class TaskController extends ChangeNotifier {
     );
   }
 
-  /// Moves a completed task into the archive so it leaves the main board
-  /// but stays viewable in the archive section.
+  /// Moves a completed task into the archive.
   Future<void> archiveTask(int id) async {
     final index = _tasks.indexWhere((t) => t.id == id);
     if (index == -1) return;
@@ -563,7 +627,7 @@ class TaskController extends ChangeNotifier {
       return;
     }
 
-    unawaited(NotificationService.instance.cancelTaskNotifications(id));
+    unawaited(_notificationService.cancelTaskNotifications(id));
   }
 
   Future<void> clearCompleted() async {
@@ -587,7 +651,7 @@ class TaskController extends ChangeNotifier {
     for (final id in ids) {
       await _repository.delete(id);
     }
-    unawaited(NotificationService.instance.cancelAllNotifications());
+    unawaited(_notificationService.cancelAllNotifications());
   }
 
   void clearError() {

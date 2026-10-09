@@ -6,4 +6,6 @@
     <string name="shortcut_focus_long">Запустить Помодоро-таймер</string>
     <string name="shortcut_calendar_short">Календарь задач</string>
     <string name="shortcut_calendar_long">План задач по дням</string>
+    <string name="shortcut_voice_short">Голосовая задача</string>
+    <string name="shortcut_voice_long">Создать задачу голосом через ИИ</string>
 </resources>

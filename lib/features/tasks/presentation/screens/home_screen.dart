@@ -9,15 +9,20 @@ import 'package:todo/core/app_theme/app_colors.dart';
 import 'package:todo/core/haptics/app_haptics.dart';
 import 'package:todo/core/notifications/notification_service.dart';
 import 'package:todo/features/auth/presentation/controllers/auth_controller.dart';
+import 'package:todo/features/digest/presentation/controllers/daily_digest_controller.dart';
+import 'package:todo/features/digest/presentation/widgets/daily_digest_card.dart';
 import 'package:todo/features/tasks/domain/models/task.dart';
 import 'package:todo/features/tasks/domain/models/task_category_style.dart';
+import 'package:todo/features/tasks/presentation/controllers/sync_controller.dart';
 import 'package:todo/features/tasks/presentation/controllers/task_controller.dart';
 import 'package:todo/features/tasks/presentation/widgets/add_task_sheet.dart';
 import 'package:todo/features/tasks/presentation/widgets/calendar_tab_view.dart';
 import 'package:todo/features/tasks/presentation/widgets/create_category_dialog.dart';
+import 'package:todo/features/tasks/presentation/widgets/eisenhower_matrix_view.dart';
 import 'package:todo/features/tasks/presentation/widgets/focus_tab_view.dart';
 import 'package:todo/features/tasks/presentation/widgets/profile_tab_view.dart';
 import 'package:todo/features/tasks/presentation/widgets/task_card.dart';
+import 'package:todo/features/voice/presentation/widgets/voice_input_modal.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -34,23 +39,79 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<TaskController>().load();
-      NotificationService.instance.registerQuickActionHandler(
-        _handleQuickAction,
-      );
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await context.read<TaskController>().load();
+      if (mounted) {
+        context.read<DailyDigestController>().loadDigest(
+          context.read<TaskController>().tasks,
+        );
+        context.read<INotificationService>().registerQuickActionHandler(
+          _handleQuickAction,
+        );
+      }
     });
+  }
+
+  Future<void> _openVoiceInputFlow() async {
+    final draft = await VoiceInputModal.show(context);
+    if (draft != null && mounted) {
+      _openTaskSheet(
+        initialTitle: draft.name,
+        initialCategory: draft.category,
+        initialPriorityIndex: draft.priorityIndex,
+      );
+    }
   }
 
   void _handleQuickAction(String actionType) {
     if (!mounted) return;
     AppHaptics.medium();
+
+    if (actionType.startsWith('todo://') ||
+        actionType.startsWith('todoapp://')) {
+      final uri = Uri.tryParse(actionType);
+      if (uri != null) {
+        if (uri.host == 'tasks' || uri.path.contains('tasks')) {
+          final title = uri.queryParameters['title'];
+          final category = uri.queryParameters['category'];
+          final prioStr = uri.queryParameters['priority'];
+          final prio = prioStr != null ? int.tryParse(prioStr) : null;
+          setState(() => _selectedTabIndex = 0);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              _openTaskSheet(
+                initialTitle: title,
+                initialCategory: category,
+                initialPriorityIndex: prio,
+              );
+            }
+          });
+          return;
+        } else if (uri.host == 'voice' || uri.path.contains('voice')) {
+          _openVoiceInputFlow();
+          return;
+        } else if (uri.host == 'matrix' || uri.path.contains('matrix')) {
+          setState(() => _selectedTabIndex = 0);
+          context.read<TaskController>().toggleViewMode(true);
+          return;
+        } else if (uri.host == 'focus' || uri.path.contains('focus')) {
+          setState(() => _selectedTabIndex = 2);
+          return;
+        } else if (uri.host == 'calendar' || uri.path.contains('calendar')) {
+          setState(() => _selectedTabIndex = 1);
+          return;
+        }
+      }
+    }
+
     switch (actionType) {
       case 'add_task':
         setState(() => _selectedTabIndex = 0);
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) _openTaskSheet();
         });
+      case 'voice_task':
+        _openVoiceInputFlow();
       case 'open_focus':
         setState(() => _selectedTabIndex = 2);
       case 'open_calendar':
@@ -126,12 +187,22 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _openTaskSheet({Task? task}) {
+  void _openTaskSheet({
+    Task? task,
+    String? initialTitle,
+    String? initialCategory,
+    int? initialPriorityIndex,
+  }) {
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.bg,
       isScrollControlled: true,
-      builder: (_) => AddTaskSheet(initialTask: task),
+      builder: (_) => AddTaskSheet(
+        initialTask: task,
+        initialTitle: initialTitle,
+        initialCategory: initialCategory,
+        initialPriorityIndex: initialPriorityIndex,
+      ),
     );
   }
 
@@ -161,6 +232,29 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
         actions: [
+          if (_selectedTabIndex == 0)
+            Consumer<TaskController>(
+              builder: (context, taskCtrl, _) {
+                return IconButton(
+                  tooltip: taskCtrl.isMatrixView
+                      ? 'Вид: Список'
+                      : 'Вид: Матрица Эйзенхауэра',
+                  onPressed: () {
+                    AppHaptics.selection();
+                    taskCtrl.toggleViewMode();
+                  },
+                  icon: Icon(
+                    taskCtrl.isMatrixView
+                        ? Icons.view_agenda_rounded
+                        : Icons.grid_view_rounded,
+                    color: taskCtrl.isMatrixView
+                        ? const Color(0xFF8875FF)
+                        : AppColors.white,
+                    size: 20,
+                  ),
+                );
+              },
+            ),
           _StreakHeaderBadge(
             onTap: () {
               AppHaptics.selection();
@@ -218,6 +312,7 @@ class _HomeScreenState extends State<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 8),
+                const DailyDigestCard(),
                 _ListodoSearchBar(
                   controller: _searchController,
                   onChanged: controller.setSearchQuery,
@@ -236,7 +331,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 Expanded(
                   child: controller.tasks.isEmpty
                       ? const _EmptyState()
-                      : _SectionedTaskList(
+                      : controller.isMatrixView
+                          ? EisenhowerMatrixView(
+                              onEditTask: (task) => _openTaskSheet(task: task),
+                            )
+                          : _SectionedTaskList(
                           futureTasks: controller.futureTasks,
                           todayTasks: controller.todayTasks,
                           confirmDismiss: _confirmDeleteDialog,
@@ -635,7 +734,7 @@ class _SectionedTaskList extends StatelessWidget {
       backgroundColor: AppColors.cardBg,
       onRefresh: () async {
         AppHaptics.light();
-        await context.read<TaskController>().syncWithCloud();
+        await context.read<SyncController>().syncWithCloud();
       },
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),

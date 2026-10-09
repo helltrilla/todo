@@ -149,29 +149,30 @@ jobs:
           files: artifacts/*
           generate_release_notes: true
           body: |
-            ## TodoApp ${{ github.event.inputs.tag_name || github.ref_name }}
+            ## TodoApp ${{ github.event.inputs.tag_name || github.ref_name }} — Major 2.0 Architecture & Intelligence Update
 
-            ### Новое в этом релизе / What's New (Русский)
+            ### Новое в релизе 2.0.0 / What's New (Русский)
+            - **🤖 AI Daily Digest (Google Gemini 2.0 Flash)**:
+              - Персонализированный утренний бриф дня: анализ задач, выделение топ-фокуса и рекомендация слота продуктивности.
+              - Кэширование генерации раз в сутки с fallback на вдохновляющие цитаты при отсутствии задач.
+            - **🎯 Интерактивная Матрица Эйзенхауэра 2x2 (Drag-and-Drop)**:
+              - Распределение задач по 4 квадрантам матрицы: Срочно/Важно, Важно/Не срочно, Срочно/Не важно, Не срочно/Не важно.
+              - Перетаскивание задач между квадрантами с мгновенным обновлением приоритетов.
+            - **⚡ Нативные шорткаты Siri и Android (Deep Links)**:
+              - Запуск быстрых действий с домашнего экрана (Quick Actions) и голосовых команд через схему `todoapp://add-task`.
+            - **🏛️ Полный переход на Clean Architecture & Centralized DI**:
+              - Сборка графа зависимостей через выделенный типизированный контейнер `AppDependencies`.
+              - Ликвидация антипаттерна «God Object» с декомпозицией на `TaskController`, `PomodoroController`, `SyncController` и `ThemeController`.
+            - **🔔 Рефакторинг NotificationService под чистый DI**:
+              - Полная замена глобального синглтона на интерфейс `INotificationService` с открытым конструктором и поддержкой моков для 100% тестируемости.
+            - **🔒 Защита конфигурации и секретов**:
+              - Устранение захардкоженных ключей в коде: загрузка кредов через `.env` файл и `--dart-define-from-file=.env`.
+            - **🔋 Оптимизация энергопотребления Focus Hub**:
+              - Отказ от таймеров поллинга в UI, переход на реактивный событийный `MediaPlaybackService`.
             - **🌐 Мультиязычная локализация (5 языков)**:
-              - Добавлена полноценная локализация на 5 языков: **🇷🇺 Русский**, **🇬🇧 English**, **🇩🇪 Deutsch**, **🇫🇷 Français** и **🇷🇸 Српски**.
-              - Переключение языка на лету прямо в меню Настроек через удобную шторку с флагами государств.
-              - Честная поддержка контекстных грамматических форм числительных для каждого языка.
-              - Сохранение выбранного языка в памяти устройства (`SharedPreferences`).
-            - **🎨 4 темы оформления приложения**:
-              - **🌙 Тёмная (Dark)**: стильная фирменная палитра Listodo UI.
-              - **☀️ Светлая (Light)**: яркий, контрастный и чистый дневной интерфейс.
-              - **🖤 Midnight (AMOLED)**: ультраглубокий чёрный цвет (`#000000`) для экономии заряда аккумулятора на OLED/AMOLED дисплеях.
-              - **⚙️ Системная (System)**: динамическое следование за системной темой iOS/Android.
-            - **☁️ Облачная синхронизация Supabase (Offline-First)**:
-              - Двусторонняя синхронизация задач через Supabase PostgREST и Row Level Security (RLS).
-              - Разрешение конфликтов Last-Write-Wins (LWW).
-            - **💻 Поддержка Web (PWA & Desktop-friendly)**:
-              - Адаптивный центрированный макет для широких экранов и мониторов.
-              - Темный сплэш-экран загрузки и PWA-манифест.
-            - **🎧 Студия концентрации и эмбиент-шумы (Focus Audio Studio)**:
-              - 4 встроенных аппаратных генератора атмосферных шумов: **🌧️ Дождь**, **🌊 Океанский прибой**, **☕ Уютное кафе**, **💿 Виниловый проигрыватель**.
-              - Двухканальный аудиомикшер с раздельными ползунками громкости для фоновой атмосферы и системного звука.
-              - Музыкальный хаб с кастомными плейлистами пользователя (Spotify, Apple Music, Яндекс Музыка, YouTube Music, VK Музыка).
+              - Поддержка **🇷🇺 Русский**, **🇬🇧 English**, **🇩🇪 Deutsch**, **🇫🇷 Français** и **🇷🇸 Српски** с переключением на лету.
+            - **🎨 4 темы оформления**: Тёмная, Светлая, Midnight (AMOLED #000000), Системная.
+            - **☁️ Облачная синхронизация Supabase (Offline-First)** с защитой от потери данных.
 
             #### Файлы для скачивания:
             - **Android (`.apk`)**: `TodoApp-*-android.apk` — готовый установочный файл для любого Android-устройства.
@@ -183,6 +184,14 @@ jobs:
             ---
 
             ### Release Highlights (English)
+            - **🤖 AI Daily Digest (Gemini 2.0 Flash)**: Automated smart morning briefing highlighting day's top focus and peak productivity window.
+            - **🎯 Interactive 2x2 Eisenhower Matrix**: Priority matrix with drag-and-drop reassignment and seamless list-view switching.
+            - **⚡ Siri & Android Assistant Shortcuts**: Native deep link URI navigation and quick action launching.
+            - **🏛️ Clean Architecture & Typed DI**: Feature-based dependency locator replacing god objects with fine-grained SRP controllers.
+            - **🔔 Pure DI Notification Service**: Abstract `INotificationService` decoupling native channels for deterministic test doubles.
+            - **🔒 Configuration Security**: Zero hardcoded keys in git, clean `.env` secret injection via `--dart-define-from-file`.
+            - **🔋 Battery-Efficient Audio**: Event-driven `MediaPlaybackService` eliminating background poll timers.
+            - **🌐 5 Locales & 4 Themes**: Russian, English, German, French, Serbian; Dark, Light, AMOLED Midnight, and System.
             - **🌐 Multi-Language Localization (5 Locales)**:
               - Native localization for **🇷🇺 Russian**, **🇬🇧 English**, **🇩🇪 German**, **🇫🇷 French**, and **🇷🇸 Serbian**.
               - Instant runtime language switching from Settings without requiring an app restart.

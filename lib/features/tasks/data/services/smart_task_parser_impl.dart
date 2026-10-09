@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:todo/core/config/app_config.dart';
 import 'package:todo/core/errors/failures.dart';
 import 'package:todo/core/errors/result.dart';
+import 'package:todo/core/logging/app_logger.dart';
 import 'package:todo/features/tasks/data/services/local_nlp_parser.dart';
 import 'package:todo/features/tasks/domain/models/smart_task_draft.dart';
 import 'package:todo/features/tasks/domain/services/i_smart_task_parser.dart';
@@ -77,8 +78,12 @@ class SmartTaskParserImpl implements ISmartTaskParser {
         if (cloudResult != null) {
           return Success(cloudResult);
         }
-      } catch (_) {
-        // Fallback to local heuristic engine on any network or parsing failure
+      } catch (e, st) {
+        AppLogger.warning(
+          'SmartTaskParser cloud parsing failed, falling back to local NLP',
+          e,
+          st,
+        );
       }
     }
 

@@ -373,7 +373,7 @@ import WidgetKit
     open url: URL,
     options: [UIApplication.OpenURLOptionsKey: Any] = [:]
   ) -> Bool {
-    if url.scheme == "todoapp" {
+    if url.scheme == "todo" || url.scheme == "todoapp" {
       if url.host == "toggle", let components = URLComponents(url: url, resolvingAgainstBaseURL: false) {
         if let idString = components.queryItems?.first(where: { $0.name == "id" })?.value,
            let taskId = Int(idString) {
@@ -381,6 +381,13 @@ import WidgetKit
           return true
         }
       }
+      let urlString = url.absoluteString
+      if isFlutterReadyForQuickActions, let channel = notificationChannel {
+        channel.invokeMethod("onQuickAction", arguments: urlString)
+      } else {
+        pendingQuickAction = urlString
+      }
+      return true
     }
     return super.application(app, open: url, options: options)
   }

@@ -6,166 +6,48 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:todo/core/app_router/app_router.dart';
 import 'package:todo/core/app_theme/app_theme.dart';
 import 'package:todo/core/app_theme/theme_controller.dart';
+import 'package:todo/core/di/injection_container.dart';
 import 'package:todo/core/localization/app_language.dart';
 import 'package:todo/core/localization/locale_controller.dart';
-import 'package:todo/features/ambient/data/datasources/ambient_audio_native_data_source.dart';
-import 'package:todo/features/ambient/data/repositories/ambient_audio_repository_impl.dart';
-import 'package:todo/features/ambient/domain/usecases/get_ambient_presets_use_case.dart';
-import 'package:todo/features/ambient/domain/usecases/pause_ambient_sound_use_case.dart';
-import 'package:todo/features/ambient/domain/usecases/play_ambient_sound_use_case.dart';
-import 'package:todo/features/ambient/domain/usecases/set_ambient_volume_use_case.dart';
-import 'package:todo/features/ambient/domain/usecases/stop_ambient_sound_use_case.dart';
-import 'package:todo/features/ambient/presentation/controllers/ambient_audio_controller.dart';
-import 'package:todo/features/auth/data/repositories/auth_repository_impl.dart';
-import 'package:todo/features/backup/data/datasources/backup_native_data_source.dart';
-import 'package:todo/features/backup/data/repositories/backup_repository_impl.dart';
-import 'package:todo/features/backup/domain/usecases/export_tasks_use_case.dart';
-import 'package:todo/features/backup/domain/usecases/import_tasks_use_case.dart';
-import 'package:todo/features/backup/domain/usecases/share_backup_use_case.dart';
-import 'package:todo/features/backup/presentation/controllers/backup_controller.dart';
-import 'package:todo/features/productivity/data/repositories/productivity_repository_impl.dart';
-import 'package:todo/features/productivity/domain/usecases/calculate_productivity_dashboard_use_case.dart';
-import 'package:todo/features/productivity/presentation/controllers/productivity_controller.dart';
-import 'package:todo/features/auth/presentation/controllers/auth_controller.dart';
-import 'package:todo/features/tasks/data/datasources/task_remote_data_source.dart';
-import 'package:todo/features/tasks/data/repositories/task_local_repository.dart';
-import 'package:todo/features/tasks/data/repositories/task_sync_repository.dart';
-import 'package:todo/features/tasks/data/services/smart_task_parser_impl.dart';
-import 'package:todo/features/tasks/domain/services/i_smart_task_parser.dart';
-import 'package:todo/features/tasks/presentation/controllers/task_controller.dart';
-import 'package:todo/features/voice/data/datasources/speech_to_text_datasource.dart';
-import 'package:todo/features/voice/data/repositories/speech_recognition_repository_impl.dart';
-import 'package:todo/features/voice/domain/usecases/initialize_speech_use_case.dart';
-import 'package:todo/features/voice/domain/usecases/process_voice_task_use_case.dart';
-import 'package:todo/features/voice/domain/usecases/start_listening_use_case.dart';
-import 'package:todo/features/voice/domain/usecases/stop_listening_use_case.dart';
-import 'package:todo/features/voice/presentation/controllers/voice_task_controller.dart';
-import 'package:todo/features/widgets/data/datasources/widget_native_data_source.dart';
-import 'package:todo/features/widgets/data/repositories/widget_sync_repository_impl.dart';
-import 'package:todo/features/widgets/domain/usecases/process_widget_toggles_use_case.dart';
-import 'package:todo/features/widgets/domain/usecases/sync_widget_snapshot_use_case.dart';
-import 'package:todo/features/widgets/presentation/controllers/widget_sync_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize SharedPreferences once at startup — the instance is then
-  // injected into repositories and controllers so no async calls happen at read time.
-  final prefs = await SharedPreferences.getInstance();
+  // Initialize clean dependency injection container once at startup
+  final dependencies = await setupDependencies();
 
-  runApp(MainApp(prefs: prefs));
+  runApp(MainApp(dependencies: dependencies));
 }
 
 class MainApp extends StatefulWidget {
-  const MainApp({super.key, required this.prefs});
+  const MainApp({
+    super.key,
+    this.dependencies,
+    this.prefs,
+  }) : assert(
+         dependencies != null || prefs != null,
+         'Either dependencies or prefs must be provided',
+       );
 
-  final SharedPreferences prefs;
+  final AppDependencies? dependencies;
+  final SharedPreferences? prefs;
 
   @override
   State<MainApp> createState() => _MainAppState();
 }
 
 class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
-  late final AuthController _authController;
-  late final TaskController _taskController;
-  late final ThemeController _themeController;
-  late final LocaleController _localeController;
-  late final ISmartTaskParser _smartTaskParser;
-  late final VoiceTaskController _voiceTaskController;
-  late final AmbientAudioController _ambientAudioController;
-  late final ProductivityController _productivityController;
-  late final BackupController _backupController;
-  late final WidgetSyncController _widgetSyncController;
+  late final AppDependencies _dependencies;
   late final GoRouter _router;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _themeController = ThemeController(widget.prefs);
-    _localeController = LocaleController(widget.prefs);
-    _smartTaskParser = SmartTaskParserImpl(prefs: widget.prefs);
-    final authRepo = AuthRepositoryImpl(widget.prefs);
-    final localRepo = TaskLocalRepository(widget.prefs);
-    final remoteDataSource = SupabaseTaskRemoteDataSource();
-    final taskRepo = TaskSyncRepository(
-      local: localRepo,
-      remote: remoteDataSource,
-      auth: authRepo,
-    );
+    _dependencies = widget.dependencies ?? AppDependencies.init(widget.prefs!);
+    _router = AppRouter.createRouter(_dependencies.authController);
 
-    // Voice recognition clean architecture wiring:
-    final speechDataSource = SpeechToTextDataSource();
-    final speechRepo = SpeechRecognitionRepositoryImpl(
-      dataSource: speechDataSource,
-    );
-    _voiceTaskController = VoiceTaskController(
-      initializeUseCase: InitializeSpeechUseCase(speechRepo),
-      startListeningUseCase: StartListeningUseCase(speechRepo),
-      stopListeningUseCase: StopListeningUseCase(speechRepo),
-      processVoiceTaskUseCase: ProcessVoiceTaskUseCase(
-        nlpParser: _smartTaskParser,
-      ),
-    );
-
-    // Ambient soundscapes clean architecture wiring:
-    final ambientDataSource = AmbientAudioNativeDataSource();
-    final ambientRepo = AmbientAudioRepositoryImpl(
-      dataSource: ambientDataSource,
-    );
-    _ambientAudioController = AmbientAudioController(
-      getPresetsUseCase: GetAmbientPresetsUseCase(ambientRepo),
-      playUseCase: PlayAmbientSoundUseCase(ambientRepo),
-      pauseUseCase: PauseAmbientSoundUseCase(ambientRepo),
-      stopUseCase: StopAmbientSoundUseCase(ambientRepo),
-      setVolumeUseCase: SetAmbientVolumeUseCase(ambientRepo),
-      externalStateStream: ambientRepo.stateChanges,
-    );
-
-    // Productivity analytics clean architecture wiring:
-    final productivityRepo = const ProductivityRepositoryImpl();
-    _productivityController = ProductivityController(
-      calculateDashboardUseCase: CalculateProductivityDashboardUseCase(
-        productivityRepo,
-      ),
-    );
-
-    // Backup & Export clean architecture wiring:
-    final backupDataSource = const BackupNativeDataSource();
-    final backupRepo = BackupRepositoryImpl(dataSource: backupDataSource);
-    _backupController = BackupController(
-      exportUseCase: ExportTasksUseCase(backupRepo),
-      importUseCase: ImportTasksUseCase(backupRepo),
-      shareUseCase: ShareBackupUseCase(backupRepo),
-    );
-
-    // Widget sync clean architecture wiring:
-    final widgetDataSource = WidgetNativeDataSource();
-    final widgetRepo = WidgetSyncRepositoryImpl(dataSource: widgetDataSource);
-    _widgetSyncController = WidgetSyncController(
-      syncUseCase: SyncWidgetSnapshotUseCase(widgetRepo),
-      processTogglesUseCase: ProcessWidgetTogglesUseCase(widgetRepo),
-    );
-
-    _authController = AuthController(authRepo);
-    _taskController = TaskController(taskRepo);
-    _router = AppRouter.createRouter(_authController);
-
-    _widgetSyncController.onExternalToggleHandler = (taskId) async {
-      await _taskController.toggleCompleted(taskId);
-    };
-
-    // Auto-sync widget snapshot whenever tasks list updates:
-    _taskController.addListener(() {
-      _widgetSyncController.syncFromTasks(tasks: _taskController.tasks);
-    });
-
-    // Check for any toggles made from interactive widget while app was closed:
-    _widgetSyncController.processPendingToggles(
-      onToggle: _taskController.toggleCompleted,
-    );
-
-    _themeController.updateSystemBrightness(
+    _dependencies.themeController.updateSystemBrightness(
       WidgetsBinding.instance.platformDispatcher.platformBrightness,
     );
   }
@@ -173,9 +55,12 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _widgetSyncController.processPendingToggles(
-        onToggle: _taskController.toggleCompleted,
+      _dependencies.widgetSyncController.processPendingToggles(
+        onToggle: _dependencies.taskController.toggleCompleted,
       );
+      _dependencies.mediaPlaybackService.onAppResumed();
+    } else if (state == AppLifecycleState.paused) {
+      _dependencies.mediaPlaybackService.onAppPaused();
     }
   }
 
@@ -183,52 +68,21 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
   void didChangePlatformBrightness() {
     final brightness =
         WidgetsBinding.instance.platformDispatcher.platformBrightness;
-    _themeController.updateSystemBrightness(brightness);
+    _dependencies.themeController.updateSystemBrightness(brightness);
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _router.dispose();
-    _widgetSyncController.dispose();
-    _backupController.dispose();
-    _productivityController.dispose();
-    _ambientAudioController.dispose();
-    _voiceTaskController.dispose();
-    _taskController.dispose();
-    _authController.dispose();
-    _localeController.dispose();
-    _themeController.dispose();
+    _dependencies.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
-      providers: [
-        ChangeNotifierProvider<AuthController>.value(value: _authController),
-        ChangeNotifierProvider<TaskController>.value(value: _taskController),
-        ChangeNotifierProvider<ThemeController>.value(value: _themeController),
-        ChangeNotifierProvider<LocaleController>.value(
-          value: _localeController,
-        ),
-        ChangeNotifierProvider<VoiceTaskController>.value(
-          value: _voiceTaskController,
-        ),
-        ChangeNotifierProvider<AmbientAudioController>.value(
-          value: _ambientAudioController,
-        ),
-        ChangeNotifierProvider<ProductivityController>.value(
-          value: _productivityController,
-        ),
-        ChangeNotifierProvider<BackupController>.value(
-          value: _backupController,
-        ),
-        ChangeNotifierProvider<WidgetSyncController>.value(
-          value: _widgetSyncController,
-        ),
-        Provider<ISmartTaskParser>.value(value: _smartTaskParser),
-      ],
+      providers: _dependencies.providers,
       child: Consumer2<ThemeController, LocaleController>(
         builder: (context, themeCtrl, localeCtrl, _) {
           return MaterialApp.router(

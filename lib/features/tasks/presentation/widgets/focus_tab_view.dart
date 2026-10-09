@@ -4,81 +4,18 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:todo/core/app_theme/app_colors.dart';
+import 'package:todo/core/errors/result.dart';
 import 'package:todo/core/haptics/app_haptics.dart';
+import 'package:todo/core/logging/app_logger.dart';
+import 'package:todo/core/notifications/media_playback_service.dart';
 import 'package:todo/core/notifications/notification_service.dart';
 import 'package:todo/features/ambient/presentation/controllers/ambient_audio_controller.dart';
+import 'package:todo/features/tasks/domain/entities/user_playlist.dart';
+import 'package:todo/features/tasks/presentation/controllers/focus_playlist_controller.dart';
+import 'package:todo/features/tasks/presentation/controllers/pomodoro_controller.dart';
 import 'package:todo/features/tasks/presentation/controllers/task_controller.dart';
-import 'package:todo/features/widgets/domain/entities/widget_pomodoro_state.dart';
-import 'package:todo/features/widgets/presentation/controllers/widget_sync_controller.dart';
-
-class _UserPlaylist {
-  const _UserPlaylist({
-    required this.id,
-    required this.title,
-    required this.url,
-    this.coverImageUrl,
-    this.coverImageBase64,
-  });
-
-  final String id;
-  final String title;
-  final String url;
-  final String? coverImageUrl;
-  final String? coverImageBase64;
-
-  String get serviceBadge {
-    final lower = url.toLowerCase();
-    if (lower.contains('spotify')) return 'SPOTIFY';
-    if (lower.contains('yandex')) return 'ЯНДЕКС';
-    if (lower.contains('apple.com') || lower.startsWith('music:')) {
-      return 'APPLE MUSIC';
-    }
-    if (lower.contains('youtube') || lower.contains('youtu.be')) {
-      return 'YOUTUBE';
-    }
-    if (lower.contains('vk.com') || lower.contains('boom')) return 'VK МУЗЫКА';
-    return 'ПЛЕЙЛИСТ';
-  }
-
-  List<Color> get fallbackGradient {
-    final lower = url.toLowerCase();
-    if (lower.contains('spotify')) {
-      return const [Color(0xFF1DB954), Color(0xFF0E3B22)];
-    }
-    if (lower.contains('yandex')) {
-      return const [Color(0xFFF59E0B), Color(0xFF451A03)];
-    }
-    if (lower.contains('apple.com') || lower.startsWith('music:')) {
-      return const [Color(0xFFFA243C), Color(0xFF4C0519)];
-    }
-    if (lower.contains('youtube') || lower.contains('youtu.be')) {
-      return const [Color(0xFFEF4444), Color(0xFF450A0A)];
-    }
-    return const [Color(0xFF6366F1), Color(0xFF1E1B4B)];
-  }
-
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'title': title,
-    'url': url,
-    'coverImageUrl': coverImageUrl,
-    'coverImageBase64': coverImageBase64,
-  };
-
-  factory _UserPlaylist.fromJson(Map<String, dynamic> json) => _UserPlaylist(
-    id:
-        (json['id'] as String?) ??
-        DateTime.now().millisecondsSinceEpoch.toString(),
-    title: (json['title'] as String?) ?? 'Мой плейлист',
-    url: (json['url'] as String?) ?? '',
-    coverImageUrl: json['coverImageUrl'] as String?,
-    coverImageBase64: json['coverImageBase64'] as String?,
-  );
-}
 
 /// Listodo Focus Mode (Pomodoro Timer + Ambient Mixer + Spotify/Music Hub) tab view.
 class FocusTabView extends StatefulWidget {
@@ -92,10 +29,6 @@ class FocusTabView extends StatefulWidget {
 class _FocusTabViewState extends State<FocusTabView>
     with WidgetsBindingObserver {
   static const _presetsMinutes = [15, 25, 45, 60];
-  static const _focusSelectedMinutesKey = 'focus_selected_minutes';
-  static const _userPlaylistsKey = 'focus_user_playlists_v2';
-  static const _legacyCustomPlaylistUrlKey = 'focus_custom_playlist_url';
-  static const _legacyCustomPlaylistTitleKey = 'focus_custom_playlist_title';
 
   static const List<(String, String, IconData)> _ambientOptions = [
     ('off', 'Выкл', Icons.volume_off_rounded),
@@ -107,19 +40,11 @@ class _FocusTabViewState extends State<FocusTabView>
     ('vinyl', '💿 Винил', Icons.album_outlined),
   ];
 
-  int _selectedMinutes = 25;
-  late int _remainingSeconds;
-  bool _isRunning = false;
-  Timer? _timer;
-  int? _focusedTaskId;
   late final ScrollController _scrollController;
+  INotificationService? _notificationService;
 
   String _ambientSound = 'off';
   double _ambientVolume = 0.45;
-  double _systemVolume = 0.65;
-  bool _isSystemMusicPlaying = false;
-  Timer? _playbackPollTimer;
-  List<_UserPlaylist> _userPlaylists = [];
 
   @override
   void initState() {
@@ -128,267 +53,42 @@ class _FocusTabViewState extends State<FocusTabView>
       initialScrollOffset: widget.initialScrollOffset,
     );
     WidgetsBinding.instance.addObserver(this);
-    _remainingSeconds = _selectedMinutes * 60;
-    _loadSavedPlaylists();
-    _checkPlaybackState();
-    _playbackPollTimer = Timer.periodic(
-      const Duration(milliseconds: 1400),
-      (_) => _checkPlaybackState(),
-    );
   }
 
-  Future<void> _checkPlaybackState() async {
-    final isPlaying = await NotificationService.instance
-        .getMediaPlaybackState();
-    if (mounted && _isSystemMusicPlaying != isPlaying) {
-      setState(() => _isSystemMusicPlaying = isPlaying);
-    }
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _notificationService ??= context.read<INotificationService>();
   }
 
   Future<void> _toggleSystemPlayPause() async {
-    AppHaptics.medium();
-    final nextState = !_isSystemMusicPlaying;
-    setState(() => _isSystemMusicPlaying = nextState);
-    unawaited(
-      NotificationService.instance.sendMediaCommand(
-        nextState ? 'play' : 'pause',
-      ),
-    );
-    Future.delayed(const Duration(milliseconds: 350), _checkPlaybackState);
+    await context.read<MediaPlaybackService>().togglePlayPause();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _checkPlaybackState();
-      NotificationService.instance.getSystemVolume().then((vol) {
-        if (mounted) setState(() => _systemVolume = vol);
-      });
+      context.read<MediaPlaybackService>().onAppResumed();
+    } else if (state == AppLifecycleState.paused) {
+      context.read<MediaPlaybackService>().onAppPaused();
     }
-  }
-
-  Future<void> _loadSavedPlaylists() async {
-    final prefs = await SharedPreferences.getInstance();
-    final sysVol = await NotificationService.instance.getSystemVolume();
-    final rawJson = prefs.getString(_userPlaylistsKey);
-    final loaded = <_UserPlaylist>[];
-
-    if (rawJson != null && rawJson.isNotEmpty) {
-      try {
-        final decoded = jsonDecode(rawJson) as List<dynamic>;
-        for (final item in decoded) {
-          if (item is Map<String, dynamic>) {
-            loaded.add(_UserPlaylist.fromJson(item));
-          }
-        }
-      } catch (_) {}
-    } else {
-      // Migrate single legacy custom playlist if present
-      final legacyUrl = prefs.getString(_legacyCustomPlaylistUrlKey);
-      final legacyTitle =
-          prefs.getString(_legacyCustomPlaylistTitleKey) ?? 'Мой плейлист';
-      if (legacyUrl != null && legacyUrl.isNotEmpty) {
-        loaded.add(
-          _UserPlaylist(
-            id: DateTime.now().millisecondsSinceEpoch.toString(),
-            title: legacyTitle,
-            url: legacyUrl,
-          ),
-        );
-      }
-    }
-
-    if (loaded.isEmpty) {
-      loaded.addAll([
-        const _UserPlaylist(
-          id: 'preset_lofi',
-          title: 'Lo-Fi Beats',
-          url: 'https://open.spotify.com/playlist/0vvXsWCC9xrXsKd4FyS8kM',
-        ),
-        const _UserPlaylist(
-          id: 'preset_deep_focus',
-          title: 'Deep Focus',
-          url: 'https://open.spotify.com/playlist/37i9dQZF1DWZeKCadgRdKQ',
-        ),
-        const _UserPlaylist(
-          id: 'preset_synthwave',
-          title: 'Synthwave Chill',
-          url: 'https://open.spotify.com/playlist/37i9dQZF1DXdLEN7aqioXM',
-        ),
-        const _UserPlaylist(
-          id: 'preset_apple_piano',
-          title: 'Peaceful Piano',
-          url:
-              'https://music.apple.com/playlist/peaceful-piano/pl.784d5da438a04b76a08ec2284920fe14',
-        ),
-      ]);
-    }
-
-    final savedMins = prefs.getInt(_focusSelectedMinutesKey);
-
-    if (!mounted) return;
-    setState(() {
-      _userPlaylists = loaded;
-      _systemVolume = sysVol;
-      if (savedMins != null && savedMins > 0 && !_isRunning) {
-        _selectedMinutes = savedMins;
-        _remainingSeconds = savedMins * 60;
-      }
-    });
-
-    // Auto-fetch missing cover artwork in the background for migrated playlists
-    for (var i = 0; i < _userPlaylists.length; i++) {
-      final item = _userPlaylists[i];
-      if (item.coverImageUrl == null && item.coverImageBase64 == null) {
-        final meta = await _fetchPlaylistMetadata(item.url);
-        if (meta.$2 != null && mounted) {
-          setState(() {
-            _userPlaylists[i] = _UserPlaylist(
-              id: item.id,
-              title: item.title,
-              url: item.url,
-              coverImageUrl: meta.$2,
-              coverImageBase64: item.coverImageBase64,
-            );
-          });
-          await _persistPlaylists();
-        }
-      }
-    }
-  }
-
-  Future<void> _persistPlaylists() async {
-    final prefs = await SharedPreferences.getInstance();
-    final encoded = jsonEncode(_userPlaylists.map((e) => e.toJson()).toList());
-    await prefs.setString(_userPlaylistsKey, encoded);
-  }
-
-  /// Automatically fetches `(title, coverImageUrl)` from Spotify oEmbed,
-  /// YouTube oEmbed, or OpenGraph (`og:image` / `og:title`) tags.
-  Future<(String?, String?)> _fetchPlaylistMetadata(String rawUrl) async {
-    final trimmed = rawUrl.trim();
-    if (trimmed.isEmpty) return (null, null);
-
-    var webUrl = trimmed;
-    if (trimmed.startsWith('spotify:')) {
-      // Convert spotify:playlist:ID to https://open.spotify.com/playlist/ID
-      final parts = trimmed.split(':');
-      if (parts.length >= 3) {
-        webUrl = 'https://open.spotify.com/${parts[1]}/${parts[2]}';
-      }
-    }
-
-    try {
-      final lower = webUrl.toLowerCase();
-      if (lower.contains('open.spotify.com')) {
-        final oembedUri = Uri.parse(
-          'https://open.spotify.com/oembed?url=${Uri.encodeComponent(webUrl)}',
-        );
-        final resp = await http
-            .get(oembedUri)
-            .timeout(const Duration(seconds: 4));
-        if (resp.statusCode == 200) {
-          final data = jsonDecode(resp.body) as Map<String, dynamic>;
-          final title = data['title'] as String?;
-          final thumb = data['thumbnail_url'] as String?;
-          return (title, thumb);
-        }
-      } else if (lower.contains('youtube.com') || lower.contains('youtu.be')) {
-        final oembedUri = Uri.parse(
-          'https://www.youtube.com/oembed?url=${Uri.encodeComponent(webUrl)}&format=json',
-        );
-        final resp = await http
-            .get(oembedUri)
-            .timeout(const Duration(seconds: 4));
-        if (resp.statusCode == 200) {
-          final data = jsonDecode(resp.body) as Map<String, dynamic>;
-          final title = data['title'] as String?;
-          final thumb = data['thumbnail_url'] as String?;
-          return (title, thumb);
-        }
-      }
-
-      if (webUrl.startsWith('http://') || webUrl.startsWith('https://')) {
-        final resp = await http
-            .get(
-              Uri.parse(webUrl),
-              headers: {
-                'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0)',
-              },
-            )
-            .timeout(const Duration(seconds: 4));
-        if (resp.statusCode == 200) {
-          final html = resp.body;
-          final ogImageMatch =
-              RegExp(
-                r'<meta[^>]+property=["\x27]og:image["\x27][^>]+content=["\x27]([^"\x27]+)["\x27]',
-                caseSensitive: false,
-              ).firstMatch(html) ??
-              RegExp(
-                r'<meta[^>]+content=["\x27]([^"\x27]+)["\x27][^>]+property=["\x27]og:image["\x27]',
-                caseSensitive: false,
-              ).firstMatch(html);
-          final ogTitleMatch = RegExp(
-            r'<meta[^>]+property=["\x27]og:title["\x27][^>]+content=["\x27]([^"\x27]+)["\x27]',
-            caseSensitive: false,
-          ).firstMatch(html);
-          return (ogTitleMatch?.group(1), ogImageMatch?.group(1));
-        }
-      }
-    } catch (_) {}
-    return (null, null);
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
-    _playbackPollTimer?.cancel();
     _scrollController.dispose();
     WidgetsBinding.instance.removeObserver(this);
-    NotificationService.instance.setAmbientSound(sound: 'off');
+    _notificationService?.setAmbientSound(sound: 'off');
     super.dispose();
   }
 
   void _selectPreset(int minutes) {
-    AppHaptics.selection();
-    _timer?.cancel();
-    setState(() {
-      _selectedMinutes = minutes;
-      _remainingSeconds = minutes * 60;
-      _isRunning = false;
-    });
-    _saveSelectedMinutes(minutes);
-    _syncWidgetState();
-  }
-
-  Future<void> _saveSelectedMinutes(int minutes) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_focusSelectedMinutesKey, minutes);
-  }
-
-  void _syncWidgetState() {
-    try {
-      final taskCtrl = context.read<TaskController>();
-      final widgetCtrl = context.read<WidgetSyncController>();
-      widgetCtrl.syncFromTasks(
-        tasks: taskCtrl.tasks,
-        pomodoro: WidgetPomodoroState(
-          isRunning: _isRunning,
-          remainingSeconds: _remainingSeconds,
-          totalSeconds: _selectedMinutes * 60,
-          mode: 'focus',
-          completedPomodoros: taskCtrl.tasks.fold<int>(
-            0,
-            (acc, t) => acc + t.pomodoroCount,
-          ),
-        ),
-      );
-    } catch (_) {}
+    context.read<PomodoroController>().selectPreset(minutes);
   }
 
   Future<void> _openCustomDurationPicker() async {
     AppHaptics.light();
-    int tempMinutes = _selectedMinutes;
+    int tempMinutes = context.read<PomodoroController>().selectedMinutes;
 
     final selected = await showModalBottomSheet<int>(
       context: context,
@@ -627,8 +327,7 @@ class _FocusTabViewState extends State<FocusTabView>
   }
 
   void _updateSystemVolume(double value) {
-    setState(() => _systemVolume = value);
-    NotificationService.instance.setSystemVolume(value);
+    context.read<MediaPlaybackService>().setSystemVolume(value);
   }
 
   Future<void> _launchMusicPreset({
@@ -636,11 +335,14 @@ class _FocusTabViewState extends State<FocusTabView>
     String? fallbackUrl,
   }) async {
     AppHaptics.light();
-    final opened = await NotificationService.instance.openExternalUrl(
+    final notifSvc = _notificationService ?? context.read<INotificationService>();
+    final opened = await notifSvc.openExternalUrl(
       url: primaryUrl,
       fallbackUrl: fallbackUrl,
     );
-    if (!opened && mounted) {
+    if (opened && mounted) {
+      context.read<MediaPlaybackService>().onExternalLinkLaunched();
+    } else if (!opened && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Не удалось открыть ссылку музыкального сервиса'),
@@ -649,8 +351,9 @@ class _FocusTabViewState extends State<FocusTabView>
     }
   }
 
-  Future<void> _openPlaylistDialog({_UserPlaylist? existing}) async {
+  Future<void> _openPlaylistDialog({UserPlaylist? existing}) async {
     AppHaptics.light();
+    final playlistCtrl = context.read<FocusPlaylistController>();
     final titleCtrl = TextEditingController(text: existing?.title ?? '');
     final urlCtrl = TextEditingController(text: existing?.url ?? '');
     String? previewUrl = existing?.coverImageUrl;
@@ -665,15 +368,20 @@ class _FocusTabViewState extends State<FocusTabView>
             final link = urlCtrl.text.trim();
             if (link.isEmpty) return;
             setDialogState(() => isFetchingCover = true);
-            final meta = await _fetchPlaylistMetadata(link);
+            final metaResult = await playlistCtrl.fetchMetadata(link);
             setDialogState(() {
               isFetchingCover = false;
-              if (meta.$2 != null) {
-                previewUrl = meta.$2;
-                previewBase64 = null;
-              }
-              if (titleCtrl.text.trim().isEmpty && meta.$1 != null) {
-                titleCtrl.text = meta.$1!;
+              switch (metaResult) {
+                case Success(:final data):
+                  if (data.coverUrl != null && data.coverUrl!.isNotEmpty) {
+                    previewUrl = data.coverUrl;
+                    previewBase64 = null;
+                  }
+                  if (titleCtrl.text.trim().isEmpty && data.title.isNotEmpty) {
+                    titleCtrl.text = data.title;
+                  }
+                case Error():
+                  break;
               }
             });
           }
@@ -682,7 +390,9 @@ class _FocusTabViewState extends State<FocusTabView>
           if (previewBase64 != null && previewBase64!.isNotEmpty) {
             try {
               decodedBytes = base64Decode(previewBase64!);
-            } catch (_) {}
+            } catch (e, st) {
+              AppLogger.debug('Failed to decode base64 preview: $e\n$st');
+            }
           }
 
           return Dialog(
@@ -768,8 +478,9 @@ class _FocusTabViewState extends State<FocusTabView>
                           children: [
                             OutlinedButton.icon(
                               onPressed: () async {
-                                final b64 = await NotificationService.instance
-                                    .pickProfileImage();
+                                final notifSvc = _notificationService ??
+                                    context.read<INotificationService>();
+                                final b64 = await notifSvc.pickProfileImage();
                                 if (b64 != null && b64.isNotEmpty) {
                                   setDialogState(() {
                                     previewBase64 = b64;
@@ -888,10 +599,7 @@ class _FocusTabViewState extends State<FocusTabView>
     );
 
     if (action == 'delete' && existing != null) {
-      setState(() {
-        _userPlaylists.removeWhere((e) => e.id == existing.id);
-      });
-      await _persistPlaylists();
+      await playlistCtrl.deletePlaylist(existing.id);
       return;
     }
 
@@ -901,17 +609,22 @@ class _FocusTabViewState extends State<FocusTabView>
 
       var title = titleCtrl.text.trim();
       if (previewUrl == null && previewBase64 == null) {
-        final meta = await _fetchPlaylistMetadata(url);
-        previewUrl = meta.$2;
-        if (title.isEmpty && meta.$1 != null) {
-          title = meta.$1!;
+        final metaResult = await playlistCtrl.fetchMetadata(url);
+        switch (metaResult) {
+          case Success(:final data):
+            previewUrl = data.coverUrl;
+            if (title.isEmpty && data.title.isNotEmpty) {
+              title = data.title;
+            }
+          case Error():
+            break;
         }
       }
       if (title.isEmpty) {
         title = 'Мой плейлист';
       }
 
-      final updatedItem = _UserPlaylist(
+      final updatedItem = UserPlaylist(
         id: existing?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
         title: title,
         url: url,
@@ -919,104 +632,36 @@ class _FocusTabViewState extends State<FocusTabView>
         coverImageBase64: previewBase64,
       );
 
-      if (!mounted) return;
-      setState(() {
-        if (existing != null) {
-          final idx = _userPlaylists.indexWhere((e) => e.id == existing.id);
-          if (idx >= 0) {
-            _userPlaylists[idx] = updatedItem;
-          } else {
-            _userPlaylists.add(updatedItem);
-          }
-        } else {
-          _userPlaylists.add(updatedItem);
-        }
-      });
-      await _persistPlaylists();
+      if (existing != null) {
+        await playlistCtrl.updatePlaylist(updatedItem);
+      } else {
+        await playlistCtrl.addPlaylist(updatedItem);
+      }
     }
   }
 
   void _toggleTimer() {
-    AppHaptics.medium();
-    if (_isRunning) {
-      _timer?.cancel();
-      setState(() => _isRunning = false);
-      _syncWidgetState();
-      return;
-    }
-
-    setState(() => _isRunning = true);
-    _syncWidgetState();
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
-      if (_remainingSeconds <= 1) {
-        timer.cancel();
-        AppHaptics.heavy();
-        final taskController = context.read<TaskController>();
-        final tasks = taskController.tasks;
-        String? focusedName;
-        if (_focusedTaskId != null) {
-          for (final t in tasks) {
-            if (t.id == _focusedTaskId) {
-              focusedName = t.name;
-              break;
-            }
-          }
-          taskController.recordFocusSession(
-            _focusedTaskId!,
-            minutes: _selectedMinutes,
-          );
-        }
-        NotificationService.instance.sendFocusCompletedNotification(
-          taskName: focusedName,
-        );
-        setState(() {
-          _remainingSeconds = 0;
-          _isRunning = false;
-        });
-        _syncWidgetState();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              focusedName != null
-                  ? 'Фокус-сессия (+1 🍅) по задаче «$focusedName» завершена!'
-                  : 'Сессия фокуса завершена! Отличная работа 🔥',
-            ),
-          ),
-        );
-      } else {
-        setState(() => _remainingSeconds--);
-      }
-    });
+    context.read<PomodoroController>().toggleTimer();
   }
 
   void _resetTimer() {
-    AppHaptics.light();
-    _timer?.cancel();
-    setState(() {
-      _remainingSeconds = _selectedMinutes * 60;
-      _isRunning = false;
-    });
-    _syncWidgetState();
-  }
-
-  String _formatTime(int totalSeconds) {
-    final m = (totalSeconds ~/ 60).toString().padLeft(2, '0');
-    final s = (totalSeconds % 60).toString().padLeft(2, '0');
-    return '$m:$s';
+    context.read<PomodoroController>().reset();
   }
 
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<TaskController>();
+    final pomodoro = context.watch<PomodoroController>();
+    final mediaService = context.watch<MediaPlaybackService>();
+    final playlistCtrl = context.watch<FocusPlaylistController>();
     final activeTasks = controller.tasks.where((t) => !t.isCompleted).toList();
-    final totalSeconds = _selectedMinutes * 60;
-    final progress = totalSeconds > 0
-        ? (_remainingSeconds / totalSeconds).clamp(0.0, 1.0)
-        : 0.0;
+    final selectedMinutes = pomodoro.selectedMinutes;
+    final isRunning = pomodoro.isRunning;
+    final progress = pomodoro.progress;
+    final formattedTime = pomodoro.formattedTime;
+    final isSystemMusicPlaying = mediaService.isPlaying;
+    final systemVolume = mediaService.systemVolume;
+    final userPlaylists = playlistCtrl.playlists;
 
     return ListView(
       controller: _scrollController,
@@ -1029,7 +674,7 @@ class _FocusTabViewState extends State<FocusTabView>
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               ..._presetsMinutes.map((mins) {
-                final isSelected = _selectedMinutes == mins;
+                final isSelected = selectedMinutes == mins;
                 return Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   child: GestureDetector(
@@ -1075,12 +720,12 @@ class _FocusTabViewState extends State<FocusTabView>
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: !_presetsMinutes.contains(_selectedMinutes)
+                      color: !_presetsMinutes.contains(selectedMinutes)
                           ? AppColors.accentYellow
                           : AppColors.cardBg,
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: !_presetsMinutes.contains(_selectedMinutes)
+                        color: !_presetsMinutes.contains(selectedMinutes)
                             ? AppColors.accentYellow
                             : Colors.white24,
                       ),
@@ -1091,17 +736,17 @@ class _FocusTabViewState extends State<FocusTabView>
                         Icon(
                           Icons.tune_rounded,
                           size: 15,
-                          color: !_presetsMinutes.contains(_selectedMinutes)
+                          color: !_presetsMinutes.contains(selectedMinutes)
                               ? Colors.black
                               : AppColors.accentYellow,
                         ),
                         const SizedBox(width: 5),
                         Text(
-                          !_presetsMinutes.contains(_selectedMinutes)
-                              ? '$_selectedMinutes мин'
+                          !_presetsMinutes.contains(selectedMinutes)
+                              ? '$selectedMinutes мин'
                               : 'Своё',
                           style: TextStyle(
-                            color: !_presetsMinutes.contains(_selectedMinutes)
+                            color: !_presetsMinutes.contains(selectedMinutes)
                                 ? Colors.black
                                 : AppColors.maintext,
                             fontSize: 13,
@@ -1127,13 +772,13 @@ class _FocusTabViewState extends State<FocusTabView>
               painter: _FocusRingPainter(progress: progress),
               child: Center(
                 child: GestureDetector(
-                  onTap: _isRunning ? null : _openCustomDurationPicker,
+                  onTap: isRunning ? null : _openCustomDurationPicker,
                   behavior: HitTestBehavior.opaque,
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        _formatTime(_remainingSeconds),
+                        formattedTime,
                         style: const TextStyle(
                           color: AppColors.maintext,
                           fontSize: 42,
@@ -1146,13 +791,13 @@ class _FocusTabViewState extends State<FocusTabView>
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            _isRunning ? 'В фокусе...' : 'Готов к старту',
+                            isRunning ? 'В фокусе...' : 'Готов к старту',
                             style: const TextStyle(
                               color: AppColors.labeltext,
                               fontSize: 13,
                             ),
                           ),
-                          if (!_isRunning) ...[
+                          if (!isRunning) ...[
                             const SizedBox(width: 4),
                             const Icon(
                               Icons.edit_outlined,
@@ -1189,10 +834,10 @@ class _FocusTabViewState extends State<FocusTabView>
                 ),
               ),
               icon: Icon(
-                _isRunning ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                isRunning ? Icons.pause_rounded : Icons.play_arrow_rounded,
               ),
               label: Text(
-                _isRunning ? 'Пауза' : 'Начать фокус',
+                isRunning ? 'Пауза' : 'Начать фокус',
                 style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
@@ -1443,7 +1088,7 @@ class _FocusTabViewState extends State<FocusTabView>
                               ),
                             ),
                             child: Slider(
-                              value: _systemVolume,
+                              value: systemVolume,
                               min: 0.0,
                               max: 1.0,
                               onChanged: _updateSystemVolume,
@@ -1453,7 +1098,7 @@ class _FocusTabViewState extends State<FocusTabView>
                         SizedBox(
                           width: 36,
                           child: Text(
-                            '${(_systemVolume * 100).round()}%',
+                            '${(systemVolume * 100).round()}%',
                             textAlign: TextAlign.right,
                             style: const TextStyle(
                               color: Color(0xFF1DB954),
@@ -1508,12 +1153,12 @@ class _FocusTabViewState extends State<FocusTabView>
                       vertical: 3,
                     ),
                     decoration: BoxDecoration(
-                      color: _isSystemMusicPlaying
+                      color: isSystemMusicPlaying
                           ? const Color(0xFF1DB954).withValues(alpha: 0.18)
                           : Colors.white10,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: _isSystemMusicPlaying
+                        color: isSystemMusicPlaying
                             ? const Color(0xFF1DB954).withValues(alpha: 0.45)
                             : Colors.transparent,
                       ),
@@ -1521,7 +1166,7 @@ class _FocusTabViewState extends State<FocusTabView>
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        if (_isSystemMusicPlaying) ...[
+                        if (isSystemMusicPlaying) ...[
                           Container(
                             width: 6,
                             height: 6,
@@ -1533,11 +1178,11 @@ class _FocusTabViewState extends State<FocusTabView>
                           const SizedBox(width: 5),
                         ],
                         Text(
-                          _isSystemMusicPlaying
+                          isSystemMusicPlaying
                               ? 'Играет на шторке'
                               : 'Шторка на паузе',
                           style: TextStyle(
-                            color: _isSystemMusicPlaying
+                            color: isSystemMusicPlaying
                                 ? const Color(0xFF1DB954)
                                 : AppColors.labeltext,
                             fontSize: 10,
@@ -1560,14 +1205,15 @@ class _FocusTabViewState extends State<FocusTabView>
                       label: 'Назад',
                       onTap: () {
                         AppHaptics.light();
+                        final mediaSvc = context.read<MediaPlaybackService>();
+                        final notifSvc = _notificationService ??
+                            context.read<INotificationService>();
                         unawaited(
-                          NotificationService.instance.sendMediaCommand(
-                            'previous',
-                          ),
+                          notifSvc.sendMediaCommand('previous'),
                         );
                         Future.delayed(
                           const Duration(milliseconds: 350),
-                          _checkPlaybackState,
+                          mediaSvc.refreshPlaybackState,
                         );
                       },
                     ),
@@ -1576,12 +1222,12 @@ class _FocusTabViewState extends State<FocusTabView>
                   Expanded(
                     flex: 3,
                     child: _LargeMediaTransportBtn(
-                      icon: _isSystemMusicPlaying
+                      icon: isSystemMusicPlaying
                           ? Icons.pause_rounded
                           : Icons.play_arrow_rounded,
-                      label: _isSystemMusicPlaying ? 'Пауза' : 'Играть',
+                      label: isSystemMusicPlaying ? 'Пауза' : 'Играть',
                       isPrimary: true,
-                      isActive: _isSystemMusicPlaying,
+                      isActive: isSystemMusicPlaying,
                       onTap: _toggleSystemPlayPause,
                     ),
                   ),
@@ -1593,12 +1239,15 @@ class _FocusTabViewState extends State<FocusTabView>
                       label: 'Вперёд',
                       onTap: () {
                         AppHaptics.light();
+                        final mediaSvc = context.read<MediaPlaybackService>();
+                        final notifSvc = _notificationService ??
+                            context.read<INotificationService>();
                         unawaited(
-                          NotificationService.instance.sendMediaCommand('next'),
+                          notifSvc.sendMediaCommand('next'),
                         );
                         Future.delayed(
                           const Duration(milliseconds: 350),
-                          _checkPlaybackState,
+                          mediaSvc.refreshPlaybackState,
                         );
                       },
                     ),
@@ -1631,7 +1280,7 @@ class _FocusTabViewState extends State<FocusTabView>
                 ],
               ),
               const SizedBox(height: 10),
-              if (_userPlaylists.isEmpty)
+              if (userPlaylists.isEmpty)
                 GestureDetector(
                   onTap: () => _openPlaylistDialog(),
                   child: Container(
@@ -1679,7 +1328,7 @@ class _FocusTabViewState extends State<FocusTabView>
                   child: ListView(
                     scrollDirection: Axis.horizontal,
                     children: [
-                      ..._userPlaylists.map((pl) {
+                      ...userPlaylists.map((pl) {
                         return Padding(
                           padding: const EdgeInsets.only(right: 12),
                           child: _PlaylistCoverCard(
@@ -1760,13 +1409,16 @@ class _FocusTabViewState extends State<FocusTabView>
           )
         else
           ...activeTasks.map((task) {
-            final isFocused = _focusedTaskId == task.id;
+            final isFocused = pomodoro.focusedTaskId == task.id;
             return Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: InkWell(
                 onTap: () {
                   AppHaptics.selection();
-                  setState(() => _focusedTaskId = task.id);
+                  pomodoro.setFocusedTaskId(
+                    isFocused ? null : task.id,
+                    taskName: isFocused ? null : task.name,
+                  );
                 },
                 borderRadius: BorderRadius.circular(14),
                 child: Container(
@@ -1827,7 +1479,7 @@ class _FocusTabViewState extends State<FocusTabView>
                           onPressed: () {
                             AppHaptics.heavy();
                             controller.toggleCompleted(task.id);
-                            setState(() => _focusedTaskId = null);
+                            pomodoro.setFocusedTaskId(null);
                           },
                           child: const Text(
                             'Готово ✓',
@@ -1952,7 +1604,9 @@ class _PlaylistCoverCard extends StatelessWidget {
     if (coverImageBase64 != null && coverImageBase64!.isNotEmpty) {
       try {
         memoryBytes = base64Decode(coverImageBase64!);
-      } catch (_) {}
+      } catch (e, st) {
+        AppLogger.debug('Failed to decode coverImageBase64: $e\n$st');
+      }
     }
 
     final hasCoverImage =

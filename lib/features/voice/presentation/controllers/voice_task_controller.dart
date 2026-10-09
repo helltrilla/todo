@@ -116,18 +116,31 @@ class VoiceTaskController extends ChangeNotifier {
 
   Future<void> stopAndProcess({List<String>? availableCategories}) async {
     _silenceWatchdog?.cancel();
-    await _stopListeningUseCase();
-    await _listeningSubscription?.cancel();
-
     final text = _transcript.trim();
     if (text.isEmpty) {
       _status = VoiceTaskStatus.idle;
       notifyListeners();
+      try {
+        await Future.wait([
+          _stopListeningUseCase(),
+          if (_listeningSubscription != null) _listeningSubscription!.cancel(),
+        ]);
+      } catch (_) {}
       return;
     }
 
+    // Optimistically update status to show processing spinner immediately
     _status = VoiceTaskStatus.processingNlp;
     notifyListeners();
+
+    try {
+      await Future.wait([
+        _stopListeningUseCase(),
+        if (_listeningSubscription != null) _listeningSubscription!.cancel(),
+      ]);
+    } catch (_) {
+      // Non-fatal audio channel teardown error; continue NLP parse
+    }
 
     final parseResult = await _processVoiceTaskUseCase(
       text,

@@ -3,25 +3,86 @@ import 'package:flutter/services.dart';
 import 'package:todo/features/tasks/domain/models/task.dart';
 import 'package:url_launcher/url_launcher.dart' as ul;
 
-/// Cross-platform local push notification service backed by native
-/// `UNUserNotificationCenter` on iOS and `NotificationManager` on Android.
-///
-/// For every uncompleted task with a [Task.dueDate]:
-/// 1. Automatically schedules a notification at the exact [Task.dueDate] moment.
-/// 2. Optionally schedules an advance reminder at
-///    `dueDate.subtract(Duration(minutes: reminderOffsetMinutes))` if configured.
-class NotificationService {
-  NotificationService._();
-
-  static final NotificationService instance = NotificationService._();
-
-  static const MethodChannel _channel = MethodChannel(
-    'com.helltrilla.todoapp/notifications',
-  );
-
-  bool _initialized = false;
+/// Abstract interface for push notifications, quick actions,
+/// background media transport controls, and device audio utilities.
+abstract interface class INotificationService {
+  /// Initializes notification service and requests permissions.
+  Future<bool> initialize();
 
   /// Requests notification permissions from the OS.
+  Future<bool> requestPermissions();
+
+  /// Schedules (or updates) local notifications for [task].
+  Future<void> syncTaskNotifications(Task task);
+
+  /// Alias for [syncTaskNotifications].
+  Future<void> scheduleTaskNotification(Task task);
+
+  /// Cancels both exact-time and advance-reminder notifications for [taskId].
+  Future<void> cancelTaskNotifications(int taskId);
+
+  /// Cancels notifications for [id].
+  Future<void> cancelNotification(int id);
+
+  /// Cancels all scheduled local notifications.
+  Future<void> cancelAllNotifications();
+
+  /// Cancels all scheduled local notifications.
+  Future<void> cancelAll();
+
+  /// Registers a callback for Home Screen Quick Actions (3D Touch / Haptic Touch).
+  Future<void> registerQuickActionHandler(ValueChanged<String> onQuickAction);
+
+  /// Sends an immediate notification when a Pomodoro focus session finishes.
+  Future<void> sendFocusCompletedNotification({String? taskName});
+
+  /// Sends an immediate test notification to verify push configuration.
+  Future<bool> sendTestNotification();
+
+  /// Opens the native platform photo picker and returns selected base64 image.
+  Future<String?> pickProfileImage();
+
+  /// Configures procedural background ambient soundscape playback.
+  Future<void> setAmbientSound({
+    required String sound,
+    double volume = 0.45,
+  });
+
+  /// Opens a deep link or external URL in the target app or web browser.
+  Future<bool> openExternalUrl({
+    required String url,
+    String? fallbackUrl,
+  });
+
+  /// Dispatches a system media transport command (`previous`, `playPause`, `next`).
+  Future<void> sendMediaCommand(String command);
+
+  /// Returns true if external media player is actively playing.
+  Future<bool> getMediaPlaybackState();
+
+  /// Reads current hardware media volume (0.0 to 1.0).
+  Future<double> getSystemVolume();
+
+  /// Sets hardware media volume (0.0 to 1.0).
+  Future<void> setSystemVolume(double volume);
+}
+
+/// Cross-platform implementation of [INotificationService] backed by native
+/// platform channels (`com.helltrilla.todoapp/notifications`).
+class NotificationServiceImpl implements INotificationService {
+  final MethodChannel _channel;
+  bool _initialized = false;
+  ValueChanged<String>? _quickActionHandler;
+
+  NotificationServiceImpl({MethodChannel? channel})
+    : _channel =
+          channel ??
+          const MethodChannel('com.helltrilla.todoapp/notifications');
+
+  @override
+  Future<bool> initialize() => requestPermissions();
+
+  @override
   Future<bool> requestPermissions() async {
     if (kIsWeb) return false;
     try {
@@ -33,12 +94,7 @@ class NotificationService {
     }
   }
 
-  /// Schedules (or updates) local notifications for [task]:
-  /// - Cancels any previous notifications for [task.id].
-  /// - If [task] is completed, archived, or has no [Task.dueDate], stops here.
-  /// - Schedules the automatic notification at [Task.dueDate] (if in the future).
-  /// - Schedules the advance reminder notification at
-  ///   `dueDate - reminderOffsetMinutes` (if set and in the future).
+  @override
   Future<void> syncTaskNotifications(Task task) async {
     if (kIsWeb) return;
     await cancelTaskNotifications(task.id);
@@ -54,7 +110,7 @@ class NotificationService {
     final now = DateTime.now();
     final due = task.dueDate!;
 
-    // 1. Automatic notification at the exact moment of the task
+    // 1. Exact-moment task notification
     if (due.isAfter(now)) {
       final subtitle = task.value.trim().isNotEmpty
           ? task.value.trim()
@@ -67,7 +123,7 @@ class NotificationService {
       );
     }
 
-    // 2. Advance reminder notification before the task (if selected by user)
+    // 2. Advance reminder notification
     final offsetMinutes = task.reminderOffsetMinutes;
     if (offsetMinutes != null && offsetMinutes > 0) {
       final reminderTime = due.subtract(Duration(minutes: offsetMinutes));
@@ -88,7 +144,10 @@ class NotificationService {
     }
   }
 
-  /// Cancels both the exact-time and advance-reminder notifications for [taskId].
+  @override
+  Future<void> scheduleTaskNotification(Task task) => syncTaskNotifications(task);
+
+  @override
   Future<void> cancelTaskNotifications(int taskId) async {
     if (kIsWeb) return;
     try {
@@ -101,7 +160,10 @@ class NotificationService {
     } catch (_) {}
   }
 
-  /// Cancels all scheduled notifications.
+  @override
+  Future<void> cancelNotification(int id) => cancelTaskNotifications(id);
+
+  @override
   Future<void> cancelAllNotifications() async {
     if (kIsWeb) return;
     try {
@@ -109,12 +171,10 @@ class NotificationService {
     } catch (_) {}
   }
 
-  ValueChanged<String>? _quickActionHandler;
+  @override
+  Future<void> cancelAll() => cancelAllNotifications();
 
-  /// Registers a callback for Home Screen Quick Actions (3D Touch / Haptic Touch):
-  /// - `'add_task'` -> Open AddTaskSheet
-  /// - `'open_focus'` -> Switch to Focus (Pomodoro) tab
-  /// - `'open_calendar'` -> Switch to Calendar tab
+  @override
   Future<void> registerQuickActionHandler(
     ValueChanged<String> onQuickAction,
   ) async {
@@ -140,7 +200,7 @@ class NotificationService {
     } catch (_) {}
   }
 
-  /// Sends an immediate notification when a Pomodoro focus session finishes.
+  @override
   Future<void> sendFocusCompletedNotification({String? taskName}) async {
     if (kIsWeb) return;
     final fireAt = DateTime.now().add(const Duration(seconds: 1));
@@ -155,7 +215,7 @@ class NotificationService {
     );
   }
 
-  /// Sends an immediate test notification (after 2 seconds) to verify push setup.
+  @override
   Future<bool> sendTestNotification() async {
     if (kIsWeb) return false;
     final granted = await requestPermissions();
@@ -171,8 +231,7 @@ class NotificationService {
     return true;
   }
 
-  /// Opens the native system photo picker (with square crop on iOS) and returns
-  /// the selected image encoded as a base64 JPEG string, or `null` if cancelled.
+  @override
   Future<String?> pickProfileImage() async {
     if (kIsWeb) return null;
     try {
@@ -182,9 +241,7 @@ class NotificationService {
     }
   }
 
-  /// Starts, updates, or stops the native procedural ambient sound generator.
-  /// Configured with `mixWithOthers` so Spotify / Apple Music / Yandex Music
-  /// continues playing alongside the ambient soundscape.
+  @override
   Future<void> setAmbientSound({
     required String sound,
     double volume = 0.45,
@@ -198,8 +255,7 @@ class NotificationService {
     } catch (_) {}
   }
 
-  /// Opens a deep link or web URL (e.g., `spotify:playlist:...`) in the target app,
-  /// falling back to [fallbackUrl] if the native app scheme is not installed.
+  @override
   Future<bool> openExternalUrl({
     required String url,
     String? fallbackUrl,
@@ -228,7 +284,7 @@ class NotificationService {
       if (opened == true) return true;
     } catch (_) {}
 
-    // Fallback if native platform channel failed to handle the URI
+    // Fallback if platform channel failed to handle the URI
     final target = Uri.tryParse(fallbackUrl ?? url);
     if (target != null) {
       try {
@@ -241,8 +297,7 @@ class NotificationService {
     return false;
   }
 
-  /// Sends a system media transport command (`'previous'`, `'playPause'`, `'next'`)
-  /// to control background music players right from the Focus screen.
+  @override
   Future<void> sendMediaCommand(String command) async {
     if (kIsWeb) return;
     try {
@@ -252,8 +307,7 @@ class NotificationService {
     } catch (_) {}
   }
 
-  /// Returns `true` if media is currently playing on the device system shade
-  /// (Spotify, Yandex Music, Apple Music, etc.) or `false` if paused.
+  @override
   Future<bool> getMediaPlaybackState() async {
     if (kIsWeb) return false;
     try {
@@ -266,7 +320,7 @@ class NotificationService {
     }
   }
 
-  /// Reads the current device hardware media volume (`0.0` to `1.0`).
+  @override
   Future<double> getSystemVolume() async {
     if (kIsWeb) return 0.65;
     try {
@@ -277,7 +331,7 @@ class NotificationService {
     }
   }
 
-  /// Sets the device hardware media volume (`0.0` to `1.0`) for external players.
+  @override
   Future<void> setSystemVolume(double volume) async {
     if (kIsWeb) return;
     try {
@@ -294,13 +348,15 @@ class NotificationService {
     required DateTime scheduledAt,
   }) async {
     try {
-      await _channel
-          .invokeMethod<void>('scheduleNotification', <String, dynamic>{
-            'id': notificationId,
-            'title': title,
-            'body': body,
-            'timestampMs': scheduledAt.millisecondsSinceEpoch,
-          });
+      await _channel.invokeMethod<void>('scheduleNotification', <String, dynamic>{
+        'id': notificationId,
+        'title': title,
+        'body': body,
+        'timestampMs': scheduledAt.millisecondsSinceEpoch,
+      });
     } catch (_) {}
   }
 }
+
+/// Convenience typedef for backward-compatible DI references.
+typedef NotificationService = NotificationServiceImpl;

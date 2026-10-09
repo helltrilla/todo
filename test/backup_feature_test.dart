@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:todo/core/config/app_config.dart';
 import 'package:todo/core/errors/failures.dart';
 import 'package:todo/core/errors/result.dart';
 import 'package:todo/features/backup/data/datasources/task_data_serializer.dart';
@@ -110,7 +111,9 @@ void main() {
       );
 
       final decoded = jsonDecode(jsonString) as Map<String, dynamic>;
-      expect(decoded['version'], equals('1.6.0'));
+      expect(decoded['version'], equals(AppConfig.appVersion));
+      expect(decoded['appVersion'], equals(AppConfig.appVersion));
+      expect(decoded['schemaVersion'], equals(1));
       expect(decoded['tasksCount'], equals(2));
       expect(decoded['categories'], equals(sampleCategories));
 

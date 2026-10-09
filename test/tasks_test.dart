@@ -11,6 +11,7 @@ import 'package:todo/core/errors/result.dart';
 import 'package:todo/features/auth/data/repositories/auth_repository_impl.dart';
 import 'package:todo/features/auth/domain/models/app_user.dart';
 import 'package:todo/features/tasks/data/datasources/task_remote_data_source.dart';
+import 'package:todo/features/tasks/data/models/task_model.dart';
 import 'package:todo/features/tasks/data/repositories/task_local_repository.dart';
 import 'package:todo/features/tasks/data/repositories/task_sync_repository.dart';
 import 'package:todo/features/tasks/domain/models/priority_level.dart';
@@ -78,7 +79,7 @@ void main() {
       );
 
       final jsonStr = task.toJson();
-      final restored = Task.fromJson(jsonStr);
+      final restored = TaskModel.fromJson(jsonStr);
 
       expect(restored, equals(task));
       expect(restored.name, 'Buy groceries');
@@ -103,7 +104,7 @@ void main() {
         priorityIndex: -1,
       );
 
-      final restored = Task.fromJson(task.toJson());
+      final restored = TaskModel.fromJson(task.toJson());
       expect(restored.dueDate, isNull);
       expect(restored.hasPriority, isFalse);
       expect(restored.priority, PriorityLevel.none);
@@ -571,7 +572,7 @@ void main() {
       expect(map['priority_index'], 1);
       expect(map['is_completed'], isTrue);
 
-      final restored = Task.fromSupabaseMap(map);
+      final restored = TaskModel.fromSupabaseMap(map);
       expect(restored.id, task.id);
       expect(restored.name, task.name);
       expect(restored.value, task.value);

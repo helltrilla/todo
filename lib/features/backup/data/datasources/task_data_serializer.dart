@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'package:todo/core/config/app_config.dart';
+import 'package:todo/features/tasks/data/models/task_model.dart';
 import 'package:todo/features/tasks/domain/models/task.dart';
 
 /// Stateless serializer designed to execute inside an isolated thread (Isolate.run).
@@ -8,12 +10,17 @@ class TaskDataSerializer {
   /// Serializes tasks into standard JSON backup.
   static String toJsonString(
     List<Map<String, dynamic>> rawTasks,
-    List<String>? categories,
-  ) {
+    List<String>? categories, {
+    String? appVersion,
+    int? schemaVersion,
+  }) {
+    final effectiveAppVersion = appVersion ?? AppConfig.appVersion;
+    final effectiveSchemaVersion = schemaVersion ?? AppConfig.schemaVersion;
     final payload = {
       'app': 'TodoApp',
-      'version': '1.6.0',
-      'schemaVersion': 1,
+      'appVersion': effectiveAppVersion,
+      'version': effectiveAppVersion,
+      'schemaVersion': effectiveSchemaVersion,
       'exportedAt': DateTime.now().toIso8601String(),
       'categories': categories ?? const [],
       'tasksCount': rawTasks.length,
@@ -133,7 +140,7 @@ class TaskDataSerializer {
     final result = <Task>[];
     for (final item in tasksList) {
       if (item is Map<String, dynamic>) {
-        result.add(Task.fromMap(item));
+        result.add(TaskModel.fromMap(item));
       }
     }
 

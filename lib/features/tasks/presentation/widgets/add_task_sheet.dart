@@ -18,9 +18,18 @@ import 'package:todo/features/tasks/presentation/widgets/priority_picker_dialog.
 /// Bottom sheet for creating a new task or editing an existing [initialTask].
 /// Includes the special 'Общее' (Global) category that pins the task across all categories.
 class AddTaskSheet extends StatefulWidget {
-  const AddTaskSheet({super.key, this.initialTask});
+  const AddTaskSheet({
+    super.key,
+    this.initialTask,
+    this.initialTitle,
+    this.initialCategory,
+    this.initialPriorityIndex,
+  });
 
   final Task? initialTask;
+  final String? initialTitle;
+  final String? initialCategory;
+  final int? initialPriorityIndex;
 
   @override
   State<AddTaskSheet> createState() => _AddTaskSheetState();
@@ -62,11 +71,16 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
       _subtasks = List<SubTask>.from(existing.subtasks);
       _recurrence = existing.recurrence;
     } else {
-      _nameController = TextEditingController();
+      _nameController = TextEditingController(text: widget.initialTitle ?? '');
       _descController = TextEditingController();
       _subtasks = <SubTask>[];
+      if (widget.initialPriorityIndex != null) {
+        _priorityIndex = widget.initialPriorityIndex!;
+      }
       final controller = context.read<TaskController>();
-      if (controller.selectedCategory != TaskController.allCategory) {
+      if (widget.initialCategory != null && widget.initialCategory!.isNotEmpty) {
+        _selectedCategory = widget.initialCategory!;
+      } else if (controller.selectedCategory != TaskController.allCategory) {
         _selectedCategory = controller.selectedCategory;
       } else {
         _selectedCategory = TaskController.globalCategory;

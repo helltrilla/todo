@@ -12,6 +12,7 @@ import 'package:todo/core/localization/locale_controller.dart';
 import 'package:todo/core/notifications/notification_service.dart';
 import 'package:todo/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:todo/features/tasks/domain/services/i_smart_task_parser.dart';
+import 'package:todo/features/tasks/presentation/controllers/sync_controller.dart';
 import 'package:todo/features/tasks/presentation/controllers/task_controller.dart';
 
 /// Dedicated Settings screen (appearance & theme, language, notifications, haptics, data management, privacy, account).
@@ -513,6 +514,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     final tr = context.tr;
     final taskController = context.watch<TaskController>();
+    final syncController = context.watch<SyncController>();
     final themeController = context.watch<ThemeController>();
     final localeController = context.watch<LocaleController>();
     final authController = context.watch<AuthController>();
@@ -827,8 +829,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           Text(
                             currentUser?.isLocal == true
                                 ? tr.offlineModeDesc
-                                : (taskController.lastSyncedAt != null
-                                      ? '${tr.syncedJustNow}: ${taskController.lastSyncedAt!.hour.toString().padLeft(2, '0')}:${taskController.lastSyncedAt!.minute.toString().padLeft(2, '0')}'
+                                : (syncController.lastSyncedAt != null
+                                      ? '${tr.syncedJustNow}: ${syncController.lastSyncedAt!.hour.toString().padLeft(2, '0')}:${syncController.lastSyncedAt!.minute.toString().padLeft(2, '0')}'
                                       : tr.cloudSyncSubtitle),
                             style: TextStyle(
                               color: AppColors.labeltext,
@@ -839,7 +841,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    if (taskController.isSyncing)
+                    if (syncController.isSyncing)
                       const SizedBox(
                         width: 20,
                         height: 20,
@@ -882,18 +884,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
-                      onPressed: taskController.isSyncing
+                      onPressed: syncController.isSyncing
                           ? null
                           : () async {
                               AppHaptics.medium();
-                              final ok = await taskController.syncWithCloud();
+                              final ok = await syncController.syncWithCloud();
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text(
                                       ok
                                           ? tr.syncSuccess
-                                          : (taskController.syncError ??
+                                          : (syncController.syncError ??
                                                 'Ошибка синхронизации'),
                                     ),
                                   ),
@@ -1093,8 +1095,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onTap: () async {
               AppHaptics.medium();
               final messenger = ScaffoldMessenger.of(context);
-              final ok = await NotificationService.instance
-                  .sendTestNotification();
+              final notifSvc = context.read<INotificationService>();
+              final ok = await notifSvc.sendTestNotification();
               messenger.showSnackBar(
                 SnackBar(
                   content: Text(

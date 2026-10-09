@@ -196,5 +196,43 @@ void main() {
 
       controller.dispose();
     });
+
+    test('VoiceTaskController immediately transitions to processingNlp during stopAndProcess', () async {
+      final initUseCase = InitializeSpeechUseCase(fakeRepo);
+      final startUseCase = StartListeningUseCase(fakeRepo);
+      final stopUseCase = StopListeningUseCase(fakeRepo);
+      final processUseCase = ProcessVoiceTaskUseCase(nlpParser: fakeParser);
+
+      final controller = VoiceTaskController(
+        initializeUseCase: initUseCase,
+        startListeningUseCase: startUseCase,
+        stopListeningUseCase: stopUseCase,
+        processVoiceTaskUseCase: processUseCase,
+      );
+
+      await controller.startListening();
+      fakeRepo.emitResult(
+        const SpeechRecognitionResult(
+          recognizedWords: 'задача для теста',
+          confidence: 0.9,
+          soundLevelDb: -10.0,
+          isFinal: false,
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      final statuses = <VoiceTaskStatus>[];
+      controller.addListener(() {
+        statuses.add(controller.status);
+      });
+
+      await controller.stopAndProcess();
+
+      expect(statuses, contains(VoiceTaskStatus.processingNlp));
+      expect(statuses.first, equals(VoiceTaskStatus.processingNlp));
+      expect(controller.status, equals(VoiceTaskStatus.completed));
+
+      controller.dispose();
+    });
   });
 }

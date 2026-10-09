@@ -66,9 +66,21 @@ class MainActivity : FlutterActivity() {
     private fun extractQuickAction(intent: Intent?): String? {
         return when (intent?.action) {
             "com.helltrilla.todoapp.QUICK_ACTION_ADD_TASK" -> "add_task"
+            "com.helltrilla.todoapp.QUICK_ACTION_VOICE_TASK" -> "voice_task"
             "com.helltrilla.todoapp.QUICK_ACTION_FOCUS" -> "open_focus"
             "com.helltrilla.todoapp.QUICK_ACTION_CALENDAR" -> "open_calendar"
-            else -> null
+            Intent.ACTION_VIEW -> {
+                val data = intent.data
+                if (data != null && (data.scheme == "todo" || data.scheme == "todoapp")) {
+                    data.toString()
+                } else null
+            }
+            else -> {
+                val data = intent?.data
+                if (data != null && (data.scheme == "todo" || data.scheme == "todoapp")) {
+                    data.toString()
+                } else null
+            }
         }
     }
 

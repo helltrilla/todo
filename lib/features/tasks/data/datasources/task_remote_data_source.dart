@@ -1,14 +1,17 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:todo/core/config/app_config.dart';
 import 'package:todo/core/errors/failures.dart';
 import 'package:todo/core/errors/result.dart';
-import 'package:todo/features/tasks/domain/models/task.dart';
+import 'package:todo/core/logging/app_logger.dart';
+import 'package:todo/features/tasks/data/models/task_model.dart';
+import 'package:todo/features/tasks/domain/entities/task.dart';
 
 /// Contract for interacting directly with Supabase PostgREST API for Tasks.
-abstract interface class ITaskRemoteDataSource {
+abstract interface class ISyncRemoteDataSource {
   Future<Result<List<Task>>> fetchTasks({
     required String userId,
     required String accessToken,
@@ -37,16 +40,29 @@ abstract interface class ITaskRemoteDataSource {
   });
 }
 
-/// HTTP implementation of [ITaskRemoteDataSource] communicating with Supabase.
-class SupabaseTaskRemoteDataSource implements ITaskRemoteDataSource {
-  SupabaseTaskRemoteDataSource({http.Client? httpClient})
-    : _http = httpClient ?? http.Client();
+/// Backward compatibility typedef for existing tests and implementations.
+typedef ITaskRemoteDataSource = ISyncRemoteDataSource;
+
+/// HTTP implementation of [ISyncRemoteDataSource] communicating with Supabase PostgREST.
+class SupabaseTaskRemoteDataSource implements ISyncRemoteDataSource {
+  SupabaseTaskRemoteDataSource({
+    http.Client? httpClient,
+    String? supabaseUrl,
+    String? supabaseAnonKey,
+  })  : _http = httpClient ?? http.Client(),
+        _supabaseUrl = supabaseUrl ??
+            (AppConfig.supabaseUrl.isNotEmpty
+                ? AppConfig.supabaseUrl
+                : 'https://api.supabase.co'),
+        _supabaseAnonKey = supabaseAnonKey ?? AppConfig.supabaseAnonKey;
 
   final http.Client _http;
+  final String _supabaseUrl;
+  final String _supabaseAnonKey;
 
   Map<String, String> _buildHeaders(String accessToken, {String? prefer}) {
     final headers = <String, String>{
-      'apikey': AppConfig.supabaseAnonKey,
+      'apikey': _supabaseAnonKey,
       'Authorization': 'Bearer $accessToken',
       'Content-Type': 'application/json',
     };
@@ -63,7 +79,7 @@ class SupabaseTaskRemoteDataSource implements ITaskRemoteDataSource {
   }) async {
     try {
       final uri = Uri.parse(
-        '${AppConfig.supabaseUrl}/rest/v1/tasks?user_id=eq.$userId&order=created_at.desc',
+        '$_supabaseUrl/rest/v1/tasks?user_id=eq.$userId&order=created_at.desc',
       );
       final response = await _http
           .get(uri, headers: _buildHeaders(accessToken))
@@ -71,19 +87,24 @@ class SupabaseTaskRemoteDataSource implements ITaskRemoteDataSource {
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final list = (json.decode(response.body) as List<dynamic>)
-            .map((item) => Task.fromSupabaseMap(item as Map<String, dynamic>))
+            .map((item) => TaskModel.fromSupabaseMap(item as Map<String, dynamic>))
             .toList();
         return Success(list);
       }
 
-      return Error(
-        ServerFailure(_parseError(response.body, response.statusCode)),
-      );
-    } on TimeoutException {
+      final errorMsg = _parseError(response.body, response.statusCode);
+      AppLogger.warning('fetchTasks server failure: $errorMsg');
+      return Error(ServerFailure(errorMsg));
+    } on TimeoutException catch (e, st) {
+      AppLogger.warning('fetchTasks timeout', e, st);
       return const Error(
         NetworkFailure('Время ожидания запроса к облаку истекло'),
       );
-    } catch (e) {
+    } on SocketException catch (e, st) {
+      AppLogger.warning('fetchTasks socket exception', e, st);
+      return Error(NetworkFailure('Отсутствует подключение к сети: $e'));
+    } catch (e, st) {
+      AppLogger.error('fetchTasks unexpected error', e, st);
       return Error(
         NetworkFailure('Ошибка сети при загрузке задач из облака: $e'),
       );
@@ -97,8 +118,9 @@ class SupabaseTaskRemoteDataSource implements ITaskRemoteDataSource {
     required String accessToken,
   }) async {
     try {
-      final uri = Uri.parse('${AppConfig.supabaseUrl}/rest/v1/tasks');
-      final body = json.encode(task.toSupabaseMap(userId));
+      final uri = Uri.parse('$_supabaseUrl/rest/v1/tasks');
+      final model = TaskModel.fromEntity(task);
+      final body = json.encode(model.toSupabaseMap(userId));
       final response = await _http
           .post(
             uri,
@@ -114,20 +136,25 @@ class SupabaseTaskRemoteDataSource implements ITaskRemoteDataSource {
         final decoded = json.decode(response.body);
         if (decoded is List && decoded.isNotEmpty) {
           return Success(
-            Task.fromSupabaseMap(decoded.first as Map<String, dynamic>),
+            TaskModel.fromSupabaseMap(decoded.first as Map<String, dynamic>),
           );
         }
         return Success(task);
       }
 
-      return Error(
-        ServerFailure(_parseError(response.body, response.statusCode)),
-      );
-    } on TimeoutException {
+      final errorMsg = _parseError(response.body, response.statusCode);
+      AppLogger.warning('upsertTask server failure: $errorMsg');
+      return Error(ServerFailure(errorMsg));
+    } on TimeoutException catch (e, st) {
+      AppLogger.warning('upsertTask timeout', e, st);
       return const Error(
         NetworkFailure('Таймаут синхронизации задачи с облаком'),
       );
-    } catch (e) {
+    } on SocketException catch (e, st) {
+      AppLogger.warning('upsertTask socket exception', e, st);
+      return Error(NetworkFailure('Отсутствует подключение к сети: $e'));
+    } catch (e, st) {
+      AppLogger.error('upsertTask unexpected error', e, st);
       return Error(
         NetworkFailure('Ошибка сети при сохранении задачи в облако: $e'),
       );
@@ -142,9 +169,9 @@ class SupabaseTaskRemoteDataSource implements ITaskRemoteDataSource {
   }) async {
     if (tasks.isEmpty) return const Success(null);
     try {
-      final uri = Uri.parse('${AppConfig.supabaseUrl}/rest/v1/tasks');
+      final uri = Uri.parse('$_supabaseUrl/rest/v1/tasks');
       final body = json.encode(
-        tasks.map((t) => t.toSupabaseMap(userId)).toList(),
+        tasks.map((t) => TaskModel.fromEntity(t).toSupabaseMap(userId)).toList(),
       );
       final response = await _http
           .post(
@@ -161,12 +188,17 @@ class SupabaseTaskRemoteDataSource implements ITaskRemoteDataSource {
         return const Success(null);
       }
 
-      return Error(
-        ServerFailure(_parseError(response.body, response.statusCode)),
-      );
-    } on TimeoutException {
+      final errorMsg = _parseError(response.body, response.statusCode);
+      AppLogger.warning('upsertAllTasks server failure: $errorMsg');
+      return Error(ServerFailure(errorMsg));
+    } on TimeoutException catch (e, st) {
+      AppLogger.warning('upsertAllTasks timeout', e, st);
       return const Error(NetworkFailure('Таймаут выгрузки задач в облако'));
-    } catch (e) {
+    } on SocketException catch (e, st) {
+      AppLogger.warning('upsertAllTasks socket exception', e, st);
+      return Error(NetworkFailure('Отсутствует подключение к сети: $e'));
+    } catch (e, st) {
+      AppLogger.error('upsertAllTasks unexpected error', e, st);
       return Error(
         NetworkFailure('Ошибка сети при пакетной выгрузке задач: $e'),
       );
@@ -179,7 +211,7 @@ class SupabaseTaskRemoteDataSource implements ITaskRemoteDataSource {
     required String accessToken,
   }) async {
     try {
-      final uri = Uri.parse('${AppConfig.supabaseUrl}/rest/v1/tasks?id=eq.$id');
+      final uri = Uri.parse('$_supabaseUrl/rest/v1/tasks?id=eq.$id');
       final response = await _http
           .delete(uri, headers: _buildHeaders(accessToken))
           .timeout(const Duration(seconds: 15));
@@ -188,12 +220,17 @@ class SupabaseTaskRemoteDataSource implements ITaskRemoteDataSource {
         return const Success(null);
       }
 
-      return Error(
-        ServerFailure(_parseError(response.body, response.statusCode)),
-      );
-    } on TimeoutException {
+      final errorMsg = _parseError(response.body, response.statusCode);
+      AppLogger.warning('deleteTask server failure: $errorMsg');
+      return Error(ServerFailure(errorMsg));
+    } on TimeoutException catch (e, st) {
+      AppLogger.warning('deleteTask timeout', e, st);
       return const Error(NetworkFailure('Таймаут удаления задачи из облака'));
-    } catch (e) {
+    } on SocketException catch (e, st) {
+      AppLogger.warning('deleteTask socket exception', e, st);
+      return Error(NetworkFailure('Отсутствует подключение к сети: $e'));
+    } catch (e, st) {
+      AppLogger.error('deleteTask unexpected error', e, st);
       return Error(NetworkFailure('Ошибка сети при удалении задачи: $e'));
     }
   }
@@ -205,7 +242,7 @@ class SupabaseTaskRemoteDataSource implements ITaskRemoteDataSource {
   }) async {
     try {
       final uri = Uri.parse(
-        '${AppConfig.supabaseUrl}/rest/v1/tasks?user_id=eq.$userId&is_completed=eq.true',
+        '$_supabaseUrl/rest/v1/tasks?user_id=eq.$userId&is_completed=eq.true',
       );
       final response = await _http
           .delete(uri, headers: _buildHeaders(accessToken))
@@ -215,14 +252,19 @@ class SupabaseTaskRemoteDataSource implements ITaskRemoteDataSource {
         return const Success(null);
       }
 
-      return Error(
-        ServerFailure(_parseError(response.body, response.statusCode)),
-      );
-    } on TimeoutException {
+      final errorMsg = _parseError(response.body, response.statusCode);
+      AppLogger.warning('deleteCompletedTasks server failure: $errorMsg');
+      return Error(ServerFailure(errorMsg));
+    } on TimeoutException catch (e, st) {
+      AppLogger.warning('deleteCompletedTasks timeout', e, st);
       return const Error(
         NetworkFailure('Таймаут очистки выполненных задач в облаке'),
       );
-    } catch (e) {
+    } on SocketException catch (e, st) {
+      AppLogger.warning('deleteCompletedTasks socket exception', e, st);
+      return Error(NetworkFailure('Отсутствует подключение к сети: $e'));
+    } catch (e, st) {
+      AppLogger.error('deleteCompletedTasks unexpected error', e, st);
       return Error(
         NetworkFailure('Ошибка сети при очистке выполненных задач: $e'),
       );
@@ -234,7 +276,9 @@ class SupabaseTaskRemoteDataSource implements ITaskRemoteDataSource {
       final map = json.decode(body) as Map<String, dynamic>;
       final msg = map['message'] ?? map['details'] ?? map['hint'];
       if (msg is String && msg.isNotEmpty) return msg;
-    } catch (_) {}
+    } catch (e, st) {
+      AppLogger.debug('Failed to parse Supabase error response body: $e\n$st');
+    }
     return 'Ошибка сервера Supabase ($statusCode)';
   }
 }

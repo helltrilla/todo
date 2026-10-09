@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:todo/core/app_theme/app_colors.dart';
 import 'package:todo/core/haptics/app_haptics.dart';
+import 'package:todo/core/logging/app_logger.dart';
 import 'package:todo/core/notifications/notification_service.dart';
 import 'package:todo/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:todo/features/backup/presentation/widgets/export_backup_dialog.dart';
@@ -887,7 +888,8 @@ class _UserAvatarCircle extends StatelessWidget {
     if (raw == null || raw.isEmpty) return null;
     try {
       return base64Decode(raw);
-    } catch (_) {
+    } catch (e, st) {
+      AppLogger.warning('Failed to decode avatarBase64', e, st);
       return null;
     }
   }
@@ -985,7 +987,8 @@ class _ProfileSettingsSheetState extends State<_ProfileSettingsSheet> {
 
   Future<void> _pickPhoto() async {
     AppHaptics.selection();
-    final pickedBase64 = await NotificationService.instance.pickProfileImage();
+    final notifSvc = context.read<INotificationService>();
+    final pickedBase64 = await notifSvc.pickProfileImage();
     if (pickedBase64 != null && pickedBase64.isNotEmpty && mounted) {
       AppHaptics.medium();
       setState(() => _avatarBase64 = pickedBase64);
