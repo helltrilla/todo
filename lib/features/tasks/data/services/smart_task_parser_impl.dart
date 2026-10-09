@@ -120,10 +120,10 @@ Rules:
 1. "name": Convert raw thoughts, colloquial speech, or slang into a natural, spoken task title (e.g. "мне в шарагу через 3 часа и успеть похавать" -> "Пойти в шарагу", "надо сгонять в зал" -> "Сходить в зал", "надо сдать курсовую" -> "Сдать курсовую"). Do not leave raw streams of thought as the title.
 2. "description": Any additional context or remarks that were in the text (or empty string).
 3. "dueDateIso": Exact ISO-8601 timestamp string if date/time is mentioned (e.g. "2026-10-10T15:00:00"). If relative like "через 3 часа", calculate it from reference date & time. If no time or date mentioned, return null.
-4. "reminderOffsetMinutes": 15, 30, or null.
+4. "reminderOffsetMinutes": If user specifies reminder offset (e.g. "напомнить за час" -> 60, "за 30 минут" -> 30, "за 2 часа" -> 120, "за 10 минут" -> 10, "за день/сутки" -> 1440, "без напоминания" -> null), return that exact number of minutes. If not specified by user but dueDate is present, return 15. If no dueDate, return null.
 5. "priorityIndex": 0 for Urgent (P1 / 🔥), 1 for High (P2 / ⚡), 2 for Medium (P3 / 📌), 3 for Low (P4 / 🌿), or -1 if no priority specified. If user says "успеть", "до этого", "срочно", "не опоздать", set priority to 1 (High) or 0 (Urgent).
 6. "category": Pick the best matching category (e.g. "Учеба" for "шарага/пары/универ/колледж", "Спорт" for "качалка/зал/треня", "Покупки" for "похавать/магазин/продукты", "Здоровье", "Работа", "Дом", "Личное").
-7. "subtasks": An array of checklist items or sub-actions broken down from the prompt (e.g. "успеть похавать до этого" -> ["Похавать до этого"]).
+7. "subtasks": An array of checklist items or sub-actions broken down from the prompt (e.g. "успеть похавать до этого" -> ["Похавать до этого"]). Do NOT include reminder instructions (like "напомнить за час") as subtasks.
 
 Return ONLY a valid JSON object matching this schema.
 ''';

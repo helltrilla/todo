@@ -272,6 +272,71 @@ void main() {
         expect(draft.subtasks, containsAll(['Купить чипсы', 'Пиво']));
       },
     );
+
+    test(
+      'extracts explicit reminder offset in hours (напомнить за час, за 2 часа)',
+      () {
+        final draft1 = parser.parse(
+          'так мне ехать в шарагу через 3 часа еще надо похавать и помыться и напомнить за час',
+          referenceTime: fixedTime,
+        );
+
+        expect(draft1.reminderOffsetMinutes, 60);
+        expect(draft1.subtasks.length, 2);
+        expect(draft1.subtasks, containsAll(['Похавать', 'Помыться']));
+        expect(draft1.name, 'Ехать в шарагу');
+
+        final draft2 = parser.parse(
+          'созвон в пятницу в 19:00, за 2 часа напомни',
+          referenceTime: fixedTime,
+        );
+
+        expect(draft2.reminderOffsetMinutes, 120);
+        expect(draft2.name.toLowerCase(), contains('созвон'));
+      },
+    );
+
+    test(
+      'extracts reminder offset in minutes (напомнить за 30 минут, за полчаса)',
+      () {
+        final draft1 = parser.parse(
+          'завтра в 15:00 к стоматологу, напомнить за 30 минут',
+          referenceTime: fixedTime,
+        );
+
+        expect(draft1.reminderOffsetMinutes, 30);
+        expect(draft1.dueDate, DateTime(2026, 10, 10, 15, 0));
+
+        final draft2 = parser.parse(
+          'позвонить риелтору завтра в 12:00, напомни за полчаса',
+          referenceTime: fixedTime,
+        );
+
+        expect(draft2.reminderOffsetMinutes, 30);
+      },
+    );
+
+    test('respects explicit no-reminder instruction (без напоминания)', () {
+      final draft = parser.parse(
+        'завтра в 10:00 сдать курсач, без напоминания',
+        referenceTime: fixedTime,
+      );
+
+      expect(draft.reminderOffsetMinutes, null);
+      expect(draft.dueDate, DateTime(2026, 10, 10, 10, 0));
+    });
+
+    test(
+      'defaults to 15 minutes reminder when date is set without explicit reminder',
+      () {
+        final draft = parser.parse(
+          'завтра в 19:00 тренировка в зале',
+          referenceTime: fixedTime,
+        );
+
+        expect(draft.reminderOffsetMinutes, 15);
+      },
+    );
   });
 
   group('SmartTaskParserImpl Service', () {

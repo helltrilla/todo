@@ -27,9 +27,15 @@ class LocalNlpParser {
       now,
     );
 
+    // Stage 2.5: Extract Reminder Offset ("напомнить за час", "за 30 минут", etc.)
+    final (reminderOffsetMinutes, textWithoutReminder) = _extractReminder(
+      textWithoutDateTime,
+      dueDate != null,
+    );
+
     // Stage 3: Extract Inline / Trigger / Chained Subtasks
     final (inlineSubtasks, textWithoutSubtasks) = _extractInlineSubtasks(
-      textWithoutDateTime,
+      textWithoutReminder,
     );
     final allSubtasks = [...bulletSubtasks, ...inlineSubtasks];
 
@@ -56,7 +62,7 @@ class LocalNlpParser {
       name: name.isNotEmpty ? name : text,
       description: descriptions.join('. '),
       dueDate: dueDate,
-      reminderOffsetMinutes: dueDate != null ? 15 : null,
+      reminderOffsetMinutes: reminderOffsetMinutes,
       priorityIndex: priorityIndex,
       category: category,
       subtasks: allSubtasks,
@@ -300,6 +306,143 @@ class LocalNlpParser {
     }
 
     return (null, _cleanSpaces(working));
+  }
+
+  // ===========================================================================
+  // STAGE 2.5: REMINDER EXTRACTION
+  // ===========================================================================
+  (int?, String) _extractReminder(String text, bool hasDueDate) {
+    var working = text;
+
+    // 1. Explicit no-reminder: "без напоминания", "не напоминать", "без уведомлений"
+    final noReminderMatch = RegExp(
+      r'[,;]?\s*(?:(?:и|а)?\s*(?:мне\s+)?(?:не\s+надо\s+|не\s+нужно\s+|не\s+)?(?:напоминать|напоминай|напоминания|напоминаний|уведомлений|уведомления))|без\s+(?:напоминани[яй]|уведомлени[яй])',
+      caseSensitive: false,
+    ).firstMatch(working);
+    if (noReminderMatch != null) {
+      working = working.replaceFirst(noReminderMatch.group(0)!, ' ');
+      return (null, _cleanDanglingPunctuation(working));
+    }
+
+    // 2. Reminder with explicit offset:
+    // Pattern A: Trigger first, then duration:
+    // e.g. "мне надо напомнить за час", "напомни за 1 час до этого", "напоминалку за 30 минут"
+    final triggerFirstPattern = RegExp(
+      r'[,;]?\s*(?:(?:и|а|еще|ещё|также)\s+)?(?:мне\s+)?(?:надо\s+|нужно\s+|бы\s+)*(?:напомнить|напомни|напомни-ка|напоминалку|напоминалка|напоминание|уведомить|уведоми|оповестить|оповести|поставить\s+напоминалку|поставь\s+напоминалку|кинуть\s+напоминалку|сделать\s+напоминалку)\s+(?:за\s+)?([а-яА-ЯёЁ0-9\s]+?)(?:\s+до\s+(?:этого|начала))?(?=[,;]|\s+(?:и|а|еще|ещё)\s+|$)',
+      caseSensitive: false,
+    );
+
+    // Pattern B: Duration first, then trigger:
+    // e.g. "за час напомнить", "за 30 минут до этого напомни", "за 2 часа уведомить"
+    final durationFirstPattern = RegExp(
+      r'[,;]?\s*(?:(?:и|а|еще|ещё|также)\s+)?за\s+([а-яА-ЯёЁ0-9\s]+?)(?:\s+до\s+(?:этого|начала))?\s+(?:напомнить|напомни|напомни-ка|напоминалку|напоминалка|напоминание|уведомить|уведоми|оповестить|оповести)(?=[,;]|\s+(?:и|а|еще|ещё)\s+|$)',
+      caseSensitive: false,
+    );
+
+    // Pattern C: "с напоминанием за ..." / "напоминание за ..."
+    final withReminderPattern = RegExp(
+      r'[,;]?\s*(?:(?:и|а)\s+)?(?:с\s+напоминанием|напоминание|напоминалка|напоминалку)\s+за\s+([а-яА-ЯёЁ0-9\s]+?)(?:\s+до\s+(?:этого|начала))?(?=[,;]|\s+(?:и|а|еще|ещё)\s+|$)',
+      caseSensitive: false,
+    );
+
+    for (final pattern in [
+      triggerFirstPattern,
+      durationFirstPattern,
+      withReminderPattern,
+    ]) {
+      final match = pattern.firstMatch(working);
+      if (match != null && match.group(1) != null) {
+        final parsed = _parseReminderDurationMinutes(match.group(1)!);
+        if (parsed != null) {
+          working = working.replaceFirst(match.group(0)!, ' ');
+          return (parsed, _cleanDanglingPunctuation(working));
+        }
+      }
+    }
+
+    return (hasDueDate ? 15 : null, _cleanDanglingPunctuation(working));
+  }
+
+  int? _parseReminderDurationMinutes(String raw) {
+    final s = raw.trim().toLowerCase();
+    if (s.isEmpty) return null;
+
+    if (s == 'час' ||
+        s == '1 час' ||
+        s == 'один час' ||
+        s == 'часик' ||
+        s == '1 ч' ||
+        s == '1ч') {
+      return 60;
+    }
+    if (s == '2 часа' ||
+        s == 'два часа' ||
+        s == 'пару часов' ||
+        s == '2 ч' ||
+        s == '2ч') {
+      return 120;
+    }
+    if (s == '3 часа' || s == 'три часа' || s == '3 ч' || s == '3ч') {
+      return 180;
+    }
+    if (s == 'полчаса' ||
+        s == 'пол часа' ||
+        s == 'пол-часа' ||
+        s == '30 минут' ||
+        s == '30 мин' ||
+        s == 'тридцать минут') {
+      return 30;
+    }
+    if (s == '15 минут' || s == '15 мин' || s == 'пятнадцать минут') {
+      return 15;
+    }
+    if (s == '10 минут' || s == '10 мин' || s == 'десять минут') {
+      return 10;
+    }
+    if (s == '5 минут' || s == '5 мин' || s == 'пять минут') {
+      return 5;
+    }
+    if (s == '20 минут' || s == '20 мин' || s == 'двадцать минут') {
+      return 20;
+    }
+    if (s == '45 минут' || s == '45 мин' || s == 'сорок пять минут') {
+      return 45;
+    }
+    if (s == 'день' ||
+        s == '1 день' ||
+        s == 'один день' ||
+        s == 'сутки' ||
+        s == '1 сутки' ||
+        s == '24 часа') {
+      return 1440;
+    }
+    if (s == '2 дня' || s == 'два дня' || s == 'двое суток') {
+      return 2880;
+    }
+
+    final hoursMatch = RegExp(r'^(\d+)\s*(?:час[аов]?|ч)$').firstMatch(s);
+    if (hoursMatch != null) {
+      return (int.tryParse(hoursMatch.group(1)!) ?? 1) * 60;
+    }
+
+    final minsMatch = RegExp(r'^(\d+)\s*мин(?:ут[а-я]*)?$').firstMatch(s);
+    if (minsMatch != null) {
+      return int.tryParse(minsMatch.group(1)!);
+    }
+
+    if (s.contains('момент') || s.contains('вовремя')) {
+      return 0;
+    }
+
+    return null;
+  }
+
+  String _cleanDanglingPunctuation(String text) {
+    var s = text.trim();
+    s = s.replaceAll(RegExp(r'\s*,\s*,'), ',');
+    s = s.replaceAll(RegExp(r'^[\s,;]+'), '');
+    s = s.replaceAll(RegExp(r'[\s,;]+$'), '');
+    return _cleanSpaces(s);
   }
 
   // ===========================================================================
