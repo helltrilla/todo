@@ -78,6 +78,17 @@ class MainActivity : FlutterActivity() {
 
         val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName)
         methodChannel = channel
+
+        val widgetChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.helltrilla.todoapp/widgets")
+        widgetChannel.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "syncWidgetData" -> result.success(true)
+                "getPendingToggledTaskIds" -> result.success(emptyList<Int>())
+                "clearPendingToggledTaskIds" -> result.success(true)
+                else -> result.notImplemented()
+            }
+        }
+
         channel.setMethodCallHandler { call, result ->
             when (call.method) {
                 "consumeInitialQuickAction" -> {

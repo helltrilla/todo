@@ -40,6 +40,11 @@ import 'package:todo/features/voice/domain/usecases/process_voice_task_use_case.
 import 'package:todo/features/voice/domain/usecases/start_listening_use_case.dart';
 import 'package:todo/features/voice/domain/usecases/stop_listening_use_case.dart';
 import 'package:todo/features/voice/presentation/controllers/voice_task_controller.dart';
+import 'package:todo/features/widgets/data/datasources/widget_native_data_source.dart';
+import 'package:todo/features/widgets/data/repositories/widget_sync_repository_impl.dart';
+import 'package:todo/features/widgets/domain/usecases/process_widget_toggles_use_case.dart';
+import 'package:todo/features/widgets/domain/usecases/sync_widget_snapshot_use_case.dart';
+import 'package:todo/features/widgets/presentation/controllers/widget_sync_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -70,6 +75,7 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
   late final AmbientAudioController _ambientAudioController;
   late final ProductivityController _productivityController;
   late final BackupController _backupController;
+  late final WidgetSyncController _widgetSyncController;
   late final GoRouter _router;
 
   @override
@@ -133,13 +139,44 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
       shareUseCase: ShareBackupUseCase(backupRepo),
     );
 
+    // Widget sync clean architecture wiring:
+    final widgetDataSource = WidgetNativeDataSource();
+    final widgetRepo = WidgetSyncRepositoryImpl(dataSource: widgetDataSource);
+    _widgetSyncController = WidgetSyncController(
+      syncUseCase: SyncWidgetSnapshotUseCase(widgetRepo),
+      processTogglesUseCase: ProcessWidgetTogglesUseCase(widgetRepo),
+    );
+
     _authController = AuthController(authRepo);
     _taskController = TaskController(taskRepo);
     _router = AppRouter.createRouter(_authController);
 
+    _widgetSyncController.onExternalToggleHandler = (taskId) async {
+      await _taskController.toggleCompleted(taskId);
+    };
+
+    // Auto-sync widget snapshot whenever tasks list updates:
+    _taskController.addListener(() {
+      _widgetSyncController.syncFromTasks(tasks: _taskController.tasks);
+    });
+
+    // Check for any toggles made from interactive widget while app was closed:
+    _widgetSyncController.processPendingToggles(
+      onToggle: _taskController.toggleCompleted,
+    );
+
     _themeController.updateSystemBrightness(
       WidgetsBinding.instance.platformDispatcher.platformBrightness,
     );
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _widgetSyncController.processPendingToggles(
+        onToggle: _taskController.toggleCompleted,
+      );
+    }
   }
 
   @override
@@ -153,6 +190,7 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _router.dispose();
+    _widgetSyncController.dispose();
     _backupController.dispose();
     _productivityController.dispose();
     _ambientAudioController.dispose();
@@ -185,6 +223,9 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
         ),
         ChangeNotifierProvider<BackupController>.value(
           value: _backupController,
+        ),
+        ChangeNotifierProvider<WidgetSyncController>.value(
+          value: _widgetSyncController,
         ),
         Provider<ISmartTaskParser>.value(value: _smartTaskParser),
       ],

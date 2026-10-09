@@ -3,11 +3,15 @@ import Flutter
 import MediaPlayer
 import UIKit
 import UserNotifications
+#if canImport(WidgetKit)
+import WidgetKit
+#endif
 
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
   static weak var shared: AppDelegate?
   private var notificationChannel: FlutterMethodChannel?
+  private var widgetChannel: FlutterMethodChannel?
   private var pendingQuickAction: String?
   private var isFlutterReadyForQuickActions = false
   private var pendingImageResult: FlutterResult?
@@ -79,6 +83,15 @@ import UserNotifications
       self?.handleNotificationCall(call: call, result: result)
     }
     self.notificationChannel = channel
+
+    let widgetChan = FlutterMethodChannel(
+      name: "com.helltrilla.todoapp/widgets",
+      binaryMessenger: messenger
+    )
+    widgetChan.setMethodCallHandler { [weak self] call, result in
+      self?.handleWidgetCall(call: call, result: result)
+    }
+    self.widgetChannel = widgetChan
   }
 
   func handleQuickAction(_ shortcutItem: UIApplicationShortcutItem) {
@@ -311,6 +324,65 @@ import UserNotifications
     default:
       result(FlutterMethodNotImplemented)
     }
+  }
+
+  private let appGroupIdentifier = "group.com.helltrilla.todoapp"
+
+  func dispatchWidgetTaskToggled(_ taskId: Int) {
+    widgetChannel?.invokeMethod("onWidgetTaskToggled", arguments: taskId)
+  }
+
+  private func handleWidgetCall(call: FlutterMethodCall, result: @escaping FlutterResult) {
+    let defaults = UserDefaults(suiteName: appGroupIdentifier) ?? UserDefaults.standard
+
+    switch call.method {
+    case "syncWidgetData":
+      guard let payload = call.arguments as? [String: Any] else {
+        result(FlutterError(code: "INVALID_ARGS", message: "Missing widget payload", details: nil))
+        return
+      }
+
+      if let jsonData = try? JSONSerialization.data(withJSONObject: payload, options: []) {
+        defaults.set(jsonData, forKey: "widget_snapshot_data")
+        defaults.synchronize()
+      }
+
+      if #available(iOS 14.0, *) {
+        #if canImport(WidgetKit)
+        WidgetCenter.shared.reloadAllTimelines()
+        #endif
+      }
+      result(true)
+
+    case "getPendingToggledTaskIds":
+      let pending = defaults.array(forKey: "widget_pending_toggled_ids") as? [Int] ?? []
+      result(pending)
+
+    case "clearPendingToggledTaskIds":
+      defaults.removeObject(forKey: "widget_pending_toggled_ids")
+      defaults.synchronize()
+      result(true)
+
+    default:
+      result(FlutterMethodNotImplemented)
+    }
+  }
+
+  override func application(
+    _ app: UIApplication,
+    open url: URL,
+    options: [UIApplication.OpenURLOptionsKey: Any] = [:]
+  ) -> Bool {
+    if url.scheme == "todoapp" {
+      if url.host == "toggle", let components = URLComponents(url: url, resolvingAgainstBaseURL: false) {
+        if let idString = components.queryItems?.first(where: { $0.name == "id" })?.value,
+           let taskId = Int(idString) {
+          dispatchWidgetTaskToggled(taskId)
+          return true
+        }
+      }
+    }
+    return super.application(app, open: url, options: options)
   }
 
   private var hiddenVolumeView: MPVolumeView?
@@ -828,5 +900,17 @@ import UserNotifications
   ) {
     AppDelegate.shared?.handleQuickAction(shortcutItem)
     completionHandler(true)
+  }
+
+  override func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
+    guard let url = URLContexts.first?.url else { return }
+    if url.scheme == "todoapp" {
+      if url.host == "toggle", let components = URLComponents(url: url, resolvingAgainstBaseURL: false) {
+        if let idString = components.queryItems?.first(where: { $0.name == "id" })?.value,
+           let taskId = Int(idString) {
+          AppDelegate.shared?.dispatchWidgetTaskToggled(taskId)
+        }
+      }
+    }
   }
 }
