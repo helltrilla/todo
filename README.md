@@ -2,8 +2,8 @@
   <img src="assets/screenshots/app_icon.png" alt="TodoApp Logo" width="110" height="110" style="border-radius: 24px;" />
   <h1>TodoApp</h1>
   <p>
-    <strong>Современный менеджер задач с категориями, подзадачами, таймером фокуса, звуковой студией, темами, локализацией и авторизацией через Supabase OTP</strong><br/>
-    <em>A modern Flutter task manager featuring custom categories, checklists, Pomodoro focus timer, ambient audio studio, themes, 5-language localization, and Supabase Email OTP auth</em>
+    <strong>Современный менеджер задач с категориями, подзадачами, таймером фокуса, звуковой студией, темами, локализацией, авторизацией Supabase OTP и офлайн-first облачной синхронизацией</strong><br/>
+    <em>A modern Flutter task manager featuring custom categories, checklists, Pomodoro focus timer, ambient audio studio, themes, 5-language localization, Supabase Email OTP auth, and offline-first cloud sync</em>
   </p>
 
   <p>
@@ -15,6 +15,7 @@
   <p>
     <img src="https://img.shields.io/badge/Flutter-3.x-02569B?logo=flutter&logoColor=white" alt="Flutter" />
     <img src="https://img.shields.io/badge/Dart-3.11+-0175C2?logo=dart&logoColor=white" alt="Dart" />
+    <img src="https://img.shields.io/badge/Sync-Offline--First_Supabase-3ECF8E?logo=supabase&logoColor=white" alt="Supabase Sync" />
     <img src="https://img.shields.io/badge/Languages-5_Locales-FF6F00" alt="Localization" />
     <img src="https://img.shields.io/badge/Themes-Dark_|_Light_|_Midnight-9C27B0" alt="Themes" />
     <img src="https://img.shields.io/badge/Supabase-OTP_Auth-3ECF8E?logo=supabase&logoColor=white" alt="Supabase" />
@@ -65,11 +66,19 @@
 
 **TodoApp** — это кроссплатформенное приложение для управления задачами и личной продуктивностью на **Flutter**, разработанное в современной эстетике (по мотивам дизайн-системы *Listodo UI Kit*) и построенное по принципам **Feature-First Clean Architecture**.
 
-Приложение объединяет продвинутый планировщик задач с подзадачами, настраиваемые категории с иконками и палитрами, iOS-календарь с барабанами точного выбора времени, Pomodoro-таймер с аппаратными генераторами атмосферных шумов и музыкальным плейлист-хабом, 4 темы оформления (включая глубокую AMOLED Midnight), локализацию на 5 языков и двухрежимную авторизацию (облачный вход через **Supabase Email OTP** или автономный локальный аккаунт).
+Приложение объединяет продвинутый планировщик задач с подзадачами, настраиваемые категории с иконками и палитрами, iOS-календарь с барабанами точного выбора времени, Pomodoro-таймер с аппаратными генераторами атмосферных шумов и музыкальным плейлист-хабом, 4 темы оформления (включая глубокую AMOLED Midnight), локализацию на 5 языков, двухрежимную авторизацию (облачный вход через **Supabase Email OTP** или автономный локальный аккаунт) и офлайн-first облачную синхронизацию задач.
 
 ---
 
 ### ✨ Ключевые возможности
+
+- **☁️ Двусторонняя облачная синхронизация (Supabase Cloud Sync / Offline-First)**:
+  - **Offline-First архитектура**: все операции с задачами (создание, редактирование, отметка, удаление) выполняются в локальном кэше мгновенно с нулевой задержкой интерфейса.
+  - **Фоновая двусторонняя синхронизация**: автоматическая синхронизация с удаленной таблицей `tasks` в Supabase PostgREST при загрузке приложения или через **Pull-to-refresh** (потяните список задач вниз).
+  - **Разрешение конфликтов Last-Write-Wins (LWW)**: слияние локальных и облачных изменений на основе миллисекундных таймстемпов `updatedAt`.
+  - **Строгая изоляция данных (Row Level Security / RLS)**: каждый пользователь видит и редактирует только свои задачи благодаря политикам безопасности PostgreSQL (`auth.uid() = user_id`).
+  - **Интерактивный статус синхронизации**: специальная карточка в Настройках с бейджем состояния (*Синхронизировано / В процессе / Офлайн*), временем последней синхронизации и кнопкой принудительного обновления «Синхронизировать сейчас».
+  - **Плавный переход**: локальные офлайн-аккаунты продолжают работать автономно без сетевых ошибок.
 
 - **🌐 Мультиязычная локализация (5 языков)**:
   - Полная поддержка 5 языков интерфейса: **🇷🇺 Русский**, **🇬🇧 English**, **🇩🇪 Deutsch**, **🇫🇷 Français** и **🇷🇸 Српски**.
@@ -146,9 +155,12 @@ lib/
 │   │   └── presentation/ # AuthController, Onboarding, Welcome, EmailOtp, InternalAuth, SettingsScreen
 │   └── tasks/            # Модуль задач, категорий, календаря, таймера и аудиостудии фокуса
 │       ├── domain/       # Модели Task, SubTask, PriorityLevel, TaskCategoryStyle, ITaskRepository
-│       ├── data/         # TaskLocalRepository (локальная персистентность JSON)
+│       ├── data/         # TaskLocalRepository, TaskRemoteDataSource, TaskSyncRepository (Offline-First)
 │       └── presentation/ # TaskController, HomeScreen, CalendarTabView, FocusTabView, ProfileTabView
-└── main.dart             # Точка входа, регистрация делегатов локализации и ChangeNotifierProvider
+├── main.dart             # Точка входа, регистрация делегатов локализации и ChangeNotifierProvider
+supabase/
+├── schema.sql            # DDL скрипт PostgreSQL с таблицей tasks, индексами и RLS политиками
+└── README.md             # Инструкция по развертыванию схемы в Supabase Dashboard
 ```
 
 | Категория | Технологии |
@@ -159,6 +171,7 @@ lib/
 | **Локализация** | `flutter_localizations` (5 языков: ru, en, de, fr, sr) |
 | **Темы оформления** | `ThemeData` (Dark, Light, Midnight AMOLED `#000000`, System) |
 | **Бэкенд и авторизация** | Supabase Auth REST API (`http`) + Local Auth |
+| **Облачная синхронизация**| Supabase PostgREST, Row Level Security (RLS), Offline-First LWW |
 | **Локальное хранилище** | `shared_preferences` |
 | **Тактильный отклик** | `AppHaptics` (`HapticFeedback`) |
 | **Тестирование** | `flutter_test`, `mocktail` |
@@ -178,7 +191,12 @@ lib/
    flutter pub get
    ```
 
-3. **Запустите приложение:**
+3. **Настройте базу данных Supabase (для облачной синхронизации):**
+   - Откройте проект в консоли [Supabase Dashboard](https://supabase.com/dashboard) -> **SQL Editor**.
+   - Скопируйте и выполните скрипт [`supabase/schema.sql`](supabase/schema.sql) (создает таблицу `tasks`, индексы и политики RLS).
+   - Подробнее в руководстве [`supabase/README.md`](supabase/README.md).
+
+4. **Запустите приложение:**
    ```bash
    flutter run
    ```
@@ -189,7 +207,7 @@ lib/
    >   --dart-define=SUPABASE_ANON_KEY=your-anon-key
    > ```
 
-4. **Проверка анализатора и тесты:**
+5. **Проверка анализатора и тесты:**
    ```bash
    flutter analyze --fatal-infos
    flutter test --coverage
@@ -203,11 +221,19 @@ lib/
 
 **TodoApp** is a modern cross-platform productivity and task management app engineered with **Flutter**, crafted around the aesthetic *Listodo UI Kit* design language and built upon **Feature-First Clean Architecture**.
 
-It pairs structured checklists and subtasks, customizable categories with vibrant palettes and icons, an iOS-style scroll-wheel date & time picker, a daily calendar strip, a Pomodoro focus timer with built-in procedural ambient noise generators and custom playlist hubs, 4 theme modes (including AMOLED Midnight), instant localization in 5 languages, and dual-mode authentication (cloud-verified **Supabase Email OTP** or offline local credentials).
+It pairs structured checklists and subtasks, customizable categories with vibrant palettes and icons, an iOS-style scroll-wheel date & time picker, a daily calendar strip, a Pomodoro focus timer with built-in procedural ambient noise generators and custom playlist hubs, 4 theme modes (including AMOLED Midnight), instant localization in 5 languages, dual-mode authentication (cloud-verified **Supabase Email OTP** or offline local credentials), and offline-first cloud task synchronization.
 
 ---
 
 ### ✨ Key Features
+
+- **☁️ Two-Way Offline-First Cloud Sync (Supabase PostgREST)**:
+  - **Zero-Latency Local Execution**: All mutations (create, edit, toggle, delete) take effect locally without UI blocking or waiting for network round-trips.
+  - **Automatic Background Synchronization**: Synchronizes with the remote `tasks` table on app launch, on demand via **Pull-to-Refresh** on the task list, or from Settings.
+  - **Last-Write-Wins (LWW) Conflict Resolution**: Deterministic reconciliation between device and cloud models based on millisecond `updatedAt` timestamps.
+  - **Row Level Security (RLS)**: Strict PostgreSQL security policies isolate data so users only access tasks where `auth.uid() = user_id`.
+  - **Interactive Sync Status Card**: Dedicated settings panel providing real-time sync indicators (*Synced / In Progress / Offline*), last sync timestamp, and manual "Sync Now" trigger.
+  - **Graceful Local Fallback**: Unauthenticated or local offline accounts continue to function without network error banners.
 
 - **🌐 Multi-Language Localization (5 Locales)**:
   - First-class support for **🇷🇺 Russian**, **🇬🇧 English**, **🇩🇪 German**, **🇫🇷 French**, and **🇷🇸 Serbian**.
@@ -276,12 +302,17 @@ It pairs structured checklists and subtasks, customizable categories with vibran
    flutter pub get
    ```
 
-3. **Run the app:**
+3. **Configure Supabase Database (for Cloud Sync):**
+   - In your [Supabase Dashboard](https://supabase.com/dashboard), open the **SQL Editor**.
+   - Paste and run the [`supabase/schema.sql`](supabase/schema.sql) script to provision the `tasks` table and RLS policies.
+   - For full details, see [`supabase/README.md`](supabase/README.md).
+
+4. **Run the app:**
    ```bash
    flutter run
    ```
 
-4. **Run static analysis and tests:**
+5. **Run static analysis and tests:**
    ```bash
    flutter analyze --fatal-infos
    flutter test --coverage
