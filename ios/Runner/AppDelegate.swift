@@ -802,7 +802,7 @@ import WidgetKit
   private func notifyFlutterAmbientChange() {
     DispatchQueue.main.async { [weak self] in
       guard let self = self else { return }
-      self.notificationChannel?.invokeMethod("onAmbientSoundChanged", [
+      self.notificationChannel?.invokeMethod("onAmbientSoundChanged", arguments: [
         "sound": self.currentAmbientSound,
         "volume": Double(self.ambientVolume),
         "isPlaying": (self.audioEngine?.isRunning ?? false) && self.currentAmbientSound != "off"
